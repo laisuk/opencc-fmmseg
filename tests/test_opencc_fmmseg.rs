@@ -1,8 +1,11 @@
 use opencc_fmmseg::OpenCC;
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
     use opencc_fmmseg::{format_thousand, zho_check};
+
     use super::*;
 
     #[test]
@@ -89,11 +92,12 @@ mod tests {
         let input = "你好，世界！龙马精神！";
         let expected_output = "你好，世界！龍馬精神！".to_string();
         let opencc = OpenCC::new();
-        let actual_output = OpenCC::segment_replace(input, &[opencc.dictionary.st_characters]).join("");
+        let actual_output = OpenCC::segment_replace(input, &[&opencc.dictionary.st_characters]).join("");
         assert_eq!(actual_output, expected_output);
     }
+
     #[test]
-    fn segment_replace_2_test_2() {
+    fn segment_replace_test_2() {
         let input = "你好，世界！龙马精神，富贵荣华！";
         let expected_output = "你好，世界！龍馬精神，富貴榮華！".to_string();
         let opencc = OpenCC::new();
@@ -101,17 +105,17 @@ mod tests {
         combined_dict.extend(opencc.dictionary.st_phrases);
         combined_dict.extend(opencc.dictionary.st_characters);
 
-        let actual_output = OpenCC::segment_replace(input, &[combined_dict]).join("");
-        assert_eq!(actual_output, expected_output);
-    }
-    #[test]
-    fn segment_replace_test_2() {
-        let input = "你好，世界！龙马精神，富贵荣华！";
-        let expected_output = "你好，世界！龍馬精神，富貴榮華！".to_string();
-        let opencc = OpenCC::new();
-        let dict_refs = [opencc.dictionary.st_phrases, opencc.dictionary.st_characters];
-        let actual_output = OpenCC::segment_replace(input, &dict_refs).join("");
+        let actual_output = OpenCC::segment_replace(input, &[&combined_dict]).join("");
         assert_eq!(actual_output, expected_output);
     }
 
+    #[test]
+    fn segment_replace_test_3() {
+        let input = "你好，世界！龙马精神，富贵荣华！";
+        let expected_output = "你好，世界！龍馬精神，富貴榮華！".to_string();
+        let opencc = OpenCC::new();
+        let dict_refs = [&opencc.dictionary.st_phrases, &opencc.dictionary.st_characters];
+        let actual_output = OpenCC::segment_replace(input, &dict_refs).join("");
+        assert_eq!(actual_output, expected_output);
+    }
 }
