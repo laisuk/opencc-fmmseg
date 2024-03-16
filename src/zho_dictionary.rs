@@ -78,6 +78,16 @@ impl Dictionary {
     }
 
     #[allow(dead_code)]
+    /// Load a dictionary from a file
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - The path to the file containing the dictionary
+    ///
+    /// # Returns
+    ///
+    /// A `HashMap` containing the phrases and their translations
+    ///
     fn load_dictionary_from_path<P>(filename: P) -> io::Result<HashMap<String, String>>
     where
         P: AsRef<Path>,

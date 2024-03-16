@@ -17,43 +17,99 @@ impl OpenCC {
         OpenCC { dictionary }
     }
 
+    /// Segments the input text using the given dictionaries, and replaces each segment with the
+    /// corresponding value in the dictionaries.
+    ///
+    /// # Parameters
+    ///
+    /// * `text` - The input text to be segmented.
+    /// * `dictionaries` - A slice of dictionaries, where each dictionary maps a segment to its
+    /// replacement value.
+    ///
+    /// # Returns
+    ///
+    /// A vector of strings, where each string represents the replacement value for a segment in the
+    /// input text.
     pub fn segment_replace(text: &str, dictionaries: &[&HashMap<String, String>]) -> Vec<String> {
+        let mut test_dictionary = HashMap::new();
+        for i in 0..dictionaries.len() {
+            test_dictionary.extend(dictionaries[i]);
+        }
+        let max_word_length = test_dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
+
+        let split_string_list = Self::split_string_with_delimiters(text);
+        // Translate each chunk and reconstruct the new Vec<(String, char)>
+        let translated_split_string_list: Vec<String> = split_string_list
+            .into_iter()
+            .map(|(chunk, delimiter)| format!("{}{}", Self::convert_by(&chunk, &test_dictionary, max_word_length).join(""), delimiter))
+            .collect();
+
+        translated_split_string_list
+    }
+
+    pub fn segment_replace_2(text: &str, dictionaries: &[&HashMap<String, String>]) -> Vec<String> {
+        let mut test_dictionary = HashMap::new();
+        for i in 0..dictionaries.len() {
+            test_dictionary.extend(dictionaries[i]);
+        }
+        let max_word_length = test_dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
+
+        Self::convert_by(text, &test_dictionary, max_word_length)
+    }
+
+    fn convert_by(text: &str, dictionary: &HashMap<&String, &String>, max_word_length: usize) -> Vec<String> {
         let mut result = Vec::new();
-        let mut text_chars: Vec<_> = text.chars().collect();
+        let text_chars: Vec<_> = text.chars().collect();
         let text_length = text_chars.len();
+        // let max_word_length = dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
 
-        for dictionary in dictionaries {
-            result.clear()
-            ;
-            let max_word_length = dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
+        let mut start_pos = 0;
+        while start_pos < text_length {
+            let max_length = std::cmp::min(max_word_length, text_length - start_pos);
+            let mut best_match_length = 0;
+            let mut best_match = String::new();
 
-            let mut start_pos = 0;
-            while start_pos < text_length {
-                let max_length = std::cmp::min(max_word_length, text_length - start_pos);
-                let mut best_match_length = 0;
-                let mut best_match = String::new();
-
-                for length in 1..=max_length {
-                    let candidate: String = text_chars[start_pos..(start_pos + length)].iter().collect();
-                    if let Some(value) = dictionary.get(&candidate) {
-                        best_match_length = length;
-                        best_match = value.clone(); // Push the corresponding value to the results
-                    }
+            for length in 1..=max_length {
+                let candidate: String = text_chars[start_pos..(start_pos + length)].iter().collect();
+                if let Some(value) = dictionary.get(&candidate) {
+                    best_match_length = length;
+                    best_match = value.to_string(); // Push the corresponding value to the results
                 }
-
-                if best_match_length == 0 {
-                    // If no match found, treat the character as a single word
-                    best_match_length = 1;
-                    best_match = text_chars[start_pos].to_string();
-                }
-
-                result.push(best_match.clone());
-                start_pos += best_match_length;
             }
-            text_chars = result.join("").chars().collect();
+
+            if best_match_length == 0 {
+                // If no match found, treat the character as a single word
+                best_match_length = 1;
+                best_match = text_chars[start_pos].to_string();
+            }
+
+            result.push(best_match);
+            start_pos += best_match_length;
+        }
+        result
+    }
+
+    fn split_string_with_delimiters(text: &str) -> Vec<(String, char)> {
+        let delimiters: Vec<char> = "() -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼".chars().collect();
+        let mut split_string_list = Vec::new();
+        let mut current_chunk = String::new();
+        let mut current_delimiter = '\0'; // Default delimiter
+
+        for c in text.chars() {
+            if delimiters.contains(&c) {
+                current_delimiter = c;
+                split_string_list.push((current_chunk.clone(), current_delimiter));
+                current_delimiter = '\0';
+                current_chunk.clear();
+            } else {
+                current_chunk.push(c);
+            }
         }
 
-        result
+        if !current_chunk.is_empty() {
+            split_string_list.push((current_chunk, current_delimiter));
+        }
+        split_string_list
     }
 
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
