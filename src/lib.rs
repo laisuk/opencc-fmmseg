@@ -30,7 +30,7 @@ impl OpenCC {
     ///
     /// A vector of strings, where each string represents the replacement value for a segment in the
     /// input text.
-    pub fn segment_replace(text: &str, dictionaries: &[&HashMap<String, String>]) -> Vec<String> {
+    pub fn segment_replace(text: &str, dictionaries: &[&HashMap<String, String>]) -> String {
         let mut test_dictionary = HashMap::new();
         for i in 0..dictionaries.len() {
             test_dictionary.extend(dictionaries[i]);
@@ -39,22 +39,23 @@ impl OpenCC {
 
         let split_string_list = Self::split_string_with_delimiters(text);
         // Translate each chunk and reconstruct the new Vec<(String, char)>
-        let translated_split_string_list: Vec<String> = split_string_list
+        let translated_split_string: String = split_string_list
             .into_iter()
             .map(|(chunk, delimiter)| format!("{}{}", Self::convert_by(&chunk, &test_dictionary, max_word_length).join(""), delimiter))
-            .collect();
+            .collect::<Vec<_>>()
+            .join("");
 
-        translated_split_string_list
+        translated_split_string
     }
 
-    pub fn segment_replace_2(text: &str, dictionaries: &[&HashMap<String, String>]) -> Vec<String> {
+    pub fn segment_replace_no_split(text: &str, dictionaries: &[&HashMap<String, String>]) -> String {
         let mut test_dictionary = HashMap::new();
         for i in 0..dictionaries.len() {
             test_dictionary.extend(dictionaries[i]);
         }
         let max_word_length = test_dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
 
-        Self::convert_by(text, &test_dictionary, max_word_length)
+        Self::convert_by(text, &test_dictionary, max_word_length).join("")
     }
 
     fn convert_by(text: &str, dictionary: &HashMap<&String, &String>, max_word_length: usize) -> Vec<String> {
@@ -90,7 +91,7 @@ impl OpenCC {
     }
 
     fn split_string_with_delimiters(text: &str) -> Vec<(String, char)> {
-        let delimiters: Vec<char> = "() -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼".chars().collect();
+        let delimiters: Vec<char> = "(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼".chars().collect();
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
         let mut current_delimiter = '\0'; // Default delimiter
@@ -119,9 +120,9 @@ impl OpenCC {
         ];
         let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
-            convert_punctuation(output.join("").as_str(), "s")
+            convert_punctuation(&output, "s")
         } else {
-            output.join("")
+            output
         }
     }
 
@@ -132,9 +133,9 @@ impl OpenCC {
         ];
         let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
-            convert_punctuation(output.join("").as_str(), "t")
+            convert_punctuation(&output, "t")
         } else {
-            output.join("")
+            output
         }
     }
 
@@ -147,11 +148,11 @@ impl OpenCC {
             &self.dictionary.tw_variants
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            convert_punctuation(output_2.join("").as_str(), "s")
+            convert_punctuation(&output_2, "s")
         } else {
-            output_2.join("")
+            output_2
         }
     }
 
@@ -165,11 +166,11 @@ impl OpenCC {
             &self.dictionary.ts_characters
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            convert_punctuation(output_2.join("").as_str(), "t")
+            convert_punctuation(&output_2, "t")
         } else {
-            output_2.join("")
+            output_2
         }
     }
 
@@ -185,12 +186,12 @@ impl OpenCC {
             &self.dictionary.tw_variants
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
-        let output_3 = Self::segment_replace(output_2.join("").as_str(), &dict_refs_round_3);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
+        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3);
         if punctuation {
-            convert_punctuation(output_3.join("").as_str(), "s")
+            convert_punctuation(&output_3, "s")
         } else {
-            output_3.join("")
+            output_3
         }
     }
 
@@ -207,12 +208,12 @@ impl OpenCC {
             &self.dictionary.ts_characters
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
-        let output_3 = Self::segment_replace(output_2.join("").as_str(), &dict_refs_round_3);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
+        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3);
         if punctuation {
-            convert_punctuation(output_3.join("").as_str(), "t")
+            convert_punctuation(&output_3, "t")
         } else {
-            output_3.join("")
+            output_3
         }
     }
 
@@ -225,11 +226,11 @@ impl OpenCC {
             &self.dictionary.hk_variants
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            convert_punctuation(output_2.join("").as_str(), "s")
+            convert_punctuation(&output_2, "s")
         } else {
-            output_2.join("")
+            output_2
         }
     }
 
@@ -243,11 +244,11 @@ impl OpenCC {
             &self.dictionary.ts_characters
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            convert_punctuation(output_2.join("").as_str(), "t")
+            convert_punctuation(&output_2, "t")
         } else {
-            output_2.join("")
+            output_2
         }
     }
 
@@ -257,9 +258,9 @@ impl OpenCC {
         ];
         let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
-            convert_punctuation(output.join("").as_str(), "s")
+            convert_punctuation(&output, "s")
         } else {
-            output.join("")
+            output
         }
     }
 
@@ -271,11 +272,11 @@ impl OpenCC {
             &self.dictionary.tw_variants
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            convert_punctuation(output_2.join("").as_str(), "s")
+            convert_punctuation(&output_2, "s")
         } else {
-            output_2.join("")
+            output_2
         }
     }
 
@@ -286,9 +287,9 @@ impl OpenCC {
         ];
         let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
-            convert_punctuation(output.join("").as_str(), "s")
+            convert_punctuation(&output, "s")
         } else {
-            output.join("")
+            output
         }
     }
 
@@ -301,11 +302,11 @@ impl OpenCC {
             &self.dictionary.tw_phrases_rev
         ];
         let output = Self::segment_replace(input, &dict_refs);
-        let output_2 = Self::segment_replace(output.join("").as_str(), &dict_refs_round_2);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            convert_punctuation(output_2.join("").as_str(), "s")
+            convert_punctuation(&output_2, "s")
         } else {
-            output_2.join("")
+            output_2
         }
     }
 
@@ -315,9 +316,9 @@ impl OpenCC {
         ];
         let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
-            convert_punctuation(output.join("").as_str(), "s")
+            convert_punctuation(&output, "s")
         } else {
-            output.join("")
+            output
         }
     }
 
@@ -328,10 +329,30 @@ impl OpenCC {
         ];
         let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
-            convert_punctuation(output.join("").as_str(), "s")
+            convert_punctuation(&output, "s")
         } else {
-            output.join("")
+            output
         }
+    }
+
+    pub fn t2jp(&self, input: &str) -> String {
+        let dict_refs = [
+            &self.dictionary.jp_variants
+        ];
+        let output = Self::segment_replace(input, &dict_refs);
+
+        output
+    }
+
+    pub fn jp2t(&self, input: &str) -> String {
+        let dict_refs = [
+            &self.dictionary.jps_phrases,
+            &self.dictionary.jps_characters,
+            &self.dictionary.jp_variants_rev
+        ];
+        let output = Self::segment_replace(input, &dict_refs);
+
+        output
     }
 }
 
