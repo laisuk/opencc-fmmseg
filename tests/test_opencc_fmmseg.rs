@@ -17,6 +17,14 @@ mod tests {
     }
 
     #[test]
+    fn zho_check_test_2() {
+        let input = "蟹者之王，應該是大閘蟹。";
+        let expected_output = 1;
+        let actual_output = zho_check(input);
+        assert_eq!(actual_output, expected_output);
+    }
+
+    #[test]
     fn s2t_test() {
         let input = "你好，世界！龙马精神！";
         let expected_output = "你好，世界！龍馬精神！";
@@ -94,7 +102,7 @@ mod tests {
         let opencc = OpenCC::new();
         let actual_output = OpenCC::segment_replace(
             input,
-            &[&opencc.dictionary.st_characters]
+            &[&opencc.dictionary.st_characters],
         );
         assert_eq!(actual_output, expected_output);
     }

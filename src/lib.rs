@@ -41,7 +41,7 @@ impl OpenCC {
         // Translate each chunk and reconstruct the new Vec<(String, char)>
         let translated_split_string: String = split_string_list
             .into_iter()
-            .map(|(chunk, delimiter)| format!("{}{}", Self::convert_by(&chunk, &test_dictionary, max_word_length).join(""), delimiter))
+            .map(|(chunk, delimiter)| format!("{}{}", Self::convert_by(&chunk, &test_dictionary, max_word_length), delimiter))
             .collect::<Vec<_>>()
             .join("");
 
@@ -55,11 +55,11 @@ impl OpenCC {
         }
         let max_word_length = test_dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
 
-        Self::convert_by(text, &test_dictionary, max_word_length).join("")
+        Self::convert_by(text, &test_dictionary, max_word_length)
     }
 
-    fn convert_by(text: &str, dictionary: &HashMap<&String, &String>, max_word_length: usize) -> Vec<String> {
-        let mut result = Vec::new();
+    fn convert_by(text: &str, dictionary: &HashMap<&String, &String>, max_word_length: usize) -> String {
+        let mut result = String::new();
         let text_chars: Vec<_> = text.chars().collect();
         let text_length = text_chars.len();
         // let max_word_length = dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
@@ -84,23 +84,23 @@ impl OpenCC {
                 best_match = text_chars[start_pos].to_string();
             }
 
-            result.push(best_match);
+            result.push_str(&best_match);
             start_pos += best_match_length;
         }
         result
     }
 
-    fn split_string_with_delimiters(text: &str) -> Vec<(String, char)> {
+    fn split_string_with_delimiters(text: &str) -> Vec<(String, String)> {
         let delimiters: Vec<char> = "(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼".chars().collect();
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
-        let mut current_delimiter = '\0'; // Default delimiter
+        let mut current_delimiter = String::new(); // Default delimiter
 
         for c in text.chars() {
             if delimiters.contains(&c) {
-                current_delimiter = c;
+                current_delimiter = c.to_string();
                 split_string_list.push((current_chunk.clone(), current_delimiter));
-                current_delimiter = '\0';
+                current_delimiter = "".to_string();
                 current_chunk.clear();
             } else {
                 current_chunk.push(c);
