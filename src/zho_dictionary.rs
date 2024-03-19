@@ -4,38 +4,22 @@ use std::path::Path;
 use std::{fs, io};
 
 pub struct Dictionary {
-    pub st_characters: HashMap<String, String>,
-    pub st_phrases: HashMap<String, String>,
-    pub ts_characters: HashMap<String, String>,
-    pub ts_phrases: HashMap<String, String>,
-    pub tw_phrases: HashMap<String, String>,
-    pub tw_phrases_rev: HashMap<String, String>,
-    pub tw_variants: HashMap<String, String>,
-    pub tw_variants_rev: HashMap<String, String>,
-    pub tw_variants_rev_phrases: HashMap<String, String>,
-    pub hk_variants: HashMap<String, String>,
-    pub hk_variants_rev: HashMap<String, String>,
-    pub hk_variants_rev_phrases: HashMap<String, String>,
-    pub jps_characters: HashMap<String, String>,
-    pub jps_phrases: HashMap<String, String>,
-    pub jp_variants: HashMap<String, String>,
-    pub jp_variants_rev: HashMap<String, String>,
-    pub st_characters_max_length: usize,
-    pub st_phrases_max_length: usize,
-    pub ts_characters_max_length: usize,
-    pub ts_phrases_max_length: usize,
-    pub tw_phrases_max_length: usize,
-    pub tw_phrases_rev_max_length: usize,
-    pub tw_variants_max_length: usize,
-    pub tw_variants_rev_max_length: usize,
-    pub tw_variants_rev_phrases_max_length: usize,
-    pub hk_variants_max_length: usize,
-    pub hk_variants_rev_max_length: usize,
-    pub hk_variants_rev_phrases_max_length: usize,
-    pub jps_characters_max_length: usize,
-    pub jps_phrases_max_length: usize,
-    pub jp_variants_max_length: usize,
-    pub jp_variants_rev_max_length: usize,
+    pub st_characters: (HashMap<String, String>, usize),
+    pub st_phrases: (HashMap<String, String>, usize),
+    pub ts_characters: (HashMap<String, String>, usize),
+    pub ts_phrases: (HashMap<String, String>, usize),
+    pub tw_phrases: (HashMap<String, String>, usize),
+    pub tw_phrases_rev: (HashMap<String, String>, usize),
+    pub tw_variants: (HashMap<String, String>, usize),
+    pub tw_variants_rev: (HashMap<String, String>, usize),
+    pub tw_variants_rev_phrases: (HashMap<String, String>, usize),
+    pub hk_variants: (HashMap<String, String>, usize),
+    pub hk_variants_rev: (HashMap<String, String>, usize),
+    pub hk_variants_rev_phrases: (HashMap<String, String>, usize),
+    pub jps_characters: (HashMap<String, String>, usize),
+    pub jps_phrases: (HashMap<String, String>, usize),
+    pub jp_variants: (HashMap<String, String>, usize),
+    pub jp_variants_rev: (HashMap<String, String>, usize),
 }
 
 impl Dictionary {
@@ -74,38 +58,22 @@ impl Dictionary {
         let jpvr_dict = Dictionary::load_dictionary(jpvr_file_path).unwrap();
 
         Dictionary {
-            st_characters: stc_dict.0,
-            st_phrases: stp_dict.0,
-            ts_characters: tsc_dict.0,
-            ts_phrases: tsp_dict.0,
-            tw_phrases: twp_dict.0,
-            tw_phrases_rev: twpr_dict.0,
-            tw_variants: twv_dict.0,
-            tw_variants_rev: twvr_dict.0,
-            tw_variants_rev_phrases: twvrp_dict.0,
-            hk_variants: hkv_dict.0,
-            hk_variants_rev: hkvr_dict.0,
-            hk_variants_rev_phrases: hkvrp_dict.0,
-            jps_characters: jpsc_dict.0,
-            jps_phrases: jpsp_dict.0,
-            jp_variants: jpv_dict.0,
-            jp_variants_rev: jpvr_dict.0,
-            st_characters_max_length: stc_dict.1,
-            st_phrases_max_length: stp_dict.1,
-            ts_characters_max_length: tsc_dict.1,
-            ts_phrases_max_length: tsp_dict.1,
-            tw_phrases_max_length: twp_dict.1,
-            tw_phrases_rev_max_length: twpr_dict.1,
-            tw_variants_max_length: twv_dict.1,
-            tw_variants_rev_max_length: twvr_dict.1,
-            tw_variants_rev_phrases_max_length: twvrp_dict.1,
-            hk_variants_max_length: hkv_dict.1,
-            hk_variants_rev_max_length: hkvr_dict.1,
-            hk_variants_rev_phrases_max_length: hkvrp_dict.1,
-            jps_characters_max_length: jpsc_dict.1,
-            jps_phrases_max_length: jpsp_dict.1,
-            jp_variants_max_length: jpv_dict.1,
-            jp_variants_rev_max_length: jpvr_dict.1,
+            st_characters: stc_dict,
+            st_phrases: stp_dict,
+            ts_characters: tsc_dict,
+            ts_phrases: tsp_dict,
+            tw_phrases: twp_dict,
+            tw_phrases_rev: twpr_dict,
+            tw_variants: twv_dict,
+            tw_variants_rev: twvr_dict,
+            tw_variants_rev_phrases: twvrp_dict,
+            hk_variants: hkv_dict,
+            hk_variants_rev: hkvr_dict,
+            hk_variants_rev_phrases: hkvrp_dict,
+            jps_characters: jpsc_dict,
+            jps_phrases: jpsp_dict,
+            jp_variants: jpv_dict,
+            jp_variants_rev: jpvr_dict,
         }
     }
 
@@ -118,8 +86,9 @@ impl Dictionary {
             if parts.len() >= 2 {
                 let phrase = parts[0].to_string();
                 let translation = parts[1].to_string();
-                if max_length < phrase.chars().count() {
-                    max_length = phrase.chars().count();
+                let char_count = phrase.chars().count();
+                if max_length < char_count {
+                    max_length = char_count;
                 }
                 dictionary.insert(phrase, translation);
             } else {

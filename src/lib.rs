@@ -1,4 +1,3 @@
-use std::cmp::max;
 use std::collections::HashMap;
 
 use regex::Regex;
@@ -33,6 +32,28 @@ impl OpenCC {
     /// input text.
     pub fn segment_replace(
         text: &str,
+        dictionaries: &[&(HashMap<String, String>, usize)],
+    ) -> String {
+        let mut max_word_length: usize = 1;
+        let mut test_dictionary = HashMap::new();
+        for i in 0..dictionaries.len() {
+            test_dictionary.extend(&dictionaries[i].0);
+            if max_word_length < dictionaries[i].1 {
+                max_word_length = dictionaries[i].1;
+            }
+        }
+        // let max_word_length = Self::get_max_word_length(&test_dictionary);
+
+        let split_string_list = Self::split_string_with_delimiters(text);
+
+        let translated_string =
+            Self::get_translated_string(split_string_list, &test_dictionary, max_word_length);
+
+        translated_string
+    }
+
+    pub fn segment_replace_max_length(
+        text: &str,
         dictionaries: &[&HashMap<String, String>],
         &max_word_length: &usize,
     ) -> String {
@@ -47,23 +68,6 @@ impl OpenCC {
             Self::get_translated_string(split_string_list, &test_dictionary, max_word_length);
 
         translated_split_string
-    }
-    pub fn segment_replace_no_max_length(
-        text: &str,
-        dictionaries: &[&HashMap<String, String>],
-    ) -> String {
-        let mut test_dictionary = HashMap::new();
-        for i in 0..dictionaries.len() {
-            test_dictionary.extend(dictionaries[i]);
-        }
-        let max_word_length = Self::get_max_word_length(&test_dictionary);
-
-        let split_string_list = Self::split_string_with_delimiters(text);
-
-        let translated_string =
-            Self::get_translated_string(split_string_list, &test_dictionary, max_word_length);
-
-        translated_string
     }
 
     pub fn segment_replace_no_split(
@@ -143,14 +147,6 @@ impl OpenCC {
         split_string_list
     }
 
-    fn get_max_word_length(dictionary: &HashMap<&String, &String>) -> usize {
-        dictionary
-            .keys()
-            .map(|word| word.chars().count())
-            .max()
-            .unwrap_or(1)
-    }
-
     fn get_translated_string(
         split_string_list: Vec<(String, String)>,
         dictionary: &HashMap<&String, &String>,
@@ -169,14 +165,18 @@ impl OpenCC {
             .join("")
     }
 
+    #[allow(dead_code)]
+    fn get_max_word_length(dictionary: &HashMap<&String, &String>) -> usize {
+        dictionary
+            .keys()
+            .map(|word| word.chars().count())
+            .max()
+            .unwrap_or(1)
+    }
+
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let max_word_length = max(
-            &self.dictionary.st_phrases_max_length,
-            &self.dictionary.st_characters_max_length,
-        );
-
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
             convert_punctuation(&output, "s")
         } else {
@@ -186,11 +186,7 @@ impl OpenCC {
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let max_word_length = max(
-            &self.dictionary.ts_phrases_max_length,
-            &self.dictionary.ts_characters_max_length,
-        );
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
             convert_punctuation(&output, "t")
         } else {
@@ -200,14 +196,9 @@ impl OpenCC {
 
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let max_word_length = max(
-            &self.dictionary.st_phrases_max_length,
-            &self.dictionary.st_characters_max_length,
-        );
         let dict_refs_round_2 = [&self.dictionary.tw_variants];
-        let max_word_length_2 = &self.dictionary.tw_variants_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
             convert_punctuation(&output_2, "s")
         } else {
@@ -220,19 +211,9 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let max_word_length = max(
-            &self.dictionary.tw_variants_rev_phrases_max_length,
-            &self.dictionary.tw_variants_rev_max_length,
-        );
-
         let dict_refs_round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let max_word_length_2 = max(
-            &self.dictionary.ts_phrases_max_length,
-            &self.dictionary.ts_characters_max_length,
-        );
-
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
             convert_punctuation(&output_2, "t")
         } else {
@@ -242,17 +223,11 @@ impl OpenCC {
 
     pub fn s2twp(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let max_word_length = max(
-            &self.dictionary.st_phrases_max_length,
-            &self.dictionary.st_characters_max_length,
-        );
         let dict_refs_round_2 = [&self.dictionary.tw_phrases];
-        let max_word_length_2 = &self.dictionary.tw_phrases_max_length;
         let dict_refs_round_3 = [&self.dictionary.tw_variants];
-        let max_word_length_3 = &self.dictionary.tw_variants_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
-        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, max_word_length_3);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
+        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3);
         if punctuation {
             convert_punctuation(&output_3, "s")
         } else {
@@ -265,20 +240,11 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let max_word_length = max(
-            &self.dictionary.tw_variants_rev_phrases_max_length,
-            &self.dictionary.tw_variants_rev_max_length,
-        );
         let dict_refs_round_2 = [&self.dictionary.tw_phrases_rev];
-        let max_word_length_2 = &self.dictionary.tw_phrases_rev_max_length;
         let dict_refs_round_3 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let max_word_length_3 = max(
-            &self.dictionary.ts_phrases_max_length,
-            &self.dictionary.ts_characters_max_length,
-        );
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
-        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, max_word_length_3);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
+        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3);
         if punctuation {
             convert_punctuation(&output_3, "t")
         } else {
@@ -288,14 +254,9 @@ impl OpenCC {
 
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let max_word_length = max(
-            &self.dictionary.st_phrases_max_length,
-            &self.dictionary.st_characters_max_length,
-        );
         let dict_refs_round_2 = [&self.dictionary.hk_variants];
-        let max_word_length_2 = &self.dictionary.hk_variants_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
             convert_punctuation(&output_2, "s")
         } else {
@@ -308,17 +269,9 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let max_word_length = max(
-            &self.dictionary.hk_variants_rev_phrases_max_length,
-            &self.dictionary.hk_variants_rev_max_length,
-        );
         let dict_refs_round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let max_word_length_2 = max(
-            &self.dictionary.ts_phrases_max_length,
-            &self.dictionary.ts_characters_max_length,
-        );
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
             convert_punctuation(&output_2, "t")
         } else {
@@ -328,8 +281,7 @@ impl OpenCC {
 
     pub fn t2tw(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.tw_variants];
-        let max_word_length = &self.dictionary.tw_variants_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
             convert_punctuation(&output, "s")
         } else {
@@ -339,11 +291,9 @@ impl OpenCC {
 
     pub fn t2twp(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.tw_phrases];
-        let max_word_length = &self.dictionary.tw_phrases_max_length;
         let dict_refs_round_2 = [&self.dictionary.tw_variants];
-        let max_word_length_2 = &self.dictionary.tw_variants_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
             convert_punctuation(&output_2, "s")
         } else {
@@ -356,11 +306,7 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let max_word_length = max(
-            &self.dictionary.tw_variants_rev_phrases_max_length,
-            &self.dictionary.tw_variants_rev_max_length,
-        );
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
             convert_punctuation(&output, "s")
         } else {
@@ -373,14 +319,9 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let max_word_length = max(
-            &self.dictionary.tw_variants_rev_phrases_max_length,
-            &self.dictionary.tw_variants_rev_max_length,
-        );
         let dict_refs_round_2 = [&self.dictionary.tw_phrases_rev];
-        let max_word_length_2 = &self.dictionary.tw_phrases_rev_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, max_word_length_2);
+        let output = Self::segment_replace(input, &dict_refs);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2);
         if punctuation {
             convert_punctuation(&output_2, "s")
         } else {
@@ -390,8 +331,7 @@ impl OpenCC {
 
     pub fn t2hk(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.hk_variants];
-        let max_word_length = &self.dictionary.hk_variants_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
             convert_punctuation(&output, "s")
         } else {
@@ -404,11 +344,7 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let max_word_length = max(
-            &self.dictionary.hk_variants_rev_phrases_max_length,
-            &self.dictionary.hk_variants_rev_max_length,
-        );
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
         if punctuation {
             convert_punctuation(&output, "s")
         } else {
@@ -418,8 +354,7 @@ impl OpenCC {
 
     pub fn t2jp(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.jp_variants];
-        let max_word_length = &self.dictionary.jp_variants_max_length;
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
 
         output
     }
@@ -430,14 +365,7 @@ impl OpenCC {
             &self.dictionary.jps_characters,
             &self.dictionary.jp_variants_rev,
         ];
-        let max_word_length = max(
-            &self.dictionary.jps_phrases_max_length,
-            max(
-                &self.dictionary.jps_characters_max_length,
-                &self.dictionary.jp_variants_rev_max_length,
-            ),
-        );
-        let output = Self::segment_replace(input, &dict_refs, max_word_length);
+        let output = Self::segment_replace(input, &dict_refs);
 
         output
     }
