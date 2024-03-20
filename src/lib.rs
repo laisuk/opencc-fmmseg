@@ -17,19 +17,6 @@ impl OpenCC {
         OpenCC { dictionary }
     }
 
-    /// Segments the input text using the given dictionaries, and replaces each segment with the
-    /// corresponding value in the dictionaries.
-    ///
-    /// # Parameters
-    ///
-    /// * `text` - The input text to be segmented.
-    /// * `dictionaries` - A slice of dictionaries, where each dictionary maps a segment to its
-    /// replacement value.
-    ///
-    /// # Returns
-    ///
-    /// A vector of strings, where each string represents the replacement value for a segment in the
-    /// input text.
     pub fn segment_replace(
         text: &str,
         dictionaries: &[&(HashMap<String, String>, usize)],
@@ -42,7 +29,6 @@ impl OpenCC {
                 max_word_length = dictionaries[i].1;
             }
         }
-        // let max_word_length = Self::get_max_word_length(&test_dictionary);
 
         let split_string_list = Self::split_string_with_delimiters(text);
 
@@ -375,7 +361,8 @@ pub fn zho_check(input: &str) -> i8 {
     if input.is_empty() {
         return 0;
     }
-    let re = Regex::new(r"[[:punct:]\sA-Za-z0-9]").unwrap();
+    // let re = Regex::new(r"[[:punct:][:space:][:word:]]").unwrap();
+    let re = Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap();
     let _strip_text = re.replace_all(input, "");
     let max_bytes = find_max_utf8_length(_strip_text.as_ref(), 200);
     let strip_text = match _strip_text.len() > max_bytes {
