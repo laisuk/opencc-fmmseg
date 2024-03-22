@@ -22,9 +22,7 @@ impl OpenCC {
         dictionaries: &[&(HashMap<String, String>, usize)],
     ) -> String {
         let mut max_word_length: usize = 1;
-        let mut test_dictionary = HashMap::new();
         for i in 0..dictionaries.len() {
-            test_dictionary.extend(&dictionaries[i].0);
             if max_word_length < dictionaries[i].1 {
                 max_word_length = dictionaries[i].1;
             }
@@ -33,55 +31,37 @@ impl OpenCC {
         let split_string_list = Self::split_string_with_delimiters(text);
 
         let translated_string =
-            Self::get_translated_string(split_string_list, &test_dictionary, max_word_length);
+            Self::get_translated_string(split_string_list, dictionaries, max_word_length);
 
         translated_string
     }
 
-    pub fn segment_replace_max_length(
-        text: &str,
-        dictionaries: &[&HashMap<String, String>],
-        &max_word_length: &usize,
+    fn get_translated_string(
+        split_string_list: Vec<(String, String)>,
+        dictionaries: &[&(HashMap<String, String>, usize)],
+        max_word_length: usize,
     ) -> String {
-        let mut test_dictionary = HashMap::new();
-        for i in 0..dictionaries.len() {
-            test_dictionary.extend(dictionaries[i]);
-        }
-
-        let split_string_list = Self::split_string_with_delimiters(text);
-
-        let translated_split_string =
-            Self::get_translated_string(split_string_list, &test_dictionary, max_word_length);
-
-        translated_split_string
-    }
-
-    pub fn segment_replace_no_split(
-        text: &str,
-        dictionaries: &[&HashMap<String, String>],
-    ) -> String {
-        let mut test_dictionary = HashMap::new();
-        for i in 0..dictionaries.len() {
-            test_dictionary.extend(dictionaries[i]);
-        }
-        let max_word_length = test_dictionary
-            .keys()
-            .map(|word| word.chars().count())
-            .max()
-            .unwrap_or(1);
-
-        Self::convert_by(text, &test_dictionary, max_word_length)
+        split_string_list
+            .into_iter()
+            .map(|(chunk, delimiter)| {
+                format!(
+                    "{}{}",
+                    Self::convert_by(&chunk, dictionaries, max_word_length),
+                    delimiter
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("")
     }
 
     fn convert_by(
         text: &str,
-        dictionary: &HashMap<&String, &String>,
+        dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
         let mut result = String::new();
         let text_chars: Vec<_> = text.chars().collect();
         let text_length = text_chars.len();
-        // let max_word_length = dictionary.keys().map(|word| word.chars().count()).max().unwrap_or(1);
 
         let mut start_pos = 0;
         while start_pos < text_length {
@@ -92,9 +72,12 @@ impl OpenCC {
             for length in 1..=max_length {
                 let candidate: String =
                     text_chars[start_pos..(start_pos + length)].iter().collect();
-                if let Some(value) = dictionary.get(&candidate) {
-                    best_match_length = length;
-                    best_match = value.to_string(); // Push the corresponding value to the results
+                for dictionary in dictionaries {
+                    if let Some(value) = dictionary.0.get(&candidate) {
+                        best_match_length = length;
+                        best_match = value.to_string();
+                        break; // Push the corresponding value to the results
+                    }
                 }
             }
 
@@ -108,6 +91,20 @@ impl OpenCC {
             start_pos += best_match_length;
         }
         result
+    }
+
+    pub fn segment_replace_no_split(
+        text: &str,
+        dictionaries: &[&(HashMap<String, String>, usize)],
+    ) -> String {
+        let mut max_word_length = 1;
+        for i in 0..dictionaries.len() {
+            if max_word_length < dictionaries[i].1 {
+                max_word_length = dictionaries[i].1;
+            }
+        }
+
+        Self::convert_by(text, dictionaries, max_word_length)
     }
 
     fn split_string_with_delimiters(text: &str) -> Vec<(String, String)> {
@@ -131,24 +128,6 @@ impl OpenCC {
             split_string_list.push((current_chunk, current_delimiter));
         }
         split_string_list
-    }
-
-    fn get_translated_string(
-        split_string_list: Vec<(String, String)>,
-        dictionary: &HashMap<&String, &String>,
-        max_word_length: usize,
-    ) -> String {
-        split_string_list
-            .into_iter()
-            .map(|(chunk, delimiter)| {
-                format!(
-                    "{}{}",
-                    Self::convert_by(&chunk, &dictionary, max_word_length),
-                    delimiter
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("")
     }
 
     #[allow(dead_code)]
@@ -429,7 +408,7 @@ pub fn convert_punctuation(sv: &str, config: &str) -> String {
     output_text
 }
 
-pub fn format_thousand(n: i32) -> String {
+pub fn format_thousand(n: usize) -> String {
     let mut result_str = n.to_string();
     let mut offset = result_str.len() % 3;
     if offset == 0 {
