@@ -24,8 +24,8 @@ mod tests {
 
     #[test]
     fn s2t_test() {
-        let input = "你好，世界！龙马精神！";
-        let expected_output = "你好，世界！龍馬精神！";
+        let input = "你好，世界！龙马精神！\t\n";
+        let expected_output = "你好，世界！龍馬精神！\t\n";
         let opencc = OpenCC::new();
         let actual_output = opencc.s2t(input, false);
         assert_eq!(actual_output, expected_output);
@@ -176,7 +176,7 @@ mod tests {
                 .map(|word| word.chars().count())
                 .max()
                 .unwrap_or(1);
-            println!("{:?}\n{}", dict.iter().next().unwrap(), max_word_length)
+            println!("{:?}, {}", dict.iter().next().unwrap(), max_word_length)
         }
 
         let max_lengths = [

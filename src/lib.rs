@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use regex::Regex;
 
@@ -30,10 +30,7 @@ impl OpenCC {
 
         let split_string_list = Self::split_string_with_delimiters(text);
 
-        let translated_string =
-            Self::get_translated_string(split_string_list, dictionaries, max_word_length);
-
-        translated_string
+        Self::get_translated_string(split_string_list, dictionaries, max_word_length)
     }
 
     fn get_translated_string(
@@ -41,17 +38,19 @@ impl OpenCC {
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
-        split_string_list
-            .into_iter()
-            .map(|(chunk, delimiter)| {
-                format!(
-                    "{}{}",
-                    Self::convert_by(&chunk, dictionaries, max_word_length),
-                    delimiter
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("")
+        let mut result = String::new();
+        let mut total_length_estimate = 0;
+
+        for (chunk, delimiter) in &split_string_list {
+            let converted = Self::convert_by(chunk, dictionaries, max_word_length);
+            result.push_str(&converted);
+            result.push_str(delimiter);
+            total_length_estimate += converted.len() + delimiter.len();
+        }
+
+        result.reserve(total_length_estimate);
+
+        result
     }
 
     fn convert_by(
@@ -59,6 +58,10 @@ impl OpenCC {
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
+        if text.is_empty() {
+            return "".to_string();
+        }
+
         let mut result = String::new();
         let text_chars: Vec<_> = text.chars().collect();
         let text_length = text_chars.len();
@@ -93,39 +96,22 @@ impl OpenCC {
         result
     }
 
-    pub fn segment_replace_no_split(
-        text: &str,
-        dictionaries: &[&(HashMap<String, String>, usize)],
-    ) -> String {
-        let mut max_word_length = 1;
-        for i in 0..dictionaries.len() {
-            if max_word_length < dictionaries[i].1 {
-                max_word_length = dictionaries[i].1;
-            }
-        }
-
-        Self::convert_by(text, dictionaries, max_word_length)
-    }
-
     fn split_string_with_delimiters(text: &str) -> Vec<(String, String)> {
-        let delimiters: Vec<char> = "(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼".chars().collect();
+        let delimiters: HashSet<char> = "\t\n\r(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼".chars().collect();
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
-        let mut current_delimiter = String::new(); // Default delimiter
 
-        for char in text.chars() {
-            if delimiters.contains(&char) {
-                current_delimiter = char.to_string();
-                split_string_list.push((current_chunk.clone(), current_delimiter));
-                current_delimiter = "".to_string();
-                current_chunk.clear();
+        for ch in text.chars() {
+            if delimiters.contains(&ch) {
+                split_string_list.push((current_chunk, ch.to_string()));
+                current_chunk = String::new();
             } else {
-                current_chunk.push(char);
+                current_chunk.push(ch);
             }
         }
         // Current_chunk still have chars but current_delimiter is empty
         if !current_chunk.is_empty() {
-            split_string_list.push((current_chunk, current_delimiter));
+            split_string_list.push((current_chunk, String::new()));
         }
         split_string_list
     }
