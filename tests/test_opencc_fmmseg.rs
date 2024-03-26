@@ -2,7 +2,7 @@ use opencc_fmmseg::OpenCC;
 
 #[cfg(test)]
 mod tests {
-    use opencc_fmmseg::{format_thousand, zho_check};
+    use opencc_fmmseg::format_thousand;
 
     use super::*;
 
@@ -10,7 +10,8 @@ mod tests {
     fn zho_check_test() {
         let input = "你好，世界！龙马精神！";
         let expected_output = 2;
-        let actual_output = zho_check(input);
+        let opencc = OpenCC::new();
+        let actual_output = opencc.zho_check(input);
         assert_eq!(actual_output, expected_output);
     }
 
@@ -18,7 +19,8 @@ mod tests {
     fn zho_check_test_2() {
         let input = "蟹者之王，應該是大閘蟹。";
         let expected_output = 1;
-        let actual_output = zho_check(input);
+        let opencc = OpenCC::new();
+        let actual_output = opencc.zho_check(input);
         assert_eq!(actual_output, expected_output);
     }
 
