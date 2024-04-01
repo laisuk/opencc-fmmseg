@@ -13,7 +13,6 @@ pub struct OpenCC {
 impl OpenCC {
     pub fn new() -> Self {
         let dictionary = Dictionary::new();
-
         OpenCC { dictionary }
     }
 
@@ -21,6 +20,7 @@ impl OpenCC {
         text: &str,
         dictionaries: &[&(HashMap<String, String>, usize)],
     ) -> String {
+        let string_list_length = text.len();
         let mut max_word_length: usize = 1;
         for i in 0..dictionaries.len() {
             if max_word_length < dictionaries[i].1 {
@@ -30,15 +30,22 @@ impl OpenCC {
 
         let split_string_list = Self::split_string_with_delimiters(text);
 
-        Self::get_translated_string(split_string_list, dictionaries, max_word_length)
+        Self::get_translated_string(
+            split_string_list,
+            dictionaries,
+            max_word_length,
+            string_list_length,
+        )
     }
 
     fn get_translated_string(
         split_string_list: Vec<(String, String)>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
+        string_list_length: usize,
     ) -> String {
         let mut result = String::new();
+        result.reserve(string_list_length);
 
         for (chunk, delimiter) in &split_string_list {
             let converted = Self::convert_by(chunk, dictionaries, max_word_length);
@@ -59,6 +66,7 @@ impl OpenCC {
         }
 
         let mut result = String::new();
+        result.reserve(text.len());
         let text_chars: Vec<_> = text.chars().collect();
         let text_length = text_chars.len();
 
@@ -97,6 +105,18 @@ impl OpenCC {
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
 
+        // Estimate the capacity needed for the split_string_list vector
+        let mut delimiter_count = 0;
+
+        for ch in text.chars() {
+            if delimiters.contains(&ch) {
+                delimiter_count += 1;
+            }
+        }
+
+        // Reserve capacity for the vector
+        split_string_list.reserve(delimiter_count);
+
         for ch in text.chars() {
             if delimiters.contains(&ch) {
                 split_string_list.push((current_chunk, ch.to_string()));
@@ -110,15 +130,6 @@ impl OpenCC {
             split_string_list.push((current_chunk, String::new()));
         }
         split_string_list
-    }
-
-    #[allow(dead_code)]
-    fn get_max_word_length(dictionary: &HashMap<&String, &String>) -> usize {
-        dictionary
-            .keys()
-            .map(|word| word.chars().count())
-            .max()
-            .unwrap_or(1)
     }
 
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
