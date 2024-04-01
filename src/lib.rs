@@ -105,18 +105,6 @@ impl OpenCC {
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
 
-        // Estimate the capacity needed for the split_string_list vector
-        let mut delimiter_count = 0;
-
-        for ch in text.chars() {
-            if delimiters.contains(&ch) {
-                delimiter_count += 1;
-            }
-        }
-
-        // Reserve capacity for the vector
-        split_string_list.reserve(delimiter_count);
-
         for ch in text.chars() {
             if delimiters.contains(&ch) {
                 split_string_list.push((current_chunk, ch.to_string()));
