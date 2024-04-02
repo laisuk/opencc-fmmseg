@@ -7,7 +7,7 @@ use std::{fs, io};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct Dictionary {
+pub struct DictionaryMaxlength {
     pub st_characters: (HashMap<String, String>, usize),
     pub st_phrases: (HashMap<String, String>, usize),
     pub ts_characters: (HashMap<String, String>, usize),
@@ -26,13 +26,14 @@ pub struct Dictionary {
     pub jp_variants_rev: (HashMap<String, String>, usize),
 }
 
-impl Dictionary {
+impl DictionaryMaxlength {
     pub fn new() -> Self {
         let json_data = include_str!("dicts/dictionary_maxlength.json");
-        let dictionary: Dictionary = serde_json::from_str(json_data).unwrap();
+        let dictionary: DictionaryMaxlength = serde_json::from_str(json_data).unwrap();
         dictionary
     }
 
+    #[allow(dead_code)]
     fn load_dictionary(dictionary_content: &str) -> io::Result<(HashMap<String, String>, usize)> {
         let mut dictionary = HashMap::new();
         let mut max_length: usize = 1;
@@ -110,7 +111,7 @@ impl Dictionary {
         // Read the contents of the JSON file
         let json_string = fs::read_to_string(filename)?;
         // Deserialize the JSON string into a Dictionary struct
-        let dictionary: Dictionary = serde_json::from_str(&json_string)?;
+        let dictionary: DictionaryMaxlength = serde_json::from_str(&json_string)?;
 
         Ok(dictionary)
     }

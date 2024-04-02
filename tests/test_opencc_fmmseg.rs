@@ -101,7 +101,8 @@ mod tests {
         let input = "你好，世界！龙马精神！";
         let expected_output = "你好，世界！龍馬精神！".to_string();
         let opencc = OpenCC::new();
-        let actual_output = OpenCC::segment_replace(input, &[&opencc.dictionary.st_characters]);
+        let actual_output =
+            OpenCC::segment_replace(input, &[&opencc.dictionary.st_characters], true);
         assert_eq!(actual_output, expected_output);
     }
 
@@ -115,7 +116,7 @@ mod tests {
             &opencc.dictionary.st_characters,
         ];
 
-        let actual_output = OpenCC::segment_replace(input, &combined_dict);
+        let actual_output = OpenCC::segment_replace(input, &combined_dict, true);
         assert_eq!(actual_output, expected_output);
     }
 
@@ -128,7 +129,7 @@ mod tests {
             &opencc.dictionary.st_phrases,
             &opencc.dictionary.st_characters,
         ];
-        let actual_output = OpenCC::segment_replace(input, &dict_refs);
+        let actual_output = OpenCC::segment_replace(input, &dict_refs, true);
         assert_eq!(actual_output, expected_output);
     }
 
@@ -209,7 +210,7 @@ mod tests {
         // Define the filename for testing
         let filename = "dictionary_maxlength.json";
         // let opencc = OpenCC::new();
-        let dictionary = zho_dictionary::Dictionary::new();
+        let dictionary = zho_dictionary::DictionaryMaxlength::new();
         // Serialize to JSON and write to file
         dictionary.serialize_to_json(filename).unwrap();
 
