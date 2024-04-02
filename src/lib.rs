@@ -21,7 +21,7 @@ impl OpenCC {
     pub fn segment_replace(
         text: &str,
         dictionaries: &[&(HashMap<String, String>, usize)],
-        is_multi_threads: bool,
+        is_parallel: bool,
     ) -> String {
         let string_list_length = text.len();
         let mut max_word_length: usize = 1;
@@ -32,7 +32,7 @@ impl OpenCC {
         }
 
         let split_string_list = Self::split_string_with_delimiters(text);
-        if is_multi_threads {
+        if is_parallel {
             Self::get_translated_string_threads(split_string_list, dictionaries, max_word_length)
         } else {
             Self::get_translated_string(
