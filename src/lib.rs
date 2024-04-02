@@ -10,12 +10,17 @@ pub mod zho_dictionary;
 
 pub struct OpenCC {
     pub dictionary: DictionaryMaxlength,
+    pub is_parallel: bool,
 }
 
 impl OpenCC {
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new();
-        OpenCC { dictionary }
+        let is_parallel = true;
+        OpenCC {
+            dictionary,
+            is_parallel,
+        }
     }
 
     pub fn segment_replace(
@@ -151,9 +156,12 @@ impl OpenCC {
         split_string_list
     }
 
+    pub fn set_parallel(&mut self, is_parallel: bool) -> () {
+        self.is_parallel = is_parallel;
+    }
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -163,7 +171,7 @@ impl OpenCC {
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output, "t")
         } else {
@@ -174,8 +182,8 @@ impl OpenCC {
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let dict_refs_round_2 = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_2, "s")
         } else {
@@ -189,8 +197,8 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let dict_refs_round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_2, "t")
         } else {
@@ -202,9 +210,9 @@ impl OpenCC {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let dict_refs_round_2 = [&self.dictionary.tw_phrases];
         let dict_refs_round_3 = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
-        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
+        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_3, "s")
         } else {
@@ -219,9 +227,9 @@ impl OpenCC {
         ];
         let dict_refs_round_2 = [&self.dictionary.tw_phrases_rev];
         let dict_refs_round_3 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
-        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
+        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_3, "t")
         } else {
@@ -232,8 +240,8 @@ impl OpenCC {
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let dict_refs_round_2 = [&self.dictionary.hk_variants];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_2, "s")
         } else {
@@ -247,8 +255,8 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev,
         ];
         let dict_refs_round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_2, "t")
         } else {
@@ -258,7 +266,7 @@ impl OpenCC {
 
     pub fn t2tw(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -269,8 +277,8 @@ impl OpenCC {
     pub fn t2twp(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.tw_phrases];
         let dict_refs_round_2 = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_2, "s")
         } else {
@@ -283,7 +291,7 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -297,8 +305,8 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let dict_refs_round_2 = [&self.dictionary.tw_phrases_rev];
-        let output = Self::segment_replace(input, &dict_refs, true);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output_2, "s")
         } else {
@@ -308,7 +316,7 @@ impl OpenCC {
 
     pub fn t2hk(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.hk_variants];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -321,7 +329,7 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -331,7 +339,7 @@ impl OpenCC {
 
     pub fn t2jp(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.jp_variants];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
 
         output
     }
@@ -342,21 +350,21 @@ impl OpenCC {
             &self.dictionary.jps_characters,
             &self.dictionary.jp_variants_rev,
         ];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
 
         output
     }
 
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
 
         output
     }
 
     fn ts(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, true);
+        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
 
         output
     }

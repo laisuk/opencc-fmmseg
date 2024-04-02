@@ -224,4 +224,12 @@ mod tests {
         // Clean up: Delete the test file
         fs::remove_file(filename).unwrap();
     }
+
+    #[test]
+    fn is_parallel_test() {
+        let mut opencc = OpenCC::new();
+        assert_eq!(opencc.is_parallel, true);
+        opencc.set_parallel(false);
+        assert_eq!(opencc.is_parallel, false);
+    }
 }
