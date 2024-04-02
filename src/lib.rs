@@ -4,7 +4,7 @@ use regex::Regex;
 
 use crate::zho_dictionary::Dictionary;
 
-mod zho_dictionary;
+pub mod zho_dictionary;
 
 pub struct OpenCC {
     pub dictionary: Dictionary,

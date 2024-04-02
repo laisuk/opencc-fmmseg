@@ -1,8 +1,9 @@
-use opencc_fmmseg::OpenCC;
+use opencc_fmmseg::{zho_dictionary, OpenCC};
 
 #[cfg(test)]
 mod tests {
     use opencc_fmmseg::format_thousand;
+    use std::fs;
 
     use super::*;
 
@@ -201,5 +202,25 @@ mod tests {
         ];
         println!("{:?}", max_lengths);
         assert_eq!(actual_output, expected_output);
+    }
+
+    #[test]
+    fn test_serialize_to_json() {
+        // Define the filename for testing
+        let filename = "dictionary_maxlength.json";
+        // let opencc = OpenCC::new();
+        let dictionary = zho_dictionary::Dictionary::new();
+        // Serialize to JSON and write to file
+        dictionary.serialize_to_json(filename).unwrap();
+
+        // Read the contents of the file
+        let file_contents = fs::read_to_string(filename).unwrap();
+
+        // Verify that the JSON contains the expected data
+        let expected_json = 1350232;
+        assert_eq!(file_contents.trim().len(), expected_json);
+
+        // Clean up: Delete the test file
+        fs::remove_file(filename).unwrap();
     }
 }

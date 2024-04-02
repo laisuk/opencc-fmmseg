@@ -1,8 +1,12 @@
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::{fs, io};
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct Dictionary {
     pub st_characters: (HashMap<String, String>, usize),
     pub st_phrases: (HashMap<String, String>, usize),
@@ -24,59 +28,12 @@ pub struct Dictionary {
 
 impl Dictionary {
     pub fn new() -> Self {
-        let stc_file_path = include_str!("dicts/STCharacters.txt");
-        let stp_file_path = include_str!("dicts/STPhrases.txt");
-        let tsc_file_path = include_str!("dicts/TSCharacters.txt");
-        let tsp_file_path = include_str!("dicts/TSPhrases.txt");
-        let twp_file_path = include_str!("dicts/TWPhrases.txt");
-        let twpr_file_path = include_str!("dicts/TWPhrasesRev.txt");
-        let twv_file_path = include_str!("dicts/TWVariants.txt");
-        let twvr_file_path = include_str!("dicts/TWVariantsRev.txt");
-        let twvrp_file_path = include_str!("dicts/TWVariantsRevPhrases.txt");
-        let hkv_file_path = include_str!("dicts/HKVariants.txt");
-        let hkvr_file_path = include_str!("dicts/HKVariantsRev.txt");
-        let hkvrp_file_path = include_str!("dicts/HKVariantsRevPhrases.txt");
-        let jpsc_file_path = include_str!("dicts/JPShinjitaiCharacters.txt");
-        let jpsp_file_path = include_str!("dicts/JPShinjitaiPhrases.txt");
-        let jpv_file_path = include_str!("dicts/JPVariants.txt");
-        let jpvr_file_path = include_str!("dicts/JPVariantsRev.txt");
-        let stc_dict = Dictionary::load_dictionary(stc_file_path).unwrap();
-        let stp_dict = Dictionary::load_dictionary(stp_file_path).unwrap();
-        let tsc_dict = Dictionary::load_dictionary(tsc_file_path).unwrap();
-        let tsp_dict = Dictionary::load_dictionary(tsp_file_path).unwrap();
-        let twp_dict = Dictionary::load_dictionary(twp_file_path).unwrap();
-        let twpr_dict = Dictionary::load_dictionary(twpr_file_path).unwrap();
-        let twv_dict = Dictionary::load_dictionary(twv_file_path).unwrap();
-        let twvr_dict = Dictionary::load_dictionary(twvr_file_path).unwrap();
-        let twvrp_dict = Dictionary::load_dictionary(twvrp_file_path).unwrap();
-        let hkv_dict = Dictionary::load_dictionary(hkv_file_path).unwrap();
-        let hkvr_dict = Dictionary::load_dictionary(hkvr_file_path).unwrap();
-        let hkvrp_dict = Dictionary::load_dictionary(hkvrp_file_path).unwrap();
-        let jpsc_dict = Dictionary::load_dictionary(jpsc_file_path).unwrap();
-        let jpsp_dict = Dictionary::load_dictionary(jpsp_file_path).unwrap();
-        let jpv_dict = Dictionary::load_dictionary(jpv_file_path).unwrap();
-        let jpvr_dict = Dictionary::load_dictionary(jpvr_file_path).unwrap();
-
-        Dictionary {
-            st_characters: stc_dict,
-            st_phrases: stp_dict,
-            ts_characters: tsc_dict,
-            ts_phrases: tsp_dict,
-            tw_phrases: twp_dict,
-            tw_phrases_rev: twpr_dict,
-            tw_variants: twv_dict,
-            tw_variants_rev: twvr_dict,
-            tw_variants_rev_phrases: twvrp_dict,
-            hk_variants: hkv_dict,
-            hk_variants_rev: hkvr_dict,
-            hk_variants_rev_phrases: hkvrp_dict,
-            jps_characters: jpsc_dict,
-            jps_phrases: jpsp_dict,
-            jp_variants: jpv_dict,
-            jp_variants_rev: jpvr_dict,
-        }
+        let json_data = include_str!("dicts/dictionary_maxlength.json");
+        let dictionary: Dictionary = serde_json::from_str(json_data).unwrap();
+        dictionary
     }
 
+    #[allow(dead_code)]
     fn load_dictionary(dictionary_content: &str) -> io::Result<(HashMap<String, String>, usize)> {
         let mut dictionary = HashMap::new();
         let mut max_length: usize = 1;
@@ -104,7 +61,7 @@ impl Dictionary {
     where
         P: AsRef<Path>,
     {
-        let file = fs::File::open(filename)?;
+        let file = File::open(filename)?;
         let mut dictionary = HashMap::new();
 
         for line in BufReader::new(file).lines() {
@@ -137,6 +94,25 @@ impl Dictionary {
                 eprintln!("Invalid line format: {}", line);
             }
         }
+
+        Ok(dictionary)
+    }
+
+    #[allow(dead_code)]
+    // Function to serialize Dictionary to JSON and write it to a file
+    pub fn serialize_to_json(&self, filename: &str) -> io::Result<()> {
+        let json_string = serde_json::to_string(&self)?;
+        let mut file = File::create(filename)?;
+        file.write_all(json_string.as_bytes())?;
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn from_json(filename: &str) -> io::Result<Self> {
+        // Read the contents of the JSON file
+        let json_string = fs::read_to_string(filename)?;
+        // Deserialize the JSON string into a Dictionary struct
+        let dictionary: Dictionary = serde_json::from_str(&json_string)?;
 
         Ok(dictionary)
     }
