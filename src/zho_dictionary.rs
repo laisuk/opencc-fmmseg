@@ -33,7 +33,6 @@ impl Dictionary {
         dictionary
     }
 
-    #[allow(dead_code)]
     fn load_dictionary(dictionary_content: &str) -> io::Result<(HashMap<String, String>, usize)> {
         let mut dictionary = HashMap::new();
         let mut max_length: usize = 1;
@@ -98,7 +97,6 @@ impl Dictionary {
         Ok(dictionary)
     }
 
-    #[allow(dead_code)]
     // Function to serialize Dictionary to JSON and write it to a file
     pub fn serialize_to_json(&self, filename: &str) -> io::Result<()> {
         let json_string = serde_json::to_string(&self)?;
