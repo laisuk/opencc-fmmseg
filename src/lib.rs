@@ -10,7 +10,7 @@ pub mod zho_dictionary;
 
 pub struct OpenCC {
     pub dictionary: DictionaryMaxlength,
-    pub is_parallel: bool,
+    is_parallel: bool,
 }
 
 impl OpenCC {
@@ -191,6 +191,10 @@ impl OpenCC {
         } else {
             output
         }
+    }
+
+    pub fn get_parallel(&self) -> bool {
+        self.is_parallel
     }
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {

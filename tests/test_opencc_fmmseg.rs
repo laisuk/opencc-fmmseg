@@ -238,8 +238,8 @@ mod tests {
     #[test]
     fn is_parallel_test() {
         let mut opencc = OpenCC::new();
-        assert_eq!(opencc.is_parallel, true);
+        assert_eq!(opencc.get_parallel(), true);
         opencc.set_parallel(false);
-        assert_eq!(opencc.is_parallel, false);
+        assert_eq!(opencc.get_parallel(), false);
     }
 }
