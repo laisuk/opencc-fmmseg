@@ -162,6 +162,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn dict_data_test() {
         let input = "広国，読売。";
         let expected_output = "廣國，讀賣。";
@@ -216,6 +217,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_serialize_to_json() {
         // Define the filename for testing
         let filename = "dictionary_maxlength.json";

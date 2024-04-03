@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::iter::Iterator;
 use std::sync::{Arc, Mutex};
 
 use rayon::prelude::*;
@@ -15,7 +16,6 @@ pub struct OpenCC {
 
 impl OpenCC {
     const DELIMITERS: &'static str = "\t\n\r(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
-
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new();
         let is_parallel = true;
