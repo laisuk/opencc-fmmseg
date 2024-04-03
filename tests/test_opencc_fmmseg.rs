@@ -89,6 +89,16 @@ mod tests {
     }
 
     #[test]
+    fn s2t_punct_not_parallel_test() {
+        let input = "你好，世界！“龙马精神”！";
+        let expected_output = "你好，世界！「龍馬精神」！";
+        let mut opencc = OpenCC::new();
+        opencc.set_parallel(false);
+        let actual_output = opencc.s2t(input, true);
+        assert_eq!(actual_output, expected_output);
+    }
+
+    #[test]
     fn format_thousand_test() {
         let input = 1234567890;
         let expected_output = "1,234,567,890";

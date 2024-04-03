@@ -14,6 +14,8 @@ pub struct OpenCC {
 }
 
 impl OpenCC {
+    const DELIMITERS: &'static str = "\t\n\r(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
+
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new();
         let is_parallel = true;
@@ -36,10 +38,11 @@ impl OpenCC {
             }
         }
 
-        let split_string_list = Self::split_string_with_delimiters(text);
         if is_parallel {
-            Self::get_translated_string_threads(split_string_list, dictionaries, max_word_length)
+            let split_string_list = Self::split_string_with_delimiters_parallel(text);
+            Self::get_translated_string_parallel(split_string_list, dictionaries, max_word_length)
         } else {
+            let split_string_list = Self::split_string_with_delimiters(text);
             Self::get_translated_string(
                 split_string_list,
                 dictionaries,
@@ -67,8 +70,8 @@ impl OpenCC {
         result
     }
 
-    fn get_translated_string_threads(
-        split_string_list: Vec<(String, String)>,
+    fn get_translated_string_parallel(
+        split_string_list: Vec<String>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
@@ -78,16 +81,18 @@ impl OpenCC {
         split_string_list
             .par_iter()
             .enumerate()
-            .for_each(|(index, (chunk, delimiter))| {
+            .for_each(|(index, chunk)| {
                 let converted = Self::convert_by(chunk, dictionaries, max_word_length);
                 let mut result_lock = result_clone.lock().unwrap();
-                result_lock.push((index, converted + delimiter));
+                result_lock.push((index, converted));
             });
         let mut result_lock = result.lock().unwrap();
-        result_lock.sort_by_key(|(index, _)| *index);
+        result_lock.par_sort_by_key(|(index, _)| *index);
 
-        let concatenated_result: String =
-            result_lock.iter().map(|(_, chunk)| chunk.clone()).collect();
+        let concatenated_result: String = result_lock
+            .iter()
+            .map(|(_, chunk)| chunk.as_str())
+            .collect();
 
         concatenated_result
     }
@@ -101,10 +106,16 @@ impl OpenCC {
             return String::new();
         }
 
-        let mut result = String::new();
-        result.reserve(text.len());
         let text_chars: Vec<_> = text.chars().collect();
         let text_length = text_chars.len();
+        if text_length == 1 {
+            let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
+            if delimiters.contains(&text_chars[0]) {
+                return text_chars[0].to_string();
+            }
+        }
+        let mut result = String::new();
+        result.reserve(text.len());
 
         let mut start_pos = 0;
         while start_pos < text_length {
@@ -137,7 +148,7 @@ impl OpenCC {
     }
 
     fn split_string_with_delimiters(text: &str) -> Vec<(String, String)> {
-        let delimiters: HashSet<char> = "\t\n\r(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼".chars().collect();
+        let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
 
@@ -153,6 +164,19 @@ impl OpenCC {
         if !current_chunk.is_empty() {
             split_string_list.push((current_chunk, String::new()));
         }
+        split_string_list
+    }
+
+    fn split_string_with_delimiters_parallel(text: &str) -> Vec<String> {
+        let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
+
+        let split_string_list: Vec<String> = text
+            .chars()
+            .collect::<Vec<char>>()
+            .par_split_inclusive_mut(|&c| delimiters.contains(&c))
+            .map(|slice| slice.iter().collect())
+            .collect();
+
         split_string_list
     }
 
