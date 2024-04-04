@@ -30,6 +30,7 @@ impl OpenCC {
         dictionaries: &[&(HashMap<String, String>, usize)],
         is_parallel: bool,
     ) -> String {
+        let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
         let string_list_length = text.len();
         let mut max_word_length: usize = 1;
         for i in 0..dictionaries.len() {
@@ -39,15 +40,21 @@ impl OpenCC {
         }
 
         if is_parallel {
-            let split_string_list = Self::split_string_with_delimiters_parallel(text);
-            Self::get_translated_string_parallel(split_string_list, dictionaries, max_word_length)
+            let split_string_list = Self::split_string_with_delimiters_parallel(text, &delimiters);
+            Self::get_translated_string_parallel(
+                split_string_list,
+                dictionaries,
+                max_word_length,
+                &delimiters,
+            )
         } else {
-            let split_string_list = Self::split_string_with_delimiters(text);
+            let split_string_list = Self::split_string_with_delimiters(text, &delimiters);
             Self::get_translated_string(
                 split_string_list,
                 dictionaries,
                 max_word_length,
                 string_list_length,
+                &delimiters,
             )
         }
     }
@@ -57,12 +64,13 @@ impl OpenCC {
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
         string_list_length: usize,
+        delimiters: &HashSet<char>,
     ) -> String {
         let mut result = String::new();
         result.reserve(string_list_length);
 
         for (chunk, delimiter) in &split_string_list {
-            let converted = Self::convert_by(chunk, dictionaries, max_word_length);
+            let converted = Self::convert_by(chunk, dictionaries, max_word_length, &delimiters);
             result.push_str(&converted);
             result.push_str(delimiter);
         }
@@ -74,14 +82,14 @@ impl OpenCC {
         split_string_list: Vec<String>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
+        delimiters: &HashSet<char>,
     ) -> String {
         let result = Arc::new(Mutex::new(Vec::<(usize, String)>::new()));
-
         split_string_list
             .par_iter()
             .enumerate()
             .for_each(|(index, chunk)| {
-                let converted = Self::convert_by(chunk, dictionaries, max_word_length);
+                let converted = Self::convert_by(chunk, dictionaries, max_word_length, &delimiters);
                 let mut result_lock = result.lock().unwrap();
                 result_lock.push((index, converted));
             });
@@ -100,6 +108,7 @@ impl OpenCC {
         text: &str,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
+        delimiters: &HashSet<char>,
     ) -> String {
         if text.is_empty() {
             return String::new();
@@ -108,7 +117,6 @@ impl OpenCC {
         let text_chars: Vec<_> = text.chars().collect();
         let text_length = text_chars.len();
         if text_length == 1 {
-            let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
             if delimiters.contains(&text_chars[0]) {
                 return text_chars[0].to_string();
             }
@@ -146,8 +154,10 @@ impl OpenCC {
         result
     }
 
-    fn split_string_with_delimiters(text: &str) -> Vec<(String, String)> {
-        let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
+    fn split_string_with_delimiters(
+        text: &str,
+        delimiters: &HashSet<char>,
+    ) -> Vec<(String, String)> {
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
 
@@ -166,9 +176,10 @@ impl OpenCC {
         split_string_list
     }
 
-    fn split_string_with_delimiters_parallel(text: &str) -> Vec<String> {
-        let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
-
+    fn split_string_with_delimiters_parallel(
+        text: &str,
+        delimiters: &HashSet<char>,
+    ) -> Vec<String> {
         let split_string_list: Vec<String> = text
             .chars()
             .collect::<Vec<char>>()
@@ -179,9 +190,14 @@ impl OpenCC {
         split_string_list
     }
 
+    pub fn get_parallel(&self) -> bool {
+        self.is_parallel
+    }
+
     pub fn set_parallel(&mut self, is_parallel: bool) -> () {
         self.is_parallel = is_parallel;
     }
+
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
@@ -190,10 +206,6 @@ impl OpenCC {
         } else {
             output
         }
-    }
-
-    pub fn get_parallel(&self) -> bool {
-        self.is_parallel
     }
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
