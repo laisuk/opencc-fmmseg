@@ -15,7 +15,7 @@ pub struct OpenCC {
 }
 
 impl OpenCC {
-    const DELIMITERS: &'static str = "\t\n\r(){}\"' -,.?!*　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
+    const DELIMITERS: &'static str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new();
         let is_parallel = true;
@@ -76,14 +76,13 @@ impl OpenCC {
         max_word_length: usize,
     ) -> String {
         let result = Arc::new(Mutex::new(Vec::<(usize, String)>::new()));
-        let result_clone = result.clone();
 
         split_string_list
             .par_iter()
             .enumerate()
             .for_each(|(index, chunk)| {
                 let converted = Self::convert_by(chunk, dictionaries, max_word_length);
-                let mut result_lock = result_clone.lock().unwrap();
+                let mut result_lock = result.lock().unwrap();
                 result_lock.push((index, converted));
             });
         let mut result_lock = result.lock().unwrap();
@@ -173,7 +172,7 @@ impl OpenCC {
         let split_string_list: Vec<String> = text
             .chars()
             .collect::<Vec<char>>()
-            .par_split_inclusive_mut(|&c| delimiters.contains(&c))
+            .par_split_inclusive_mut(|c| delimiters.contains(c))
             .map(|slice| slice.iter().collect())
             .collect();
 

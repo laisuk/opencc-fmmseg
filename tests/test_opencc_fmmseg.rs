@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn segment_replace_test() {
         let input = "你好，世界！龙马精神！";
-        let expected_output = "你好，世界！龍馬精神！".to_string();
+        let expected_output = "你好，世界！龍馬精神！";
         let opencc = OpenCC::new();
         let actual_output =
             OpenCC::segment_replace(input, &[&opencc.dictionary.st_characters], true);
@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn segment_replace_test_2() {
         let input = "你好，世界！龙马精神，富贵荣华！";
-        let expected_output = "你好，世界！龍馬精神，富貴榮華！".to_string();
+        let expected_output = "你好，世界！龍馬精神，富貴榮華！";
         let opencc = OpenCC::new();
         let combined_dict = [
             &opencc.dictionary.st_phrases,
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn segment_replace_test_3() {
         let input = "你好，世界！龙马精神，富贵荣华！";
-        let expected_output = "你好，世界！龍馬精神，富貴榮華！".to_string();
+        let expected_output = "你好，世界！龍馬精神，富貴榮華！";
         let opencc = OpenCC::new();
         let dict_refs = [
             &opencc.dictionary.st_phrases,
