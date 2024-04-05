@@ -1,4 +1,4 @@
-use opencc_fmmseg::{zho_dictionary, OpenCC};
+use opencc_fmmseg::{dictionary_lib, OpenCC};
 
 #[cfg(test)]
 mod tests {
@@ -107,43 +107,6 @@ mod tests {
     }
 
     #[test]
-    fn segment_replace_test() {
-        let input = "你好，世界！龙马精神！";
-        let expected_output = "你好，世界！龍馬精神！";
-        let opencc = OpenCC::new();
-        let actual_output =
-            OpenCC::segment_replace(input, &[&opencc.dictionary.st_characters], true);
-        assert_eq!(actual_output, expected_output);
-    }
-
-    #[test]
-    fn segment_replace_test_2() {
-        let input = "你好，世界！龙马精神，富贵荣华！";
-        let expected_output = "你好，世界！龍馬精神，富貴榮華！";
-        let opencc = OpenCC::new();
-        let combined_dict = [
-            &opencc.dictionary.st_phrases,
-            &opencc.dictionary.st_characters,
-        ];
-
-        let actual_output = OpenCC::segment_replace(input, &combined_dict, true);
-        assert_eq!(actual_output, expected_output);
-    }
-
-    #[test]
-    fn segment_replace_test_3() {
-        let input = "你好，世界！龙马精神，富贵荣华！";
-        let expected_output = "你好，世界！龍馬精神，富貴榮華！";
-        let opencc = OpenCC::new();
-        let dict_refs = [
-            &opencc.dictionary.st_phrases,
-            &opencc.dictionary.st_characters,
-        ];
-        let actual_output = OpenCC::segment_replace(input, &dict_refs, true);
-        assert_eq!(actual_output, expected_output);
-    }
-
-    #[test]
     fn t2jp_test() {
         let input = "舊字體：廣國，讀賣。";
         let expected_output = "旧字体：広国，読売。";
@@ -163,66 +126,11 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn dict_data_test() {
-        let input = "広国，読売。";
-        let expected_output = "廣國，讀賣。";
-        let opencc = OpenCC::new();
-        let actual_output = opencc.jp2t(input);
-        for dict in [
-            &opencc.dictionary.st_characters.0,           // 1
-            &opencc.dictionary.st_phrases.0,              // 16
-            &opencc.dictionary.ts_characters.0,           // 1
-            &opencc.dictionary.ts_phrases.0,              // 14
-            &opencc.dictionary.tw_phrases.0,              // 10
-            &opencc.dictionary.tw_phrases_rev.0,          // 10
-            &opencc.dictionary.tw_variants.0,             // 1
-            &opencc.dictionary.tw_variants_rev.0,         // 1
-            &opencc.dictionary.tw_variants_rev_phrases.0, // 4
-            &opencc.dictionary.hk_variants.0,             // 1
-            &opencc.dictionary.hk_variants_rev.0,         // 1
-            &opencc.dictionary.hk_variants_rev_phrases.0, // 5
-            &opencc.dictionary.jps_characters.0,          // 1
-            &opencc.dictionary.jps_phrases.0,             // 4
-            &opencc.dictionary.jp_variants.0,             // 1
-            &opencc.dictionary.jp_variants_rev.0,         // 1
-        ] {
-            let max_word_length = dict
-                .keys()
-                .map(|word| word.chars().count())
-                .max()
-                .unwrap_or(1);
-            println!("{:?}, {}", dict.iter().next().unwrap(), max_word_length)
-        }
-
-        let max_lengths = [
-            &opencc.dictionary.st_characters.1,           // 1
-            &opencc.dictionary.st_phrases.1,              // 16
-            &opencc.dictionary.ts_characters.1,           // 1
-            &opencc.dictionary.ts_phrases.1,              // 14
-            &opencc.dictionary.tw_phrases.1,              // 10
-            &opencc.dictionary.tw_phrases_rev.1,          // 10
-            &opencc.dictionary.tw_variants.1,             // 1
-            &opencc.dictionary.tw_variants_rev.1,         // 1
-            &opencc.dictionary.tw_variants_rev_phrases.1, // 4
-            &opencc.dictionary.hk_variants.1,             // 1
-            &opencc.dictionary.hk_variants_rev.1,         // 1
-            &opencc.dictionary.hk_variants_rev_phrases.1, // 5
-            &opencc.dictionary.jps_characters.1,          // 1
-            &opencc.dictionary.jps_phrases.1,             // 4
-            &opencc.dictionary.jp_variants.1,             // 1
-            &opencc.dictionary.jp_variants_rev.1,         // 1
-        ];
-        println!("{:?}", max_lengths);
-        assert_eq!(actual_output, expected_output);
-    }
-
-    #[test]
-    #[ignore]
     fn test_serialize_to_json() {
         // Define the filename for testing
         let filename = "dictionary_maxlength.json";
         // let opencc = OpenCC::new();
-        let dictionary = zho_dictionary::DictionaryMaxlength::new();
+        let dictionary = dictionary_lib::DictionaryMaxlength::new();
         // Serialize to JSON and write to file
         dictionary.serialize_to_json(filename).unwrap();
 

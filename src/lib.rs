@@ -5,33 +5,36 @@ use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 use regex::Regex;
 
-use crate::zho_dictionary::DictionaryMaxlength;
+use crate::dictionary_lib::DictionaryMaxlength;
 
-pub mod zho_dictionary;
+pub mod dictionary_lib;
+
+const DELIMITERS: &'static str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
 
 pub struct OpenCC {
-    pub dictionary: DictionaryMaxlength,
+    dictionary: DictionaryMaxlength,
+    delimiters: HashSet<char>,
     is_parallel: bool,
 }
 
 impl OpenCC {
-    const DELIMITERS: &'static str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new();
+        let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
+
         OpenCC {
             dictionary,
+            delimiters,
             is_parallel,
         }
     }
 
-    pub fn segment_replace(
+    fn segment_replace(
+        &self,
         text: &str,
         dictionaries: &[&(HashMap<String, String>, usize)],
-        is_parallel: bool,
     ) -> String {
-        let delimiters: HashSet<char> = Self::DELIMITERS.chars().collect();
-        let string_list_length = text.len();
         let mut max_word_length: usize = 1;
         for i in 0..dictionaries.len() {
             if max_word_length < dictionaries[i].1 {
@@ -39,57 +42,52 @@ impl OpenCC {
             }
         }
 
-        if is_parallel {
-            let split_string_list = Self::split_string_with_delimiters_parallel(text, &delimiters);
-            Self::get_translated_string_parallel(
-                split_string_list,
-                dictionaries,
-                max_word_length,
-                &delimiters,
-            )
+        if self.is_parallel {
+            let split_string_list = self.split_string_inclusive_parallel(text);
+            self.get_translated_string_parallel(split_string_list, dictionaries, max_word_length)
         } else {
-            let split_string_list = Self::split_string_with_delimiters(text, &delimiters);
-            Self::get_translated_string(
-                split_string_list,
-                dictionaries,
-                max_word_length,
-                string_list_length,
-                &delimiters,
-            )
+            let split_string_list = self.split_string_inclusive(text);
+            self.get_translated_string(split_string_list, dictionaries, max_word_length)
         }
     }
 
     fn get_translated_string(
-        split_string_list: Vec<(String, String)>,
-        dictionaries: &[&(HashMap<String, String>, usize)],
-        max_word_length: usize,
-        string_list_length: usize,
-        delimiters: &HashSet<char>,
-    ) -> String {
-        let mut result = String::new();
-        result.reserve(string_list_length);
-
-        for (chunk, delimiter) in &split_string_list {
-            let converted = Self::convert_by(chunk, dictionaries, max_word_length, &delimiters);
-            result.push_str(&converted);
-            result.push_str(delimiter);
-        }
-
-        result
-    }
-
-    fn get_translated_string_parallel(
+        &self,
         split_string_list: Vec<String>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
-        delimiters: &HashSet<char>,
+    ) -> String {
+        split_string_list
+            .iter()
+            .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+            .collect::<String>()
+    }
+
+    fn get_translated_string_parallel(
+        &self,
+        split_string_list: Vec<String>,
+        dictionaries: &[&(HashMap<String, String>, usize)],
+        max_word_length: usize,
+    ) -> String {
+        split_string_list
+            .par_iter()
+            .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+            .collect::<String>()
+    }
+
+    #[allow(dead_code)]
+    fn get_translated_string_parallel_arc(
+        &self,
+        split_string_list: Vec<String>,
+        dictionaries: &[&(HashMap<String, String>, usize)],
+        max_word_length: usize,
     ) -> String {
         let result = Arc::new(Mutex::new(Vec::<(usize, String)>::new()));
         split_string_list
             .par_iter()
             .enumerate()
             .for_each(|(index, chunk)| {
-                let converted = Self::convert_by(chunk, dictionaries, max_word_length, &delimiters);
+                let converted = self.convert_by(chunk, dictionaries, max_word_length);
                 let mut result_lock = result.lock().unwrap();
                 result_lock.push((index, converted));
             });
@@ -97,7 +95,7 @@ impl OpenCC {
         result_lock.par_sort_by_key(|(index, _)| *index);
 
         let concatenated_result: String = result_lock
-            .iter()
+            .par_iter()
             .map(|(_, chunk)| chunk.as_str())
             .collect();
 
@@ -105,22 +103,23 @@ impl OpenCC {
     }
 
     fn convert_by(
+        &self,
         text: &str,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
-        delimiters: &HashSet<char>,
     ) -> String {
         if text.is_empty() {
             return String::new();
         }
 
-        let text_chars: Vec<_> = text.chars().collect();
+        let text_chars: Vec<_> = text.par_chars().collect();
         let text_length = text_chars.len();
         if text_length == 1 {
-            if delimiters.contains(&text_chars[0]) {
+            if self.delimiters.contains(&text_chars[0]) {
                 return text_chars[0].to_string();
             }
         }
+
         let mut result = String::new();
         result.reserve(text.len());
 
@@ -136,7 +135,7 @@ impl OpenCC {
                 for dictionary in dictionaries {
                     if let Some(value) = dictionary.0.get(&candidate) {
                         best_match_length = length;
-                        best_match = value.clone();
+                        best_match = value.to_owned();
                         break; // Push the corresponding value to the results
                     }
                 }
@@ -151,19 +150,17 @@ impl OpenCC {
             result.push_str(&best_match);
             start_pos += best_match_length;
         }
+
         result
     }
 
-    fn split_string_with_delimiters(
-        text: &str,
-        delimiters: &HashSet<char>,
-    ) -> Vec<(String, String)> {
+    fn split_string_inclusive(&self, text: &str) -> Vec<String> {
         let mut split_string_list = Vec::new();
         let mut current_chunk = String::new();
 
         for ch in text.chars() {
-            if delimiters.contains(&ch) {
-                split_string_list.push((current_chunk, ch.to_string()));
+            if self.delimiters.contains(&ch) {
+                split_string_list.push(current_chunk + &ch.to_string());
                 current_chunk = String::new();
             } else {
                 current_chunk.push(ch);
@@ -171,19 +168,17 @@ impl OpenCC {
         }
         // Current_chunk still have chars but current_delimiter is empty
         if !current_chunk.is_empty() {
-            split_string_list.push((current_chunk, String::new()));
+            split_string_list.push(current_chunk);
         }
+
         split_string_list
     }
 
-    fn split_string_with_delimiters_parallel(
-        text: &str,
-        delimiters: &HashSet<char>,
-    ) -> Vec<String> {
+    fn split_string_inclusive_parallel(&self, text: &str) -> Vec<String> {
         let split_string_list: Vec<String> = text
-            .chars()
+            .par_chars()
             .collect::<Vec<char>>()
-            .par_split_inclusive_mut(|c| delimiters.contains(c))
+            .par_split_inclusive_mut(|c| self.delimiters.contains(c))
             .map(|slice| slice.iter().collect())
             .collect();
 
@@ -200,7 +195,7 @@ impl OpenCC {
 
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output = self.segment_replace(input, &dict_refs);
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -210,7 +205,7 @@ impl OpenCC {
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output = self.segment_replace(input, &dict_refs);
         if punctuation {
             Self::convert_punctuation(&output, "t")
         } else {
@@ -221,12 +216,12 @@ impl OpenCC {
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let dict_refs_round_2 = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            Self::convert_punctuation(&output_2, "s")
+            Self::convert_punctuation(&output, "s")
         } else {
-            output_2
+            output.to_string()
         }
     }
 
@@ -236,12 +231,12 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let dict_refs_round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            Self::convert_punctuation(&output_2, "t")
+            Self::convert_punctuation(&output, "t")
         } else {
-            output_2
+            output
         }
     }
 
@@ -249,13 +244,13 @@ impl OpenCC {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let dict_refs_round_2 = [&self.dictionary.tw_phrases];
         let dict_refs_round_3 = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
-        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, self.is_parallel);
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
+        output = self.segment_replace(&output, &dict_refs_round_3);
         if punctuation {
-            Self::convert_punctuation(&output_3, "s")
+            Self::convert_punctuation(&output, "s")
         } else {
-            output_3
+            output
         }
     }
 
@@ -266,25 +261,25 @@ impl OpenCC {
         ];
         let dict_refs_round_2 = [&self.dictionary.tw_phrases_rev];
         let dict_refs_round_3 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
-        let output_3 = Self::segment_replace(&output_2, &dict_refs_round_3, self.is_parallel);
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
+        output = self.segment_replace(&output, &dict_refs_round_3);
         if punctuation {
-            Self::convert_punctuation(&output_3, "t")
+            Self::convert_punctuation(&output, "t")
         } else {
-            output_3
+            output
         }
     }
 
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
         let dict_refs = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let dict_refs_round_2 = [&self.dictionary.hk_variants];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            Self::convert_punctuation(&output_2, "s")
+            Self::convert_punctuation(&output, "s")
         } else {
-            output_2
+            output
         }
     }
 
@@ -294,91 +289,73 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev,
         ];
         let dict_refs_round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
         if punctuation {
-            Self::convert_punctuation(&output_2, "t")
-        } else {
-            output_2
-        }
-    }
-
-    pub fn t2tw(&self, input: &str, punctuation: bool) -> String {
-        let dict_refs = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        if punctuation {
-            Self::convert_punctuation(&output, "s")
+            Self::convert_punctuation(&output, "t")
         } else {
             output
         }
     }
 
-    pub fn t2twp(&self, input: &str, punctuation: bool) -> String {
-        let dict_refs = [&self.dictionary.tw_phrases];
-        let dict_refs_round_2 = [&self.dictionary.tw_variants];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
-        if punctuation {
-            Self::convert_punctuation(&output_2, "s")
-        } else {
-            output_2
-        }
+    pub fn t2tw(&self, input: &str) -> String {
+        let dict_refs = [&self.dictionary.tw_variants];
+        let output = self.segment_replace(input, &dict_refs);
+
+        output
     }
 
-    pub fn tw2t(&self, input: &str, punctuation: bool) -> String {
+    pub fn t2twp(&self, input: &str) -> String {
+        let dict_refs = [&self.dictionary.tw_phrases];
+        let dict_refs_round_2 = [&self.dictionary.tw_variants];
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
+
+        output
+    }
+
+    pub fn tw2t(&self, input: &str) -> String {
         let dict_refs = [
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        if punctuation {
-            Self::convert_punctuation(&output, "s")
-        } else {
-            output
-        }
+        let output = self.segment_replace(input, &dict_refs);
+
+        output
     }
 
-    pub fn tw2tp(&self, input: &str, punctuation: bool) -> String {
+    pub fn tw2tp(&self, input: &str) -> String {
         let dict_refs = [
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
         let dict_refs_round_2 = [&self.dictionary.tw_phrases_rev];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        let output_2 = Self::segment_replace(&output, &dict_refs_round_2, self.is_parallel);
-        if punctuation {
-            Self::convert_punctuation(&output_2, "s")
-        } else {
-            output_2
-        }
+        let mut output = self.segment_replace(input, &dict_refs);
+        output = self.segment_replace(&output, &dict_refs_round_2);
+
+        output
     }
 
-    pub fn t2hk(&self, input: &str, punctuation: bool) -> String {
+    pub fn t2hk(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.hk_variants];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        if punctuation {
-            Self::convert_punctuation(&output, "s")
-        } else {
-            output
-        }
+        let output = self.segment_replace(input, &dict_refs);
+
+        output
     }
 
-    pub fn hk2t(&self, input: &str, punctuation: bool) -> String {
+    pub fn hk2t(&self, input: &str) -> String {
         let dict_refs = [
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
-        if punctuation {
-            Self::convert_punctuation(&output, "s")
-        } else {
-            output
-        }
+        let output = self.segment_replace(input, &dict_refs);
+
+        output
     }
 
     pub fn t2jp(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.jp_variants];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output = self.segment_replace(input, &dict_refs);
 
         output
     }
@@ -389,21 +366,21 @@ impl OpenCC {
             &self.dictionary.jps_characters,
             &self.dictionary.jp_variants_rev,
         ];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output = self.segment_replace(input, &dict_refs);
 
         output
     }
 
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output = self.segment_replace(input, &dict_refs);
 
         output
     }
 
     fn ts(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.ts_characters];
-        let output = Self::segment_replace(input, &dict_refs, self.is_parallel);
+        let output = self.segment_replace(input, &dict_refs);
 
         output
     }
