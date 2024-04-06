@@ -1,4 +1,5 @@
 use c_fixed_string::CFixedStr;
+
 use opencc_fmmseg::OpenCC;
 
 #[no_mangle]
@@ -313,6 +314,45 @@ pub extern "C" fn opencc_t2jp(
     c_result.into_raw()
 }
 
+#[no_mangle]
+pub extern "C" fn opencc_convert(
+    instance: *const OpenCC,
+    config: *const std::os::raw::c_char,
+    input: *const std::os::raw::c_char,
+    punctuation: bool,
+) -> *mut std::os::raw::c_char {
+    if instance.is_null() {
+        return std::ptr::null_mut(); // Return null pointer if the instance pointer is null
+    }
+    let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
+    let config_str = unsafe { CFixedStr::from_ptr(config, libc::strlen(config)).to_string_lossy() };
+    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+    let result;
+
+    match config_str.to_lowercase().as_str() {
+        "s2t" => result = opencc.s2t(&input_str, punctuation),
+        "s2tw" => result = opencc.s2tw(&input_str, punctuation),
+        "s2twp" => result = opencc.s2twp(&input_str, punctuation),
+        "s2hk" => result = opencc.s2hk(&input_str, punctuation),
+        "t2s" => result = opencc.t2s(&input_str, punctuation),
+        "t2tw" => result = opencc.t2tw(&input_str),
+        "t2twp" => result = opencc.t2twp(&input_str),
+        "t2hk" => result = opencc.t2hk(&input_str),
+        "tw2s" => result = opencc.tw2s(&input_str, punctuation),
+        "tw2sp" => result = opencc.tw2sp(&input_str, punctuation),
+        "tw2t" => result = opencc.tw2t(&input_str),
+        "tw2tp" => result = opencc.tw2tp(&input_str),
+        "hk2s" => result = opencc.hk2s(&input_str, punctuation),
+        "hk2t" => result = opencc.hk2t(&input_str),
+        "jp2t" => result = opencc.jp2t(&input_str),
+        "t2jp" => result = opencc.t2jp(&input_str),
+        _ => result = String::new(),
+    }
+    // Convert the Rust string result to a C string
+    let c_result = std::ffi::CString::new(result).unwrap();
+    c_result.into_raw()
+}
+
 // Remember to free the memory allocated for the result string from C code
 #[no_mangle]
 pub extern "C" fn opencc_string_free(ptr: *mut std::os::raw::c_char) {
@@ -399,5 +439,41 @@ mod tests {
 
         // Assert the result
         assert_eq!(result_str, "你好，世界，歡迎！");
+    }
+
+    #[test]
+    fn test_opencc_convert() {
+        // Create a sample OpenCC instance
+        let opencc = OpenCC::new();
+        // Define a sample input string
+        let input = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+        // Convert the input string to a C string
+        let c_config = std::ffi::CString::new("s2twp")
+            .expect("CString conversion failed")
+            .into_raw();
+        // Convert the input string to a C string
+        let c_input = std::ffi::CString::new(input)
+            .expect("CString conversion failed")
+            .into_raw();
+        // Define the punctuation flag
+        let punctuation = true;
+        // Call the function under test
+        let result_ptr = opencc_convert(&opencc as *const OpenCC, c_config, c_input, punctuation);
+
+        // Convert the result C string to Rust string
+        let result_str = unsafe {
+            std::ffi::CString::from_raw(result_ptr)
+                .to_string_lossy()
+                .into_owned()
+        };
+
+        // Free the allocated C string
+        // unsafe { let _ = std::ffi::CString::from_raw(result_ptr); };
+
+        // Assert the result
+        assert_eq!(
+            result_str,
+            "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。"
+        );
     }
 }

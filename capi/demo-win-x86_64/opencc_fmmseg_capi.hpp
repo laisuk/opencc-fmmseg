@@ -18,6 +18,7 @@ extern "C" __declspec(dllimport) char *opencc_hk2s(const void *instance, const c
 extern "C" __declspec(dllimport) char *opencc_hk2t(const void *instance, const char *input);
 extern "C" __declspec(dllimport) char *opencc_jp2t(const void *instance, const char *input);
 extern "C" __declspec(dllimport) char *opencc_t2jp(const void *instance, const char *input);
+extern "C" __declspec(dllimport) char *opencc_convert(const void *instance, const char *config, const char *input, bool punctuation);
 extern "C" __declspec(dllimport) bool opencc_get_parallel(const void *instance);
 extern "C" __declspec(dllimport) void opencc_set_parallel(const void *instance, bool is_parallel);
 extern "C" __declspec(dllimport) void opencc_close(const void *instance);
