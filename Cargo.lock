@@ -18,6 +18,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
+name = "c_fixed_string"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe6833b1e1b632d1a4c167aa8dc2a78a774bd78e14bc14579505d209327b47cf"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "clipboard"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -144,6 +153,19 @@ dependencies = [
 name = "opencc-fmmseg"
 version = "0.1.0"
 dependencies = [
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "opencc-fmmseg-capi"
+version = "0.1.0"
+dependencies = [
+ "c_fixed_string",
+ "libc",
+ "opencc-fmmseg",
  "rayon",
  "regex",
  "serde",

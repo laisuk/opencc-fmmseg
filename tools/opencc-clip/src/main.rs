@@ -120,7 +120,7 @@ fn main() {
                 display_output = &output;
             }
 
-            println!("Opencc-Clip Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
+            println!("Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
             println!("Config: {}{}, {}", BLUE, &config, &punct);
             println!(
                 "{}Clipboard Input ({}):\n{}{}{}",

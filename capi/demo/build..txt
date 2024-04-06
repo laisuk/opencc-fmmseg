@@ -1,0 +1,3 @@
+
+gcc -o use_opencc_fmmseg_c use_opencc_fmmseg_c.c -I . -L . -l opencc_fmmseg_capi
+g++ -o use_opencc_fmmseg_cpp use_opencc_fmmseg_cpp.cpp -I . -L. -lopencc_fmmseg_capi

@@ -1,13 +1,19 @@
-workspace = { members = [ "capi/opencc-fmmseg-capi","tools/opencc-clip"] }
 [package]
-name = "opencc-fmmseg"
+name = "opencc-fmmseg-capi"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# cargo build --release --target=x86_64-pc-windows-msvc
 
 [dependencies]
+opencc-fmmseg = {path = "../.."}
 regex = "1.10.4"
 serde_json = "1.0.115"
 serde = { version = "1.0.197", features = ["derive"] }
 rayon = "1.10.0"
+c_fixed_string = "0.2.0"
+libc = "0.2.153"
+
+[lib]
+crate-type = ["cdylib"]
