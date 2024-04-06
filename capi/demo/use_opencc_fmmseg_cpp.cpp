@@ -4,9 +4,9 @@
 
 int main(int argc, char **argv)
 {
+    SetConsoleOutputCP(65001);
     auto opencc = opencc_new();
     auto is_parallel = opencc_get_parallel(opencc);
-    SetConsoleOutputCP(65001);
     std::cout << "OpenCC is_parallel: " << is_parallel << std::endl;
     const char *text = "你好，“意大利的美丽世界”，欢迎！";
     std::cout << "Text: " << text << std::endl;

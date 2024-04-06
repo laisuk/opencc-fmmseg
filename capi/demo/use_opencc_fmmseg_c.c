@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdbool.h>
 #include "opencc_fmmseg_capi.h"
 #include <windows.h>
 

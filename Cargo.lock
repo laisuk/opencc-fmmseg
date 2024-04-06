@@ -166,10 +166,6 @@ dependencies = [
  "c_fixed_string",
  "libc",
  "opencc-fmmseg",
- "rayon",
- "regex",
- "serde",
- "serde_json",
 ]
 
 [[package]]
