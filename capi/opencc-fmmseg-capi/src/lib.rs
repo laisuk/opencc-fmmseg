@@ -349,7 +349,7 @@ mod tests {
         let opencc = OpenCC::new();
 
         // Define a sample input string
-        let input = "你好，世界，歡迎"; // Chinese characters meaning "Hello, world!"
+        let input = "你好，世界，欢迎"; // Chinese characters meaning "Hello, world!"
 
         // Convert the input string to a C string
         let c_input = std::ffi::CString::new(input)
@@ -359,20 +359,13 @@ mod tests {
         // Call the function under test
         let result = opencc_zho_check(&opencc as *const OpenCC, c_input);
 
-        // Convert the C string back to a Rust string for assertion
-        let _result_str = unsafe {
-            std::ffi::CStr::from_ptr(c_input)
-                .to_str()
-                .expect("CString conversion failed")
-        };
-
         // Free the allocated C string
         unsafe {
             let _ = std::ffi::CString::from_raw(c_input);
         };
 
         // Assert the result
-        assert_eq!(result, 1); // Assuming the input string is in simplified Chinese, so the result should be 0
+        assert_eq!(result, 2); // Assuming the input string is in simplified Chinese, so the result should be 2
     }
 
     #[test]
@@ -381,7 +374,7 @@ mod tests {
         let opencc = OpenCC::new();
 
         // Define a sample input string
-        let input = "你好，世界，欢迎";
+        let input = "你好，世界，欢迎！";
 
         // Convert the input string to a C string
         let c_input = std::ffi::CString::new(input)
@@ -405,6 +398,6 @@ mod tests {
         // unsafe { let _ = std::ffi::CString::from_raw(result_ptr); };
 
         // Assert the result
-        assert_eq!(result_str, "你好，世界，歡迎");
+        assert_eq!(result_str, "你好，世界，歡迎！");
     }
 }
