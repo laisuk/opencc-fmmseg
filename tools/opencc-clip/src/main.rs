@@ -20,6 +20,11 @@ fn main() {
 
     if args.len() > 1 {
         config = args[1].clone().to_lowercase();
+        if config == "help" {
+            println!("Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
+            println!("Usage: opencc-clip [s2t|t2s|s2tw|tw2s|s2twp|tw2sp|s2hk|hk2s|t2tw|tw2t|t2twp|tw2t|tw2tp|t2hk|hk2t|jp2t|t2jp|auto|help] [punct]\n");
+            return;
+        }
         let config_vector = vec![
             "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp",
             "t2hk", "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
