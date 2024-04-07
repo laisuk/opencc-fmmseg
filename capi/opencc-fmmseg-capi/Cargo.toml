@@ -8,8 +8,6 @@ edition = "2021"
 
 [dependencies]
 opencc-fmmseg = {path = "../.."}
-c_fixed_string = "0.2.0"
-libc = "0.2.153"
 
 [lib]
 crate-type = ["cdylib"]

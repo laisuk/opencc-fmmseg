@@ -1,5 +1,3 @@
-use c_fixed_string::CFixedStr;
-
 use opencc_fmmseg::OpenCC;
 
 #[no_mangle]
@@ -42,11 +40,11 @@ pub extern "C" fn opencc_s2t(
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
 
     // Convert input from C string to Rust string
-    // let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
-    // let str_slice = c_str.to_str().unwrap_or("");
-    // let input_str = str_slice.to_owned();
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
 
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
 
     let result = opencc.s2t(&input_str, punctuation);
 
@@ -66,7 +64,13 @@ pub extern "C" fn opencc_s2tw(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.s2tw(&input_str, punctuation);
 
     // Convert the Rust string result to a C string
@@ -85,7 +89,14 @@ pub extern "C" fn opencc_s2twp(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.s2twp(&input_str, punctuation);
 
     // Convert the Rust string result to a C string
@@ -104,7 +115,14 @@ pub extern "C" fn opencc_s2hk(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.s2hk(&input_str, punctuation);
 
     // Convert the Rust string result to a C string
@@ -123,7 +141,14 @@ pub extern "C" fn opencc_t2s(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.t2s(&input_str, punctuation);
 
     // Convert the Rust string result to a C string
@@ -141,7 +166,14 @@ pub extern "C" fn opencc_t2tw(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.t2tw(&input_str);
 
     // Convert the Rust string result to a C string
@@ -159,7 +191,14 @@ pub extern "C" fn opencc_t2hk(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.t2hk(&input_str);
 
     // Convert the Rust string result to a C string
@@ -178,7 +217,14 @@ pub extern "C" fn opencc_tw2s(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.tw2s(&input_str, punctuation);
 
     // Convert the Rust string result to a C string
@@ -197,7 +243,14 @@ pub extern "C" fn opencc_tw2sp(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.tw2sp(&input_str, punctuation);
 
     // Convert the Rust string result to a C string
@@ -215,7 +268,14 @@ pub extern "C" fn opencc_tw2t(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.tw2t(&input_str);
 
     // Convert the Rust string result to a C string
@@ -233,7 +293,14 @@ pub extern "C" fn opencc_tw2tp(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.tw2tp(&input_str);
 
     // Convert the Rust string result to a C string
@@ -252,7 +319,14 @@ pub extern "C" fn opencc_hk2s(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.hk2s(&input_str, punctuation);
 
     // Convert the Rust string result to a C string
@@ -270,7 +344,14 @@ pub extern "C" fn opencc_hk2t(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.hk2t(&input_str);
 
     // Convert the Rust string result to a C string
@@ -288,7 +369,14 @@ pub extern "C" fn opencc_jp2t(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.jp2t(&input_str);
 
     // Convert the Rust string result to a C string
@@ -306,7 +394,14 @@ pub extern "C" fn opencc_t2jp(
     }
 
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let str_slice = c_str.to_str().unwrap_or("");
+    let input_str = str_slice.to_owned();
+
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result = opencc.t2jp(&input_str);
 
     // Convert the Rust string result to a C string
@@ -325,8 +420,19 @@ pub extern "C" fn opencc_convert(
         return std::ptr::null_mut(); // Return null pointer if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    let config_str = unsafe { CFixedStr::from_ptr(config, libc::strlen(config)).to_string_lossy() };
-    let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
+    // Convert input from C string to Rust string
+    let config_c_str = unsafe { std::ffi::CStr::from_ptr(config) };
+    let config_str_slice = config_c_str.to_str().unwrap_or("");
+    let config_str = config_str_slice.to_owned();
+
+    let input_c_str = unsafe { std::ffi::CStr::from_ptr(input) };
+    let input_str_slice = input_c_str.to_str().unwrap_or("");
+    let input_str = input_str_slice.to_owned();
+
+    // let config_str = unsafe { CFixedStr::from_ptr(config, libc::strlen(config)).to_string_lossy() };
+    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
+
     let result;
 
     match config_str.to_lowercase().as_str() {
@@ -372,7 +478,8 @@ pub extern "C" fn opencc_zho_check(
         return -1; // Return an error code if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-                                        // Convert input from C string to Rust string
+
+    // Convert input from C string to Rust string
     let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let str_slice = c_str.to_str().unwrap_or("");
     let input_str = str_slice.to_owned();
