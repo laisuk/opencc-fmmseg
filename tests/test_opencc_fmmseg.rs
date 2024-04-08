@@ -2,7 +2,7 @@ use opencc_fmmseg::{dictionary_lib, OpenCC};
 
 #[cfg(test)]
 mod tests {
-    use opencc_fmmseg::format_thousand;
+    use opencc_fmmseg::{format_thousand, get_last_error, set_last_error};
     use std::fs;
 
     use super::*;
@@ -151,5 +151,11 @@ mod tests {
         assert_eq!(opencc.get_parallel(), true);
         opencc.set_parallel(false);
         assert_eq!(opencc.get_parallel(), false);
+    }
+
+    #[test]
+    fn last_error_test() {
+        set_last_error("Some error here.");
+        assert_eq!(get_last_error().unwrap(), "Some error here.");
     }
 }

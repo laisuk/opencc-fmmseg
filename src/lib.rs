@@ -9,6 +9,8 @@ use crate::dictionary_lib::DictionaryMaxlength;
 
 pub mod dictionary_lib;
 
+// Define a global mutable variable to store the error message
+static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 const DELIMITERS: &'static str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
 
 pub struct OpenCC {
@@ -439,6 +441,18 @@ impl OpenCC {
         }
         output_text
     }
+}
+
+// Function to set the last error message
+pub fn set_last_error(err_msg: &str) {
+    let mut last_error = LAST_ERROR.lock().unwrap();
+    *last_error = Some(err_msg.to_string());
+}
+
+// Function to retrieve the last error message
+pub fn get_last_error() -> Option<String> {
+    let last_error = LAST_ERROR.lock().unwrap();
+    last_error.clone()
 }
 
 pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {

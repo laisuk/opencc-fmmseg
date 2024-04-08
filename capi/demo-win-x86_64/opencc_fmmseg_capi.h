@@ -13,7 +13,7 @@ bool opencc_get_parallel(const void *instance);
 void opencc_set_parallel(const void *instance, bool is_parallel);
 int opencc_zho_check(const void *instance, const char *input);
 void opencc_free(const void *instance);
-void opencc_string_free(char *ptr);
+void opencc_string_free(const char *ptr);
 
 #ifdef __cplusplus
 }
