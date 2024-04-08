@@ -1,5 +1,5 @@
 #include <iostream>
-#include "opencc_fmmseg_capi.hpp"
+#include "opencc_fmmseg_capi.h"
 #include <windows.h>
 
 int main(int argc, char **argv) {
@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
         opencc_string_free(result);
     }
     if (opencc != NULL) {
-        opencc_close(opencc);
+        opencc_free(opencc);
     }
 
     return 0;
