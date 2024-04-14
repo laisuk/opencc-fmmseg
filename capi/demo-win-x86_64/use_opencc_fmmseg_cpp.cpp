@@ -14,8 +14,10 @@ int main(int argc, char **argv) {
     std::cout << "Text Code: " << code << "\n";
     char *result = opencc_convert(opencc, config, text, true);
     code = opencc_zho_check(opencc, result);
+    char *last_error = opencc_last_error();
     std::cout << "Converted: " << result << "\n";
     std::cout << "Text Code: " << code << "\n";
+    std::cout << "Last Error: " << (last_error == NULL ? "No error" : last_error) << "\n";
     if (result != NULL) {
         opencc_string_free(result);
     }
