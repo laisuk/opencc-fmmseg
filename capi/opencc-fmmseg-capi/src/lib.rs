@@ -104,6 +104,21 @@ pub extern "C" fn opencc_zho_check(
     opencc.zho_check(&input_str)
 }
 
+#[no_mangle]
+pub extern "C" fn opencc_last_error() -> *mut std::os::raw::c_char {
+    let last_error = match OpenCC::get_last_error() {
+        Some(err) => err,
+        None => return std::ptr::null_mut(), // Return null pointer if no error
+    };
+    // Convert the Rust string result to a C string
+    let c_result = match std::ffi::CString::new(last_error) {
+        Ok(c_str) => c_str,
+        Err(_) => return std::ptr::null_mut(), // Return null pointer if CString creation fails
+    };
+
+    c_result.into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,5 +217,23 @@ mod tests {
             result_str,
             "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。"
         );
+    }
+
+    #[test]
+    fn test_opencc_last_error() {
+        // Call the opencc_last_error function
+        let error_ptr = opencc_last_error();
+        // Convert the raw pointer to a C string
+        let c_string = unsafe {
+            if !error_ptr.is_null() {
+                std::ffi::CString::from_raw(error_ptr)
+            } else {
+                std::ffi::CString::new("No error").unwrap()
+            }
+        };
+        // Convert the C string to a Rust string
+        let error_message = c_string.into_string().unwrap();
+        // Test the error message (replace "expected_error_message" with the expected error message)
+        assert_eq!(error_message, "No error");
     }
 }
