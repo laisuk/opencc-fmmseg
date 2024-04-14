@@ -101,7 +101,7 @@ pub extern "C" fn opencc_zho_check(
     let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let str_slice = c_str.to_str().unwrap_or("");
     let input_str = str_slice.to_owned();
-    opencc.zho_check(&input_str) as i32
+    opencc.zho_check(&input_str)
 }
 
 #[cfg(test)]

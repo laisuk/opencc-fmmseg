@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+use std::sync::Mutex;
 use std::{fs, io};
 
 use serde::{Deserialize, Serialize};
+// Define a global mutable variable to store the error message
+static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 #[derive(Serialize, Deserialize)]
 pub struct DictionaryMaxlength {
@@ -96,9 +99,21 @@ impl DictionaryMaxlength {
     #[allow(dead_code)]
     pub fn from_json(filename: &str) -> io::Result<Self> {
         // Read the contents of the JSON file
-        let json_string = fs::read_to_string(filename)?;
+        let json_string = match fs::read_to_string(filename) {
+            Ok(data) => data,
+            Err(err) => {
+                Self::set_last_error(&format!("Failed to read JSON file: {}", err));
+                return Err(err);
+            }
+        };
         // Deserialize the JSON string into a Dictionary struct
-        let dictionary: DictionaryMaxlength = serde_json::from_str(&json_string)?;
+        let dictionary: DictionaryMaxlength = match serde_json::from_str(&json_string) {
+            Ok(data) => data,
+            Err(err) => {
+                Self::set_last_error(&format!("Failed to deserialize JSON: {}", err));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, err));
+            }
+        };
 
         Ok(dictionary)
     }
@@ -126,11 +141,43 @@ impl DictionaryMaxlength {
 
         Ok((dictionary, max_length))
     }
+
     // Function to serialize Dictionary to JSON and write it to a file
     pub fn serialize_to_json(&self, filename: &str) -> io::Result<()> {
-        let json_string = serde_json::to_string(&self)?;
-        let mut file = File::create(filename)?;
-        file.write_all(json_string.as_bytes())?;
+        // Serialize the Dictionary to JSON
+        let json_string = match serde_json::to_string(&self) {
+            Ok(json) => json,
+            Err(err) => {
+                Self::set_last_error(&format!("Failed to serialize JSON: {}", err));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, err));
+            }
+        };
+        // Write JSON string to file
+        let mut file = match File::create(filename) {
+            Ok(f) => f,
+            Err(err) => {
+                Self::set_last_error(&format!("Failed to create file: {}", err));
+                return Err(err);
+            }
+        };
+
+        if let Err(err) = file.write_all(json_string.as_bytes()) {
+            Self::set_last_error(&format!("Failed to write to file: {}", err));
+            return Err(err);
+        }
+
         Ok(())
+    }
+
+    // Function to set the last error message
+    pub fn set_last_error(err_msg: &str) {
+        let mut last_error = LAST_ERROR.lock().unwrap();
+        *last_error = Some(err_msg.to_string());
+    }
+
+    // Function to retrieve the last error message
+    pub fn get_last_error() -> Option<String> {
+        let last_error = LAST_ERROR.lock().unwrap();
+        last_error.clone()
     }
 }
