@@ -12,10 +12,16 @@ int main(int argc, char **argv) {
     printf("Text Code: %d\n", code);
     char *result = opencc_convert(opencc, config, text, true);
     code = opencc_zho_check(opencc, result);
+    char *last_error = opencc_last_error();
     printf("Converted: %s\n", result);
     printf("Text Code: %d\n", code);
+    printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
+
     if (result != NULL) {
         opencc_string_free(result);
+    }
+    if (last_error != NULL) {
+            opencc_string_free(last_error);
     }
     if (opencc != NULL) {
         opencc_free(opencc);
