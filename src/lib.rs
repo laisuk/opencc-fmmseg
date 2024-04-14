@@ -19,8 +19,13 @@ pub struct OpenCC {
 
 impl OpenCC {
     pub fn new() -> Self {
-        let dictionary = DictionaryMaxlength::new();
-        Self::set_last_error(DictionaryMaxlength::get_last_error().unwrap_or(String::from("Dictionary Ok")).as_str());
+        let dictionary = DictionaryMaxlength::new().unwrap_or_else(|err| {
+            DictionaryMaxlength::set_last_error(&format!("Failed to create dictionary: {}", err));
+            // Since DictionaryMaxlength::new() returns a DictionaryMaxlength
+            // instance on success, we create a default instance here to
+            // maintain the structure of OpenCC.
+            DictionaryMaxlength::default()
+        });
         let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
 

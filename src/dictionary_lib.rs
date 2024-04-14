@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 use std::sync::Mutex;
@@ -29,10 +30,17 @@ pub struct DictionaryMaxlength {
 }
 
 impl DictionaryMaxlength {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Box<dyn Error>> {
         let json_data = include_str!("dicts/dictionary_maxlength.json");
-        let dictionary: DictionaryMaxlength = serde_json::from_str(json_data).unwrap();
-        dictionary
+        let dictionary: Self = match serde_json::from_str(json_data) {
+            Ok(data) => data,
+            Err(err) => {
+                Self::set_last_error(&format!("Failed to read JSON file: {}", err));
+                return Err(Box::new(err));
+            }
+        };
+
+        Ok(dictionary)
     }
 
     pub fn from_dicts() -> Self {
@@ -179,5 +187,28 @@ impl DictionaryMaxlength {
     pub fn get_last_error() -> Option<String> {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()
+    }
+}
+
+impl Default for DictionaryMaxlength {
+    fn default() -> Self {
+        Self {
+            st_characters: (HashMap::new(), 0),
+            st_phrases: (HashMap::new(), 0),
+            ts_characters: (HashMap::new(), 0),
+            ts_phrases: (HashMap::new(), 0),
+            tw_phrases: (HashMap::new(), 0),
+            tw_phrases_rev: (HashMap::new(), 0),
+            tw_variants: (HashMap::new(), 0),
+            tw_variants_rev: (HashMap::new(), 0),
+            tw_variants_rev_phrases: (HashMap::new(), 0),
+            hk_variants: (HashMap::new(), 0),
+            hk_variants_rev: (HashMap::new(), 0),
+            hk_variants_rev_phrases: (HashMap::new(), 0),
+            jps_characters: (HashMap::new(), 0),
+            jps_phrases: (HashMap::new(), 0),
+            jp_variants: (HashMap::new(), 0),
+            jp_variants_rev: (HashMap::new(), 0),
+        }
     }
 }

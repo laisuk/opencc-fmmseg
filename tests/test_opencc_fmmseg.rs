@@ -125,12 +125,35 @@ mod tests {
     }
 
     #[test]
+    fn test_dictionary_from_dicts() {
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts();
+        // Verify that the JSON contains the expected data
+        let expected = 16;
+        assert_eq!(dictionary.st_phrases.1, expected);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_dictionary_from_dicts_then_to_json() {
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts();
+        // Verify that the Dictionary contains the expected data
+        let expected = 16;
+        assert_eq!(dictionary.st_phrases.1, expected);
+
+        let filename = "dictionary_maxlength.json";
+        dictionary.serialize_to_json(filename).unwrap();
+        let file_contents = fs::read_to_string(filename).unwrap();
+        let expected_json = 1350232;
+        assert_eq!(file_contents.trim().len(), expected_json);
+        // Clean up: Delete the test file
+        // fs::remove_file(filename).unwrap();
+    }
+    #[test]
     #[ignore]
     fn test_serialize_to_json() {
         // Define the filename for testing
         let filename = "dictionary_maxlength.json";
-        // let opencc = OpenCC::new();
-        let dictionary = dictionary_lib::DictionaryMaxlength::new();
+        let dictionary = dictionary_lib::DictionaryMaxlength::new().unwrap();
         // Serialize to JSON and write to file
         dictionary.serialize_to_json(filename).unwrap();
         // Read the contents of the file
