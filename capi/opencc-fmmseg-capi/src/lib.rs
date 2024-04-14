@@ -236,4 +236,28 @@ mod tests {
         // Test the error message (replace "expected_error_message" with the expected error message)
         assert_eq!(error_message, "No error");
     }
+
+    #[test]
+    fn test_opencc_last_error_2() {
+        let _opencc = OpenCC::from_json("test.json");
+        let last_error_0 = OpenCC::get_last_error().unwrap_or_else(|| "No error".to_string());
+        let error_ptr = opencc_last_error();
+
+        let c_error = unsafe {
+            if error_ptr.is_null() {
+                std::ffi::CString::new("No error").unwrap()
+            } else {
+                std::ffi::CString::from_raw(error_ptr)
+            }
+        };
+        // Convert the C string to a Rust string
+        let error_message = c_error.clone().into_string().unwrap();
+        println!(
+            "Error 0: {}\nError 1: {}",
+            last_error_0,
+            c_error.into_string().unwrap()
+        );
+
+        assert_eq!(error_message, last_error_0);
+    }
 }

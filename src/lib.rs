@@ -20,7 +20,7 @@ pub struct OpenCC {
 impl OpenCC {
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new().unwrap_or_else(|err| {
-            DictionaryMaxlength::set_last_error(&format!("Failed to create dictionary: {}", err));
+            Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             // Since DictionaryMaxlength::new() returns a DictionaryMaxlength
             // instance on success, we create a default instance here to
             // maintain the structure of OpenCC.
@@ -36,6 +36,31 @@ impl OpenCC {
         }
     }
 
+    pub fn from_dicts() -> Self {
+        let dictionary = DictionaryMaxlength::from_dicts();
+        let delimiters = DELIMITERS.chars().collect();
+        let is_parallel = true;
+
+        OpenCC {
+            dictionary,
+            delimiters,
+            is_parallel,
+        }
+    }
+    pub fn from_json(filename: &str) -> Self {
+        let dictionary = DictionaryMaxlength::from_json(filename).unwrap_or_else(|err| {
+            Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+            DictionaryMaxlength::default()
+        });
+        let delimiters = DELIMITERS.chars().collect();
+        let is_parallel = true;
+
+        OpenCC {
+            dictionary,
+            delimiters,
+            is_parallel,
+        }
+    }
     fn segment_replace(
         &self,
         text: &str,
