@@ -70,7 +70,12 @@ pub extern "C" fn opencc_convert(
         "hk2t" => result = opencc.hk2t(&input_str),
         "jp2t" => result = opencc.jp2t(&input_str),
         "t2jp" => result = opencc.t2jp(&input_str),
-        _ => result = String::new(),
+        _ => {
+            result = {
+                OpenCC::set_last_error(format!("Invalid config: {}", config_str).as_str());
+                String::new()
+            }
+        }
     }
     // Convert the Rust string result to a C string
     let c_result = std::ffi::CString::new(result).unwrap();
@@ -96,8 +101,7 @@ pub extern "C" fn opencc_zho_check(
         return -1; // Return an error code if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-
-    // Convert input from C string to Rust string
+                                        // Convert input from C string to Rust string
     let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let str_slice = c_str.to_str().unwrap_or("");
     let input_str = str_slice.to_owned();
@@ -127,48 +131,40 @@ mod tests {
     fn test_opencc_zho_check() {
         // Create a sample OpenCC instance
         let opencc = OpenCC::new();
-
         // Define a sample input string
         let input = "你好，世界，欢迎"; // Chinese characters meaning "Hello, world!"
-
-        // Convert the input string to a C string
+                                        // Convert the input string to a C string
         let c_input = std::ffi::CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
-
         // Call the function under test
         let result = opencc_zho_check(&opencc as *const OpenCC, c_input);
-
         // Free the allocated C string
         unsafe {
             let _ = std::ffi::CString::from_raw(c_input);
         };
-
         // Assert the result
         assert_eq!(result, 2); // Assuming the input string is in simplified Chinese, so the result should be 2
     }
 
     #[test]
-    fn test_opencc_s2t() {
+    fn test_opencc_invalid() {
         // Create a sample OpenCC instance
         let opencc = OpenCC::new();
         // Define a sample input string
         let input = "你好，世界，欢迎！";
         // Convert the input string to a C string
-        let c_config = std::ffi::CString::new("s2t")
+        let c_config = std::ffi::CString::new("s2s")
             .expect("CString conversion failed")
             .into_raw();
         // Convert the input string to a C string
         let c_input = std::ffi::CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
-
         // Define the punctuation flag
         let punctuation = false;
-
         // Call the function under test
         let result_ptr = opencc_convert(&opencc as *const OpenCC, c_config, c_input, punctuation);
-
         // Convert the result C string to Rust string
         let result_str = unsafe {
             std::ffi::CString::from_raw(result_ptr)
@@ -180,7 +176,13 @@ mod tests {
         // unsafe { let _ = std::ffi::CString::from_raw(result_ptr); };
 
         // Assert the result
-        assert_eq!(result_str, "你好，世界，歡迎！");
+        // println!("{:?}", OpenCC::get_last_error());
+        assert_eq!(result_str, "");
+        // assert_eq!(result_str, "你好，世界，歡迎！");
+        assert_eq!(
+            Some(OpenCC::get_last_error().unwrap().contains("Invalid")),
+            Some(true)
+        );
     }
 
     #[test]
@@ -201,7 +203,6 @@ mod tests {
         let punctuation = true;
         // Call the function under test
         let result_ptr = opencc_convert(&opencc as *const OpenCC, c_config, c_input, punctuation);
-
         // Convert the result C string to Rust string
         let result_str = unsafe {
             std::ffi::CString::from_raw(result_ptr)
@@ -253,7 +254,7 @@ mod tests {
         // Convert the C string to a Rust string
         let error_message = c_error.clone().into_string().unwrap();
         println!(
-            "Error 0: {}\nError 1: {}",
+            "Left: {}\nRight: {}",
             last_error_0,
             c_error.into_string().unwrap()
         );
