@@ -132,6 +132,7 @@ mod tests {
         assert_eq!(dictionary.st_phrases.1, expected);
     }
 
+    // Use this to generate "dictionary_maxlength.json" when you edit dicts data
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_json() {

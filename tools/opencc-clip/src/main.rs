@@ -53,7 +53,7 @@ fn main() {
             if config == "auto" {
                 match input_code {
                     1 => config = "t2s".to_string(),
-                    2 => config = "s2tw".to_string(),
+                    2 => config = "s2t".to_string(),
                     _ => config = "none".to_string(),
                 }
             }
