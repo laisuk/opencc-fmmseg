@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     std::cout << "Text: " << text << "\n";
     auto code = opencc_zho_check(opencc, text);
     std::cout << "Text Code: " << code << "\n";
-    char *result = opencc_convert(opencc, config, text, true);
+    char *result = opencc_convert(opencc, text, config, true);
     code = opencc_zho_check(opencc, result);
     char *last_error = opencc_last_error();
     std::cout << "Converted: " << result << "\n";

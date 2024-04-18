@@ -402,6 +402,35 @@ impl OpenCC {
         output
     }
 
+    pub fn convert(&self, input: &str, config: &str, punctuation: bool) -> String {
+        let result;
+
+        match config.to_lowercase().as_str() {
+            "s2t" => result = self.s2t(input, punctuation),
+            "s2tw" => result = self.s2tw(input, punctuation),
+            "s2twp" => result = self.s2twp(input, punctuation),
+            "s2hk" => result = self.s2hk(input, punctuation),
+            "t2s" => result = self.t2s(input, punctuation),
+            "t2tw" => result = self.t2tw(input),
+            "t2twp" => result = self.t2twp(input),
+            "t2hk" => result = self.t2hk(input),
+            "tw2s" => result = self.tw2s(input, punctuation),
+            "tw2sp" => result = self.tw2sp(input, punctuation),
+            "tw2t" => result = self.tw2t(input),
+            "tw2tp" => result = self.tw2tp(input),
+            "hk2s" => result = self.hk2s(input, punctuation),
+            "hk2t" => result = self.hk2t(input),
+            "jp2t" => result = self.jp2t(input),
+            "t2jp" => result = self.t2jp(input),
+            _ => {
+                result = {
+                    OpenCC::set_last_error(format!("Invalid config: {}", config).as_str());
+                    String::new()
+                }
+            }
+        }
+        result
+    }
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
         let output = self.segment_replace(input, &dict_refs);

@@ -30,16 +30,15 @@ pub extern "C" fn opencc_set_parallel(instance: *mut OpenCC, is_parallel: bool) 
 #[no_mangle]
 pub extern "C" fn opencc_convert(
     instance: *const OpenCC,
-    config: *const std::os::raw::c_char,
     input: *const std::os::raw::c_char,
+    config: *const std::os::raw::c_char,
     punctuation: bool,
 ) -> *mut std::os::raw::c_char {
     if instance.is_null() {
         return std::ptr::null_mut(); // Return null pointer if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-
-    // Convert input from C string to Rust string
+                                        // Convert input from C string to Rust string
     let config_c_str = unsafe { std::ffi::CStr::from_ptr(config) };
     let config_str_slice = config_c_str.to_str().unwrap_or("");
     let config_str = config_str_slice.to_owned();
@@ -51,33 +50,8 @@ pub extern "C" fn opencc_convert(
     // let config_str = unsafe { CFixedStr::from_ptr(config, libc::strlen(config)).to_string_lossy() };
     // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
 
-    let result;
+    let result = opencc.convert(input_str.as_str(), config_str.as_str(), punctuation);
 
-    match config_str.to_lowercase().as_str() {
-        "s2t" => result = opencc.s2t(&input_str, punctuation),
-        "s2tw" => result = opencc.s2tw(&input_str, punctuation),
-        "s2twp" => result = opencc.s2twp(&input_str, punctuation),
-        "s2hk" => result = opencc.s2hk(&input_str, punctuation),
-        "t2s" => result = opencc.t2s(&input_str, punctuation),
-        "t2tw" => result = opencc.t2tw(&input_str),
-        "t2twp" => result = opencc.t2twp(&input_str),
-        "t2hk" => result = opencc.t2hk(&input_str),
-        "tw2s" => result = opencc.tw2s(&input_str, punctuation),
-        "tw2sp" => result = opencc.tw2sp(&input_str, punctuation),
-        "tw2t" => result = opencc.tw2t(&input_str),
-        "tw2tp" => result = opencc.tw2tp(&input_str),
-        "hk2s" => result = opencc.hk2s(&input_str, punctuation),
-        "hk2t" => result = opencc.hk2t(&input_str),
-        "jp2t" => result = opencc.jp2t(&input_str),
-        "t2jp" => result = opencc.t2jp(&input_str),
-        _ => {
-            result = {
-                OpenCC::set_last_error(format!("Invalid config: {}", config_str).as_str());
-                String::new()
-            }
-        }
-    }
-    // Convert the Rust string result to a C string
     let c_result = std::ffi::CString::new(result).unwrap();
     c_result.into_raw()
 }
@@ -164,7 +138,7 @@ mod tests {
         // Define the punctuation flag
         let punctuation = false;
         // Call the function under test
-        let result_ptr = opencc_convert(&opencc as *const OpenCC, c_config, c_input, punctuation);
+        let result_ptr = opencc_convert(&opencc as *const OpenCC, c_input, c_config, punctuation);
         // Convert the result C string to Rust string
         let result_str = unsafe {
             std::ffi::CString::from_raw(result_ptr)
@@ -202,7 +176,7 @@ mod tests {
         // Define the punctuation flag
         let punctuation = true;
         // Call the function under test
-        let result_ptr = opencc_convert(&opencc as *const OpenCC, c_config, c_input, punctuation);
+        let result_ptr = opencc_convert(&opencc as *const OpenCC, c_input, c_config, punctuation);
         // Convert the result C string to Rust string
         let result_str = unsafe {
             std::ffi::CString::from_raw(result_ptr)

@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include "opencc_fmmseg_capi.h"
+#include <windows.h>
 
 int main(int argc, char **argv) {
+    SetConsoleOutputCP(65001);
     void *opencc = opencc_new();
     bool is_parallel = opencc_get_parallel(opencc);
     printf("OpenCC is_parallel: %d\n", is_parallel);
@@ -10,18 +12,14 @@ int main(int argc, char **argv) {
     printf("Text: %s\n", text);
     int code = opencc_zho_check(opencc, text);
     printf("Text Code: %d\n", code);
-    char *result = opencc_convert(opencc, config, text, true);
+    char *result = opencc_convert(opencc, text, config, true);
     code = opencc_zho_check(opencc, result);
     char *last_error = opencc_last_error();
     printf("Converted: %s\n", result);
     printf("Text Code: %d\n", code);
-    printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
-
+     printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
     if (result != NULL) {
         opencc_string_free(result);
-    }
-    if (last_error != NULL) {
-            opencc_string_free(last_error);
     }
     if (opencc != NULL) {
         opencc_free(opencc);
