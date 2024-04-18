@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include "opencc_fmmseg_capi.h"
-#include <windows.h>
 
 int main(int argc, char **argv) {
-    SetConsoleOutputCP(65001);
     void *opencc = opencc_new();
     bool is_parallel = opencc_get_parallel(opencc);
     printf("OpenCC is_parallel: %d\n", is_parallel);

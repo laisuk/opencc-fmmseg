@@ -1,9 +1,7 @@
 #include <iostream>
 #include "opencc_fmmseg_capi.h"
-#include <windows.h>
 
 int main(int argc, char **argv) {
-    SetConsoleOutputCP(65001);
     auto opencc = opencc_new();
     auto is_parallel = opencc_get_parallel(opencc);
     std::cout << "OpenCC is_parallel: " << is_parallel << "\n";
