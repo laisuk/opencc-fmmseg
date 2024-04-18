@@ -38,19 +38,19 @@ pub extern "C" fn opencc_convert(
         return std::ptr::null_mut(); // Return null pointer if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-                                        // Convert input from C string to Rust string
+    // Convert input from C string to Rust string
     let config_c_str = unsafe { std::ffi::CStr::from_ptr(config) };
     let config_str_slice = config_c_str.to_str().unwrap_or("");
-    let config_str = config_str_slice.to_owned();
+    // let config_str = config_str_slice.to_owned();
 
     let input_c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let input_str_slice = input_c_str.to_str().unwrap_or("");
-    let input_str = input_str_slice.to_owned();
+    // let input_str = input_str_slice.to_owned();
 
     // let config_str = unsafe { CFixedStr::from_ptr(config, libc::strlen(config)).to_string_lossy() };
     // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
 
-    let result = opencc.convert(input_str.as_str(), config_str.as_str(), punctuation);
+    let result = opencc.convert(input_str_slice, config_str_slice, punctuation);
 
     let c_result = std::ffi::CString::new(result).unwrap();
     c_result.into_raw()
@@ -78,8 +78,8 @@ pub extern "C" fn opencc_zho_check(
                                         // Convert input from C string to Rust string
     let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let str_slice = c_str.to_str().unwrap_or("");
-    let input_str = str_slice.to_owned();
-    opencc.zho_check(&input_str)
+    // let input_str = str_slice.to_owned();
+    opencc.zho_check(str_slice)
 }
 
 #[no_mangle]

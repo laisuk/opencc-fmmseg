@@ -7,7 +7,7 @@ use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
 
 fn main() -> Result<(), io::Error> {
-    let matches = App::new("OpenCC Rust - A command line Open Chinese converter")
+    let matches = App::new("OpenCC Rust: Command line Open Chinese Converter")
         .arg(
             Arg::with_name("input")
                 .short('i')
@@ -31,7 +31,7 @@ fn main() -> Result<(), io::Error> {
                 .short('c')
                 .long("config")
                 .value_name("conversion")
-                .help("Conversion configuration: [s2t|s2tw|s2twp|t2s|tw2s|tw2sp|..]")
+                .help("Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]")
                 .takes_value(true)
                 .required(true),
         )
