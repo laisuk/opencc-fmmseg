@@ -34,7 +34,9 @@ def main():
     with io.open(args.output if args.output else 1, 'w', encoding=args.out_enc) as f:
         f.write(output_str)
 
-    print(f"Conversion completed ({args.config}): {args.input} -> {args.output}")
+    in_from = args.input if args.input else "<stdin>"
+    out_to = args.output if args.output else "<stdout>"
+    print(f"Conversion completed ({args.config}): {in_from} -> {out_to}")
 
     return 0
 
