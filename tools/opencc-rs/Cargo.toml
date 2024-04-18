@@ -9,3 +9,4 @@ edition = "2021"
 opencc-fmmseg = {path = "../.."}
 # Don't update to version 4.x.x
 clap = "3.2.25"
+#clap = "4.5.4"

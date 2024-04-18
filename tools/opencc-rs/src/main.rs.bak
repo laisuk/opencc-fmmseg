@@ -1,14 +1,13 @@
+use clap::{App, Arg};
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
-
-use clap::error::ContextValue::String;
-use clap::{App, Arg};
+use std::string::String;
 
 use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
 
-fn main() -> io::Result<()> {
-    let matches = App::new("OpenCC Rust")
+fn main() -> Result<(), io::Error> {
+    let matches = App::new("OpenCC Rust: Command line Open Chinese Converter")
         .arg(
             Arg::with_name("input")
                 .short('i')
@@ -32,7 +31,7 @@ fn main() -> io::Result<()> {
                 .short('c')
                 .long("config")
                 .value_name("conversion")
-                .help("Conversion configuration: [s2t|s2tw|s2twp|t2s|tw2s|tw2sp|..]")
+                .help("Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]")
                 .takes_value(true)
                 .required(true),
         )
@@ -68,42 +67,26 @@ fn main() -> io::Result<()> {
     let mut input_str = String::new();
     input.read_to_string(&mut input_str)?;
 
-    let output_str = convert_by(&input_str, &config, punctuation);
+    let opencc = OpenCC::new();
+
+    let output_str = opencc.convert(&input_str, config, punctuation);
 
     write!(output_buf, "{}", output_str)?;
 
     output_buf.flush()?; // Flush buffer to ensure all data is written
 
-    Ok(())
-}
-
-fn convert_by(input: &str, config: &str, punctuation: bool) -> String {
-    let opencc = OpenCC::new();
-    let result;
-
-    match config.to_lowercase().as_str() {
-        "s2t" => result = opencc.s2t(input, punctuation),
-        "s2tw" => result = opencc.s2tw(input, punctuation),
-        "s2twp" => result = opencc.s2twp(input, punctuation),
-        "s2hk" => result = opencc.s2hk(input, punctuation),
-        "t2s" => result = opencc.t2s(input, punctuation),
-        "t2tw" => result = opencc.t2tw(input),
-        "t2twp" => result = opencc.t2twp(input),
-        "t2hk" => result = opencc.t2hk(input),
-        "tw2s" => result = opencc.tw2s(input, punctuation),
-        "tw2sp" => result = opencc.tw2sp(input, punctuation),
-        "tw2t" => result = opencc.tw2t(input),
-        "tw2tp" => result = opencc.tw2tp(input),
-        "hk2s" => result = opencc.hk2s(input, punctuation),
-        "hk2t" => result = opencc.hk2t(input),
-        "jp2t" => result = opencc.jp2t(input),
-        "t2jp" => result = opencc.t2jp(input),
-        _ => {
-            result = {
-                OpenCC::set_last_error(format!("Invalid config: {}", config).as_str());
-                String::new()
-            }
-        }
+    if let Some(input_file) = input_file {
+        println!(
+            "Conversion completed: {} -> {}",
+            input_file,
+            output_file.unwrap_or("stdout").to_string()
+        );
+    } else {
+        println!(
+            "Conversion completed: <stdin> -> {}",
+            output_file.unwrap_or("stdout")
+        );
     }
-    result
+
+    Ok(())
 }

@@ -38,7 +38,7 @@ pub extern "C" fn opencc_convert(
         return std::ptr::null_mut(); // Return null pointer if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-    // Convert input from C string to Rust string
+                                        // Convert input from C string to Rust string
     let config_c_str = unsafe { std::ffi::CStr::from_ptr(config) };
     let config_str_slice = config_c_str.to_str().unwrap_or("");
     // let config_str = config_str_slice.to_owned();

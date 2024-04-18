@@ -7,15 +7,16 @@ use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
 
 fn main() -> Result<(), io::Error> {
-    let matches = App::new("OpenCC Rust: Command line Open Chinese Converter")
+    const BLUE: &str = "\x1B[1;34m";
+    const RESET: &str = "\x1B[0m";
+    let matches = App::new("OpenCC Rust: Command Line Open Chinese Converter")
         .arg(
             Arg::with_name("input")
                 .short('i')
                 .long("input")
                 .value_name("file")
                 .help("Read original text from <file>.")
-                .takes_value(true)
-                .required(true),
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("output")
@@ -23,8 +24,7 @@ fn main() -> Result<(), io::Error> {
                 .long("output")
                 .value_name("file")
                 .help("Write converted text to <file>.")
-                .takes_value(true)
-                .required(true),
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("config")
@@ -77,13 +77,13 @@ fn main() -> Result<(), io::Error> {
 
     if let Some(input_file) = input_file {
         println!(
-            "Conversion completed: {} -> {}",
+            "{BLUE}Conversion completed: {} -> {}{RESET}",
             input_file,
             output_file.unwrap_or("stdout").to_string()
         );
     } else {
         println!(
-            "Conversion completed: <stdin> -> {}",
+            "{BLUE}Conversion completed: <stdin> -> {}{RESET}",
             output_file.unwrap_or("stdout")
         );
     }
