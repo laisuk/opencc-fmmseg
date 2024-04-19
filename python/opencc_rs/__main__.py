@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
 
     if args.config is None:
-        print("Please specify a conversion.", file=sys.stderr)
+        print("Please set conversion configuration.", file=sys.stderr)
         return 1
 
     cc = OpenCC(args.config)
@@ -36,7 +36,7 @@ def main():
 
     in_from = args.input if args.input else "<stdin>"
     out_to = args.output if args.output else "<stdout>"
-    print(f"Conversion completed ({args.config}): {in_from} -> {out_to}")
+    print(f"Conversion completed ({args.config}): {in_from} -> {out_to}", file=sys.stderr)
 
     return 0
 
