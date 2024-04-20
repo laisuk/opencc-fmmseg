@@ -195,6 +195,7 @@ mod tests {
     }
 
     #[test]
+    // If test_opencc_last_error_2 run first, this test will fail, it's expected
     fn test_opencc_last_error() {
         // Call the opencc_last_error function
         let error_ptr = opencc_last_error();

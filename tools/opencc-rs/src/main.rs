@@ -31,7 +31,9 @@ fn main() -> Result<(), io::Error> {
                 .short('c')
                 .long("config")
                 .value_name("conversion")
-                .help("Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]")
+                .help(
+                    "Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]",
+                )
                 .takes_value(true)
                 .required(true),
         )

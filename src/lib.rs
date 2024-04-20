@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
 use std::sync::{Arc, Mutex};
@@ -10,7 +11,9 @@ pub mod dictionary_lib;
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 const DELIMITERS: &'static str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
-
+lazy_static! {
+    static ref STRIP_REGEX: Regex = Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap();
+}
 pub struct OpenCC {
     dictionary: DictionaryMaxlength,
     delimiters: HashSet<char>,
@@ -449,9 +452,8 @@ impl OpenCC {
         if input.is_empty() {
             return 0;
         }
-        // let re = Regex::new(r"[[:punct:][:space:][:word:]]").unwrap();
-        let re = Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap();
-        let _strip_text = re.replace_all(input, "");
+        // let re = Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap();
+        let _strip_text = STRIP_REGEX.replace_all(input, "");
         let max_bytes = find_max_utf8_length(&_strip_text, 200);
         let strip_text = &_strip_text[..max_bytes];
         let code;
