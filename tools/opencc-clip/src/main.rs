@@ -4,8 +4,14 @@ use std::env;
 
 use copypasta::ClipboardContext;
 use copypasta::ClipboardProvider;
+
 use opencc_fmmseg;
 use opencc_fmmseg::{find_max_utf8_length, format_thousand, OpenCC};
+
+const CONFIG_LIST: [&str; 16] = [
+    "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
+    "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
+];
 
 fn main() {
     const RED: &str = "\x1B[1;31m";
@@ -17,10 +23,6 @@ fn main() {
     let mut config;
     let mut punct = false;
     let args: Vec<String> = env::args().collect();
-    let config_vector = vec![
-        "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
-        "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
-    ];
 
     if args.len() > 1 {
         config = args[1].clone().to_lowercase();
@@ -30,7 +32,7 @@ fn main() {
             return;
         }
 
-        if !config_vector.contains(&config.as_str()) {
+        if !CONFIG_LIST.contains(&config.as_str()) {
             config = "auto".to_string()
         }
         if args.len() >= 2 {
@@ -78,7 +80,7 @@ fn main() {
                 display_output_code = "Traditional Chinese 繁体";
             }
 
-            match config_vector.contains(&config.as_str()) {
+            match CONFIG_LIST.contains(&config.as_str()) {
                 true => output = opencc.convert(&contents, &config, punct),
                 false => output = contents.clone(),
             }
