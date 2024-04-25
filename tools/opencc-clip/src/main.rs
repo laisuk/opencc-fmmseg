@@ -1,6 +1,7 @@
 extern crate copypasta;
 
 use std::env;
+use std::iter::Iterator;
 
 use copypasta::ClipboardContext;
 use copypasta::ClipboardProvider;

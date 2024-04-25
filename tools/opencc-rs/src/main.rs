@@ -6,6 +6,11 @@ use std::string::String;
 use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
 
+const CONFIG_LIST: [&str; 16] = [
+    "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
+    "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
+];
+
 fn main() -> Result<(), io::Error> {
     const BLUE: &str = "\x1B[1;34m";
     const RESET: &str = "\x1B[0m";
@@ -50,6 +55,11 @@ fn main() -> Result<(), io::Error> {
     let input_file = matches.value_of("input");
     let output_file = matches.value_of("output");
     let config = matches.value_of("config").unwrap();
+    if !CONFIG_LIST.contains(&config) {
+        println!("Invalid config: {}", config);
+        println!("Valid Config are: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]");
+        return Ok(());
+    }
     let punctuation = matches
         .value_of("punct")
         .map_or(false, |value| value == "true");
