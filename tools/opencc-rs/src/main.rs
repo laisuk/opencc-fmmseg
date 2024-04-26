@@ -1,7 +1,6 @@
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
-use std::string::String;
 
 use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
@@ -14,54 +13,50 @@ const CONFIG_LIST: [&str; 16] = [
 fn main() -> Result<(), io::Error> {
     const BLUE: &str = "\x1B[1;34m";
     const RESET: &str = "\x1B[0m";
-    let matches = App::new("OpenCC Rust: Command Line Open Chinese Converter")
+    let matches = Command::new("OpenCC Rust: Command Line Open Chinese Converter")
         .arg(
-            Arg::with_name("input")
+            Arg::new("input")
                 .short('i')
                 .long("input")
                 .value_name("file")
-                .help("Read original text from <file>.")
-                .takes_value(true),
+                .help("Read original text from <file>."),
         )
         .arg(
-            Arg::with_name("output")
+            Arg::new("output")
                 .short('o')
                 .long("output")
                 .value_name("file")
-                .help("Write converted text to <file>.")
-                .takes_value(true),
+                .help("Write converted text to <file>."),
         )
         .arg(
-            Arg::with_name("config")
+            Arg::new("config")
                 .short('c')
                 .long("config")
                 .value_name("conversion")
                 .help(
                     "Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]",
                 )
-                .takes_value(true)
                 .required(true),
         )
         .arg(
-            Arg::with_name("punct")
+            Arg::new("punct")
                 .short('p')
                 .long("punct")
                 .value_name("boolean")
-                .help("Punctuation conversion: [true|false]")
-                .takes_value(true),
+                .help("Punctuation conversion: [true|false]"),
         )
         .get_matches();
 
-    let input_file = matches.value_of("input");
-    let output_file = matches.value_of("output");
-    let config = matches.value_of("config").unwrap();
-    if !CONFIG_LIST.contains(&config) {
+    let input_file = matches.get_one::<String>("input");
+    let output_file = matches.get_one::<String>("output");
+    let config = matches.get_one::<String>("config").unwrap();
+    if !CONFIG_LIST.contains(&config.as_str()) {
         println!("Invalid config: {}", config);
         println!("Valid Config are: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]");
         return Ok(());
     }
     let punctuation = matches
-        .value_of("punct")
+        .get_one::<String>("punct")
         .map_or(false, |value| value == "true");
 
     let mut input: Box<dyn Read> = match input_file {
@@ -91,12 +86,12 @@ fn main() -> Result<(), io::Error> {
         println!(
             "{BLUE}Conversion completed: {} -> {}{RESET}",
             input_file,
-            output_file.unwrap_or("stdout").to_string()
+            output_file.unwrap_or(&"stdout".to_string())
         );
     } else {
         println!(
             "{BLUE}Conversion completed: <stdin> -> {}{RESET}",
-            output_file.unwrap_or("stdout")
+            output_file.unwrap_or(&"stdout".to_string())
         );
     }
 

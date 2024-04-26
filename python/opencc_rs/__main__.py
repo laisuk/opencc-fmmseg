@@ -26,11 +26,11 @@ def main():
         print("Please set conversion configuration.", file=sys.stderr)
         return 1
 
-    cc = OpenCC(args.config)
+    opencc = OpenCC(args.config)
 
     with io.open(args.input if args.input else 0, encoding=args.in_enc) as f:
         input_str = f.read()
-    output_str = cc.convert(input_str, args.punct)
+    output_str = opencc.convert(input_str, args.punct)
     with io.open(args.output if args.output else 1, 'w', encoding=args.out_enc) as f:
         f.write(output_str)
 
