@@ -1,6 +1,7 @@
-use clap::{Arg, Command};
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
+
+use clap::{Arg, Command};
 
 use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
@@ -13,7 +14,7 @@ const CONFIG_LIST: [&str; 16] = [
 fn main() -> Result<(), io::Error> {
     const BLUE: &str = "\x1B[1;34m";
     const RESET: &str = "\x1B[0m";
-    let matches = Command::new("OpenCC Rust: Command Line Open Chinese Converter")
+    let matches = Command::new("OpenCC Rust")
         .arg(
             Arg::new("input")
                 .short('i')
@@ -45,12 +46,16 @@ fn main() -> Result<(), io::Error> {
                 .value_name("boolean")
                 .help("Punctuation conversion: [true|false]"),
         )
+        .about(format!(
+            "{}OpenCC Rust: Command Line Open Chinese Converter{}",
+            BLUE, RESET
+        ))
         .get_matches();
 
     let input_file = matches.get_one::<String>("input");
     let output_file = matches.get_one::<String>("output");
-    let config = matches.get_one::<String>("config").unwrap();
-    if !CONFIG_LIST.contains(&config.as_str()) {
+    let config = matches.get_one::<String>("config").unwrap().as_str();
+    if !CONFIG_LIST.contains(&config) {
         println!("Invalid config: {}", config);
         println!("Valid Config are: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]");
         return Ok(());
@@ -84,13 +89,13 @@ fn main() -> Result<(), io::Error> {
 
     if let Some(input_file) = input_file {
         println!(
-            "{BLUE}Conversion completed: {} -> {}{RESET}",
+            "{BLUE}Conversion completed ({config}): {} -> {}{RESET}",
             input_file,
             output_file.unwrap_or(&"stdout".to_string())
         );
     } else {
         println!(
-            "{BLUE}Conversion completed: <stdin> -> {}{RESET}",
+            "{BLUE}Conversion completed ({config}): <stdin> -> {}{RESET}",
             output_file.unwrap_or(&"stdout".to_string())
         );
     }

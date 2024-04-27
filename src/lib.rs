@@ -436,14 +436,14 @@ impl OpenCC {
     }
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
-        let output = self.segment_replace(input, &dict_refs);
+        let output = self.convert_by(input, &dict_refs, 1);
 
         output
     }
 
     fn ts(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.ts_characters];
-        let output = self.segment_replace(input, &dict_refs);
+        let output = self.convert_by(input, &dict_refs, 1);
 
         output
     }
