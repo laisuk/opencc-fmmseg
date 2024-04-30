@@ -66,7 +66,10 @@ fn main() -> Result<(), io::Error> {
 
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(File::open(file_name)?),
-        None => Box::new(io::stdin()),
+        None => {
+            println!("Input text to convert, <ctrl-z> or <ctrl-d> to accept:");
+            Box::new(io::stdin())
+        },
     };
 
     let output: Box<dyn Write> = match output_file {
