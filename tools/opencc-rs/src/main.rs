@@ -2,6 +2,10 @@ use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
 
 use clap::{Arg, Command};
+use encoding::label::encoding_from_whatwg_label;
+use encoding::EncoderTrap;
+use encoding_rs::Encoding;
+use encoding_rs_io::DecodeReaderBytesBuilder;
 
 use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
@@ -11,7 +15,7 @@ const CONFIG_LIST: [&str; 16] = [
     "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
 ];
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     const BLUE: &str = "\x1B[1;34m";
     const RESET: &str = "\x1B[0m";
     let matches = Command::new("OpenCC Rust")
@@ -46,6 +50,20 @@ fn main() -> Result<(), io::Error> {
                 .value_name("boolean")
                 .help("Punctuation conversion: [true|false]"),
         )
+        .arg(
+            Arg::new("in_enc")
+                .long("in-enc")
+                .value_name("encoding")
+                .help("Encoding for input")
+                .default_value("UTF-8"),
+        )
+        .arg(
+            Arg::new("out_enc")
+                .long("out-enc")
+                .value_name("encoding")
+                .help("Encoding for output")
+                .default_value("UTF-8"),
+        )
         .about(format!(
             "{}OpenCC Rust: Command Line Open Chinese Converter{}",
             BLUE, RESET
@@ -67,9 +85,11 @@ fn main() -> Result<(), io::Error> {
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(File::open(file_name)?),
         None => {
-            println!("Input text to convert, <ctrl-z> or <ctrl-d> to accept:");
+            println!(
+                "{BLUE}Input text to convert (to type, don't paste when in Win32), <ctrl-z> or <ctrl-d> to accept:{RESET}"
+            );
             Box::new(io::stdin())
-        },
+        }
     };
 
     let output: Box<dyn Write> = match output_file {
@@ -80,13 +100,45 @@ fn main() -> Result<(), io::Error> {
     let mut output_buf = BufWriter::new(output);
 
     let mut input_str = String::new();
-    input.read_to_string(&mut input_str)?;
+    let in_enc = matches.get_one::<String>("in_enc").unwrap().as_str();
+    match in_enc {
+        "UTF-8" => {
+            input.read_to_string(&mut input_str)?;
+        }
+        _ => {
+            let mut bytes = Vec::new();
+            input.read_to_end(&mut bytes)?;
+            let encoding = Encoding::for_label(in_enc.as_bytes()).ok_or_else(|| {
+                let err_msg = format!("Unsupported input encoding: {}", in_enc);
+                eprintln!("{}", &err_msg);
+                io::Error::new(io::ErrorKind::Other, err_msg)
+            })?;
+            let mut decoder = DecodeReaderBytesBuilder::new()
+                .encoding(Some(encoding))
+                .build(&*bytes);
+            decoder.read_to_string(&mut input_str)?;
+        }
+    }
 
     let opencc = OpenCC::new();
 
     let output_str = opencc.convert(&input_str, config, punctuation);
 
-    write!(output_buf, "{}", output_str)?;
+    let out_enc = matches.get_one::<String>("out_enc").unwrap().as_str();
+    match out_enc {
+        "UTF-8" => {
+            write!(output_buf, "{}", output_str)?;
+        }
+        _ => match encoding_from_whatwg_label(out_enc) {
+            Some(encoding) => {
+                let encoded_bytes = encoding.encode(&output_str, EncoderTrap::Strict)?;
+                output_buf.write_all(&encoded_bytes)?;
+            }
+            None => {
+                return Err(format!("Unsupported output encoding: {}", out_enc).into());
+            }
+        },
+    }
 
     output_buf.flush()?; // Flush buffer to ensure all data is written
 
