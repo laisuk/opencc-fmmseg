@@ -6,7 +6,7 @@ import platform
 if platform.system() == 'Windows':
     DLL_FILE = 'opencc_fmmseg_capi.dll'
 elif platform.system() == 'Darwin':
-    DLL_FILE = 'opencc_fmmseg_capi.dylib'
+    DLL_FILE = 'libopencc_fmmseg_capi.dylib'
 elif platform.system() == 'Linux':
     DLL_FILE = 'libopencc_fmmseg_capi.so'
 else:

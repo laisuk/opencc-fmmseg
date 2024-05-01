@@ -46,21 +46,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short('p')
                 .long("punct")
                 .value_name("boolean")
+                .default_value("false")
                 .help("Punctuation conversion: [true|false]"),
         )
         .arg(
             Arg::new("in_enc")
                 .long("in-enc")
                 .value_name("encoding")
-                .help("Encoding for input")
-                .default_value("UTF-8"),
+                .default_value("UTF-8")
+                .help("Encoding for input"),
         )
         .arg(
             Arg::new("out_enc")
                 .long("out-enc")
                 .value_name("encoding")
-                .help("Encoding for output")
-                .default_value("UTF-8"),
+                .default_value("UTF-8")
+                .help("Encoding for output"),
         )
         .about(format!(
             "{}OpenCC Rust: Command Line Open Chinese Converter{}",
