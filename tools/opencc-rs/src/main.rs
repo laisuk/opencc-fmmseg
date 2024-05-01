@@ -2,8 +2,6 @@ use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
 
 use clap::{Arg, Command};
-use encoding::label::encoding_from_whatwg_label;
-use encoding::EncoderTrap;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 
@@ -129,13 +127,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "UTF-8" => {
             write!(output_buf, "{}", output_str)?;
         }
-        _ => match encoding_from_whatwg_label(out_enc) {
-            Some(encoding) => {
-                let encoded_bytes = encoding.encode(&output_str, EncoderTrap::Strict)?;
-                output_buf.write_all(&encoded_bytes)?;
-            }
+        _ => match Encoding::for_label(out_enc.as_bytes()) {
             None => {
                 return Err(format!("Unsupported output encoding: {}", out_enc).into());
+            }
+            Some(encoding) => {
+                let encoded_bytes = encoding.encode(&output_str).0;
+                output_buf.write_all(&encoded_bytes)?;
             }
         },
     }
