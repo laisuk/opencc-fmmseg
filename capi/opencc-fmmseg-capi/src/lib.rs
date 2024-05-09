@@ -147,7 +147,7 @@ mod tests {
         };
 
         // Free the allocated C string
-        // unsafe { let _ = std::ffi::CString::from_raw(result_ptr); };
+        // opencc_string_free(result_ptr);
 
         // Assert the result
         // println!("{:?}", OpenCC::get_last_error());

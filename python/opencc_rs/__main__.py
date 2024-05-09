@@ -14,7 +14,7 @@ def main():
                         help='Write converted text to <file>.')
     parser.add_argument('-c', '--config', metavar='<conversion>',
                         help='Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]')
-    parser.add_argument('-p', '--punct', metavar='<boolean>', default=False,
+    parser.add_argument('-p', '--punct', action='store_true', default=False,
                         help='Punctuation conversion: True/False')
     parser.add_argument('--in-enc', metavar='<encoding>', default='UTF-8',
                         help='Encoding for input')

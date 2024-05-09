@@ -21,18 +21,17 @@ CONFIG_LIST = [
 class OpenCC:
     def __init__(self, config=None):
         self.config = config if config in CONFIG_LIST else "s2t"
-
-    # Load the DLL
-    dll_path = os.path.join(os.path.dirname(__file__), DLL_FILE)
-    lib = ctypes.CDLL(dll_path)
-    # Define function prototypes
-    lib.opencc_new.restype = ctypes.c_void_p
-    lib.opencc_new.argtypes = []
-    lib.opencc_convert.restype = ctypes.c_char_p
-    lib.opencc_convert.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_bool]
-    lib.opencc_zho_check.restype = ctypes.c_int
-    lib.opencc_zho_check.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-    lib.opencc_free.argtypes = [ctypes.c_void_p]
+        # Load the DLL
+        dll_path = os.path.join(os.path.dirname(__file__), DLL_FILE)
+        self.lib = ctypes.CDLL(dll_path)
+        # Define function prototypes
+        self.lib.opencc_new.restype = ctypes.c_void_p
+        self.lib.opencc_new.argtypes = []
+        self.lib.opencc_convert.restype = ctypes.c_char_p
+        self.lib.opencc_convert.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_bool]
+        self.lib.opencc_zho_check.restype = ctypes.c_int
+        self.lib.opencc_zho_check.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        self.lib.opencc_free.argtypes = [ctypes.c_void_p]
 
     def convert(self, text, punctuation=False):
         opencc = self.lib.opencc_new()
