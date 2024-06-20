@@ -85,7 +85,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(file_name) => Box::new(File::open(file_name)?),
         None => {
             println!(
-                "{BLUE}Input text to convert (to type, don't paste when in Win32), <ctrl-z> or <ctrl-d> to accept:{RESET}"
+                "{BLUE}Input text to convert, <ctrl-z> or <ctrl-d> to accept:{RESET}"
             );
             Box::new(io::stdin())
         }

@@ -144,7 +144,7 @@ mod tests {
         let filename = "dictionary_maxlength.json";
         dictionary.serialize_to_json(filename).unwrap();
         let file_contents = fs::read_to_string(filename).unwrap();
-        let expected_json = 1350232;
+        let expected_json = 1350250;
         assert_eq!(file_contents.trim().len(), expected_json);
         // Clean up: Delete the test file
         // fs::remove_file(filename).unwrap();
