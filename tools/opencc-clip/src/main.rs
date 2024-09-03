@@ -86,10 +86,11 @@ fn main() {
             }
 
             if contents.len() > 600 {
-                let max_utf8_length = find_max_utf8_length(&contents, 600);
-                display_input = &contents[..max_utf8_length];
+                let contents_max_utf8_length = find_max_utf8_length(&contents, 600);
+                display_input = &contents[..contents_max_utf8_length];
                 etc = "...";
-                display_output = &output[..max_utf8_length];
+                let output_max_utf8_length = find_max_utf8_length(&output, 600);
+                display_output = &output[..output_max_utf8_length];
             } else {
                 display_input = &contents;
                 etc = "";
@@ -99,10 +100,9 @@ fn main() {
             println!("Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
             println!("Config: {}{}, {}", BLUE, &config, &punct);
             println!(
-                "{}Clipboard Input ({}):\n{}{}{}",
+                "{}Clipboard Input ({}):\n{}{}{}\n",
                 GREEN, &display_input_code, YELLOW, &display_input, &etc
             );
-            println!();
             println!(
                 "{}Converted Output ({}):\n{}{}{}{}",
                 GREEN, &display_output_code, YELLOW, &display_output, &etc, RESET

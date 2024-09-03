@@ -1,0 +1,19 @@
+C build command:
+gcc -o use_opencc_fmmseg_c use_opencc_fmmseg_c.c -I . -L . -l opencc_fmmseg_capi
+
+C++ build command:
+g++ -o use_opencc_fmmseg_cpp use_opencc_fmmseg_cpp.cpp -I . -L. -lopencc_fmmseg_capi
+
+g++ -o use_opencc_fmmseg_cpp use_opencc_fmmseg_cpp.cpp -I . -L. -lopencc_fmmseg_capi -static-libgcc -static-libstdc++
+g++ -o use_opencc_fmmseg_cpp use_opencc_fmmseg_cpp.cpp -I . -L. -lopencc_fmmseg_capi -static-libgcc -static-libstdc++ -Os -s
+
+MSVC: (Need recompile)
+cl /c /Fouse_opencc_fmmseg_c.obj use_opencc_fmmseg_c.c
+link /OUT:use_opencc_fmmseg_c.exe use_opencc_fmmseg_c.obj /LIBPATH:. opencc_fmmseg_capi.dll.lib
+
+cl /c /EHsc /Fouse_opencc_fmmseg_cpp.obj use_opencc_fmmseg_cpp.cpp
+link /OUT:use_opencc_fmmseg_cpp.exe use_opencc_fmmseg_cpp.obj /LIBPATH:. opencc_fmmseg_capi.dll.lib
+
+(Combined)
+cl /I. use_opencc_fmmseg_c.c /link /OUT:use_opencc_fmmseg_c.exe opencc_fmmseg_capi.dll.lib
+cl /EHsc /I. use_opencc_fmmseg_cpp.cpp /link /OUT:use_opencc_fmmseg_cpp.exe opencc_fmmseg_capi.dll.lib

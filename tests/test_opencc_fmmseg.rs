@@ -132,7 +132,7 @@ mod tests {
         assert_eq!(dictionary.st_phrases.1, expected);
     }
 
-    // Use this to generate "dictionary_maxlength.json" when you edit dicts data
+    // Use this to generate "dictionary_maxlength.json" when you edit dicts_ data
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_json() {
@@ -144,7 +144,7 @@ mod tests {
         let filename = "dictionary_maxlength.json";
         dictionary.serialize_to_json(filename).unwrap();
         let file_contents = fs::read_to_string(filename).unwrap();
-        let expected_json = 1350250;
+        let expected_json = 1351486;
         assert_eq!(file_contents.trim().len(), expected_json);
         // Clean up: Delete the test file
         // fs::remove_file(filename).unwrap();

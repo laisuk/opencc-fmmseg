@@ -84,9 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(File::open(file_name)?),
         None => {
-            println!(
-                "{BLUE}Input text to convert, <ctrl-z> or <ctrl-d> to accept:{RESET}"
-            );
+            println!("{BLUE}Input text to convert, <ctrl-z> or <ctrl-d> to accept:{RESET}");
             Box::new(io::stdin())
         }
     };
