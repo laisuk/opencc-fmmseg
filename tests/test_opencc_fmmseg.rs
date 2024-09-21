@@ -17,18 +17,18 @@ mod tests {
     }
 
     #[test]
-    fn zho_check_test_2() {
-        let input = "蟹者之王，應該是大閘蟹。";
-        let expected_output = 1;
+    fn s2t_test() {
+        let input = "你好，世界！龙马精神！\t\n";
+        let expected_output = "你好，世界！龍馬精神！\t\n";
         let opencc = OpenCC::new();
-        let actual_output = opencc.zho_check(input);
+        let actual_output = opencc.s2t(input, false);
         assert_eq!(actual_output, expected_output);
     }
 
     #[test]
-    fn s2t_test() {
-        let input = "你好，世界！龙马精神！\t\n";
-        let expected_output = "你好，世界！龍馬精神！\t\n";
+    fn s2t_extended_test() {
+        let input = "俨骖𬴂于上路，访风景于崇阿";
+        let expected_output = "儼驂騑於上路，訪風景於崇阿";
         let opencc = OpenCC::new();
         let actual_output = opencc.s2t(input, false);
         assert_eq!(actual_output, expected_output);

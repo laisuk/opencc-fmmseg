@@ -15,45 +15,6 @@ lazy_static! {
     static ref STRIP_REGEX: Regex = Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap();
 }
 
-struct DictRefs<'a> {
-    round_1: &'a [&'a (HashMap<String, String>, usize)],
-    round_2: Option<&'a [&'a (HashMap<String, String>, usize)]>,
-    round_3: Option<&'a [&'a (HashMap<String, String>, usize)]>,
-}
-
-impl<'a> DictRefs<'a> {
-    pub fn new(round_1: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
-        DictRefs {
-            round_1,
-            round_2: None,
-            round_3: None,
-        }
-    }
-
-    pub fn with_round_2(mut self, round_2: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
-        self.round_2 = Some(round_2);
-        self
-    }
-
-    pub fn with_round_3(mut self, round_3: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
-        self.round_3 = Some(round_3);
-        self
-    }
-
-    pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
-    where
-        F: Fn(&str, &[&(HashMap<String, String>, usize)]) -> String,
-    {
-        let mut output = segment_replace(input, self.round_1);
-        if let Some(refs) = self.round_2 {
-            output = segment_replace(&output, refs);
-        }
-        if let Some(refs) = self.round_3 {
-            output = segment_replace(&output, refs);
-        }
-        output
-    }
-}
 pub struct OpenCC {
     dictionary: DictionaryMaxlength,
     delimiters: HashSet<char>,
@@ -572,6 +533,46 @@ impl OpenCC {
     pub fn get_last_error() -> Option<String> {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()
+    }
+}
+
+struct DictRefs<'a> {
+    round_1: &'a [&'a (HashMap<String, String>, usize)],
+    round_2: Option<&'a [&'a (HashMap<String, String>, usize)]>,
+    round_3: Option<&'a [&'a (HashMap<String, String>, usize)]>,
+}
+
+impl<'a> DictRefs<'a> {
+    pub fn new(round_1: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+        DictRefs {
+            round_1,
+            round_2: None,
+            round_3: None,
+        }
+    }
+
+    pub fn with_round_2(mut self, round_2: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+        self.round_2 = Some(round_2);
+        self
+    }
+
+    pub fn with_round_3(mut self, round_3: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+        self.round_3 = Some(round_3);
+        self
+    }
+
+    pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
+    where
+        F: Fn(&str, &[&(HashMap<String, String>, usize)]) -> String,
+    {
+        let mut output = segment_replace(input, self.round_1);
+        if let Some(refs) = self.round_2 {
+            output = segment_replace(&output, refs);
+        }
+        if let Some(refs) = self.round_3 {
+            output = segment_replace(&output, refs);
+        }
+        output
     }
 }
 
