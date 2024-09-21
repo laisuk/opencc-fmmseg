@@ -38,11 +38,11 @@ pub extern "C" fn opencc_convert(
         return std::ptr::null_mut(); // Return null pointer if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-                                        // Convert input from C string to Rust string
+    // Convert input from C string to Rust string
     let config_c_str = unsafe { std::ffi::CStr::from_ptr(config) };
     let config_str_slice = config_c_str.to_str().unwrap_or("");
-    // let config_str = config_str_slice.to_owned();
-
+    // // let config_str = config_str_slice.to_owned();
+    //
     let input_c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let input_str_slice = input_c_str.to_str().unwrap_or("");
     // let input_str = input_str_slice.to_owned();
@@ -75,7 +75,7 @@ pub extern "C" fn opencc_zho_check(
         return -1; // Return an error code if the instance pointer is null
     }
     let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-                                        // Convert input from C string to Rust string
+    // Convert input from C string to Rust string
     let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let str_slice = c_str.to_str().unwrap_or("");
     // let input_str = str_slice.to_owned();
@@ -107,7 +107,7 @@ mod tests {
         let opencc = OpenCC::new();
         // Define a sample input string
         let input = "你好，世界，欢迎"; // Chinese characters meaning "Hello, world!"
-                                        // Convert the input string to a C string
+        // Convert the input string to a C string
         let c_input = std::ffi::CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
