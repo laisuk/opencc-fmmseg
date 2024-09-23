@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 use regex::Regex;
 
-use crate::dictionary_lib::DictionaryMaxlength;
+use crate::dictionary_lib::{DictRefs, DictionaryMaxlength};
 pub mod dictionary_lib;
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -455,6 +455,7 @@ impl OpenCC {
         }
         result
     }
+
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
         let output = self.convert_by(input, &dict_refs, 1);
@@ -536,45 +537,6 @@ impl OpenCC {
     }
 }
 
-struct DictRefs<'a> {
-    round_1: &'a [&'a (HashMap<String, String>, usize)],
-    round_2: Option<&'a [&'a (HashMap<String, String>, usize)]>,
-    round_3: Option<&'a [&'a (HashMap<String, String>, usize)]>,
-}
-
-impl<'a> DictRefs<'a> {
-    pub fn new(round_1: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
-        DictRefs {
-            round_1,
-            round_2: None,
-            round_3: None,
-        }
-    }
-
-    pub fn with_round_2(mut self, round_2: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
-        self.round_2 = Some(round_2);
-        self
-    }
-
-    pub fn with_round_3(mut self, round_3: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
-        self.round_3 = Some(round_3);
-        self
-    }
-
-    pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
-    where
-        F: Fn(&str, &[&(HashMap<String, String>, usize)]) -> String,
-    {
-        let mut output = segment_replace(input, self.round_1);
-        if let Some(refs) = self.round_2 {
-            output = segment_replace(&output, refs);
-        }
-        if let Some(refs) = self.round_3 {
-            output = segment_replace(&output, refs);
-        }
-        output
-    }
-}
 
 pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
     // 1. No longer than max byte count
