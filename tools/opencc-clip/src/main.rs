@@ -35,10 +35,9 @@ fn main() {
         if !CONFIG_LIST.contains(&config.as_str()) {
             config = "auto".to_string()
         }
-        if args.len() >= 2 {
-            if args[1].to_lowercase() == "punct" || args[2].to_lowercase() == "punct" {
-                punct = true
-            }
+
+        if args[args.len() - 1].to_lowercase() == "punct" {
+            punct = true
         }
     } else {
         config = "auto".to_string()
@@ -66,13 +65,13 @@ fn main() {
                 }
             }
 
-            if input_code == 0 || config == "t2jp" || config == "jp2t" {
+            if input_code == 0 || config.contains("jp") {
                 display_input_code = "Non-zho 其它";
                 display_output_code = "Non-zho 其它";
             } else if config.starts_with('s') {
                 display_input_code = "Simplified Chinese 简体";
                 display_output_code = "Traditional Chinese 繁体";
-            } else if config.ends_with('s') || config.ends_with('p') {
+            } else if config.ends_with('s') || config.ends_with("sp") {
                 display_input_code = "Traditional Chinese 繁体";
                 display_output_code = "Simplified Chinese 简体";
             } else {
