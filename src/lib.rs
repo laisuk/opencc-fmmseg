@@ -214,7 +214,7 @@ impl OpenCC {
             .par_chars()
             .collect::<Vec<char>>()
             .par_split_inclusive_mut(|c| self.delimiters.contains(c))
-            .map(|slice| slice.iter().collect())
+            .map(|slice| slice.par_iter().collect())
             .collect();
 
         split_string_list
