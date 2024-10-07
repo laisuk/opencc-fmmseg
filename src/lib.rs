@@ -1,12 +1,12 @@
 use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use rayon::prelude::*;
 use regex::Regex;
 
-use crate::dictionary_lib::{DictRefs, DictionaryMaxlength};
+use crate::dictionary_lib::DictionaryMaxlength;
 pub mod dictionary_lib;
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -110,32 +110,32 @@ impl OpenCC {
             .collect::<String>()
     }
 
-    #[allow(dead_code)]
-    fn get_translated_string_parallel_arc(
-        &self,
-        split_string_list: Vec<String>,
-        dictionaries: &[&(HashMap<String, String>, usize)],
-        max_word_length: usize,
-    ) -> String {
-        let result = Arc::new(Mutex::new(Vec::<(usize, String)>::new()));
-        split_string_list
-            .par_iter()
-            .enumerate()
-            .for_each(|(index, chunk)| {
-                let converted = self.convert_by(chunk, dictionaries, max_word_length);
-                let mut result_lock = result.lock().unwrap();
-                result_lock.push((index, converted));
-            });
-        let mut result_lock = result.lock().unwrap();
-        result_lock.par_sort_by_key(|(index, _)| *index);
-
-        let concatenated_result: String = result_lock
-            .par_iter()
-            .map(|(_, chunk)| chunk.as_str())
-            .collect();
-
-        concatenated_result
-    }
+    // #[allow(dead_code)]
+    // fn get_translated_string_parallel_arc(
+    //     &self,
+    //     split_string_list: Vec<String>,
+    //     dictionaries: &[&(HashMap<String, String>, usize)],
+    //     max_word_length: usize,
+    // ) -> String {
+    //     let result = Arc::new(Mutex::new(Vec::<(usize, String)>::new()));
+    //     split_string_list
+    //         .par_iter()
+    //         .enumerate()
+    //         .for_each(|(index, chunk)| {
+    //             let converted = self.convert_by(chunk, dictionaries, max_word_length);
+    //             let mut result_lock = result.lock().unwrap();
+    //             result_lock.push((index, converted));
+    //         });
+    //     let mut result_lock = result.lock().unwrap();
+    //     result_lock.par_sort_by_key(|(index, _)| *index);
+    //
+    //     let concatenated_result: String = result_lock
+    //         .par_iter()
+    //         .map(|(_, chunk)| chunk.as_str())
+    //         .collect();
+    //
+    //     concatenated_result
+    // }
 
     fn convert_by(
         &self,
@@ -537,6 +537,45 @@ impl OpenCC {
     }
 }
 
+// #[derive(Clone, Copy)]
+pub struct DictRefs<'a> {
+    round_1: &'a [&'a (HashMap<String, String>, usize)],
+    round_2: Option<&'a [&'a (HashMap<String, String>, usize)]>,
+    round_3: Option<&'a [&'a (HashMap<String, String>, usize)]>,
+}
+
+impl<'a> DictRefs<'a> {
+    pub fn new(round_1: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+        DictRefs {
+            round_1,
+            round_2: None,
+            round_3: None,
+        }
+    }
+    pub fn with_round_2(mut self, round_2: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+        self.round_2 = Some(round_2);
+        self
+    }
+
+    pub fn with_round_3(mut self, round_3: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+        self.round_3 = Some(round_3);
+        self
+    }
+
+    pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
+    where
+        F: Fn(&str, &[&(HashMap<String, String>, usize)]) -> String,
+    {
+        let mut output = segment_replace(input, self.round_1);
+        if let Some(refs) = self.round_2 {
+            output = segment_replace(&output, refs);
+        }
+        if let Some(refs) = self.round_3 {
+            output = segment_replace(&output, refs);
+        }
+        output
+    }
+}
 
 pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
     // 1. No longer than max byte count
