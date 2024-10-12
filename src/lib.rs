@@ -300,14 +300,13 @@ impl OpenCC {
 
     pub fn tw2sp(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
+            &self.dictionary.tw_phrases_rev,
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let round_2 = [&self.dictionary.tw_phrases_rev];
-        let round_3 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+        let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
         let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .with_round_3(&round_3);
+            .with_round_2(&round_2);
         let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         if punctuation {
             Self::convert_punctuation(&output, "t")
