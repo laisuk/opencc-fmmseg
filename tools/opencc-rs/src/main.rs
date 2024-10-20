@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(File::open(file_name)?),
         None => {
-            println!("{BLUE}Input text to convert, <ctrl-z> or <ctrl-d> to accept:{RESET}");
+            println!("{BLUE}Input text to convert, <ctrl-z> or <ctrl-d> to summit:{RESET}");
             Box::new(io::stdin())
         }
     };
@@ -100,11 +100,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let in_enc = matches.get_one::<String>("in_enc").unwrap().as_str();
     match in_enc {
         "UTF-8" => {
-            input.read_to_string(&mut input_str)?;
+            // input.read_to_string(&mut input_str)?;
+            let mut buffer = [0; 1024]; // Buffer to hold chunks of data
+            while let Ok(n) = input.read(&mut buffer) {
+                if n == 0 { break; }
+                input_str.push_str(&String::from_utf8_lossy(&buffer[..n]));
+            }
         }
         _ => {
+            // input.read_to_end(&mut bytes)?;
+            let mut buffer = [0; 1024]; // Buffer for chunked reading
             let mut bytes = Vec::new();
-            input.read_to_end(&mut bytes)?;
+            while let Ok(n) = input.read(&mut buffer) {
+                if n == 0 { break; }
+                bytes.extend_from_slice(&buffer[..n]); // Collect bytes in chunks
+            }
             let encoding = Encoding::for_label(in_enc.as_bytes()).ok_or_else(|| {
                 let err_msg = format!("Unsupported input encoding: {}", in_enc);
                 eprintln!("{}", &err_msg);
