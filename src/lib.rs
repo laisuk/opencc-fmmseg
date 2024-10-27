@@ -220,6 +220,7 @@ impl OpenCC {
         split_string_list
     }
 
+
     pub fn get_parallel(&self) -> bool {
         self.is_parallel
     }

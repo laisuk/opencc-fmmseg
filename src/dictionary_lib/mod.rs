@@ -1,11 +1,11 @@
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 use std::sync::Mutex;
 use std::{fs, io};
-
-use serde::{Deserialize, Serialize};
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
@@ -146,6 +146,40 @@ impl DictionaryMaxlength {
                 eprintln!("Invalid line format: {}", line);
             }
         }
+
+        Ok((dictionary, max_length))
+    }
+
+    #[allow(dead_code)]
+    fn load_dictionary_maxlength_par(
+        dictionary_content: &str,
+    ) -> io::Result<(HashMap<String, String>, usize)> {
+        let dictionary = Mutex::new(HashMap::new());
+        let max_length = Mutex::new(1);
+
+        dictionary_content.par_lines().for_each(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                let phrase = parts[0].to_string();
+                let translation = parts[1].to_string();
+                let char_count = phrase.chars().count();
+
+                // Update max_length in a thread-safe way
+                let mut max_len_guard = max_length.lock().unwrap();
+                if *max_len_guard < char_count {
+                    *max_len_guard = char_count;
+                }
+
+                // Insert into dictionary in a thread-safe way
+                let mut dict_guard = dictionary.lock().unwrap();
+                dict_guard.insert(phrase, translation);
+            } else {
+                eprintln!("Invalid line format: {}", line);
+            }
+        });
+
+        let dictionary = Mutex::into_inner(dictionary).unwrap();
+        let max_length = Mutex::into_inner(max_length).unwrap();
 
         Ok((dictionary, max_length))
     }
