@@ -78,8 +78,8 @@ impl OpenCC {
         }
 
         if self.is_parallel {
-            let split_string_list = self.split_string_inclusive_parallel(text);
-            self.get_translated_string_parallel(split_string_list, dictionaries, max_word_length)
+            let split_string_list = self.split_string_inclusive_par(text);
+            self.get_translated_string_par(split_string_list, dictionaries, max_word_length)
         } else {
             let split_string_list = self.split_string_inclusive(text);
             self.get_translated_string(split_string_list, dictionaries, max_word_length)
@@ -88,25 +88,25 @@ impl OpenCC {
 
     fn get_translated_string(
         &self,
-        split_string_list: Vec<String>,
+        split_string_list: Vec<Vec<char>>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
         split_string_list
             .iter()
-            .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+            .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
             .collect::<String>()
     }
 
-    fn get_translated_string_parallel(
+    fn get_translated_string_par(
         &self,
-        split_string_list: Vec<String>,
+        split_string_list: Vec<Vec<char>>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
         split_string_list
             .par_iter()
-            .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+            .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
             .collect::<String>()
     }
 
@@ -139,24 +139,21 @@ impl OpenCC {
 
     fn convert_by(
         &self,
-        text: &str,
+        text_chars: &Vec<char>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
-        if text.is_empty() {
+        if text_chars.is_empty() {
             return String::new();
         }
 
-        let text_chars: Vec<_> = text.par_chars().collect();
         let text_length = text_chars.len();
-        if text_length == 1 {
-            if self.delimiters.contains(&text_chars[0]) {
-                return text_chars[0].to_string();
-            }
+        if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
+            return text_chars[0].to_string();
         }
 
         let mut result = String::new();
-        result.reserve(text.len());
+        result.reserve(text_chars.len());
 
         let mut start_pos = 0;
         while start_pos < text_length {
@@ -189,19 +186,41 @@ impl OpenCC {
         result
     }
 
-    fn split_string_inclusive(&self, text: &str) -> Vec<String> {
+    // fn split_string_inclusive(&self, text: &str) -> Vec<String> {
+    //     let mut split_string_list = Vec::new();
+    //     let mut current_chunk = String::new();
+    //
+    //     for ch in text.chars() {
+    //         if self.delimiters.contains(&ch) {
+    //             split_string_list.push(current_chunk + &ch.to_string());
+    //             current_chunk = String::new();
+    //         } else {
+    //             current_chunk.push(ch);
+    //         }
+    //     }
+    //     // Current_chunk still have chars but current_delimiter is empty
+    //     if !current_chunk.is_empty() {
+    //         split_string_list.push(current_chunk);
+    //     }
+    //
+    //     split_string_list
+    // }
+
+    fn split_string_inclusive(&self, text: &str) -> Vec<Vec<char>> {
         let mut split_string_list = Vec::new();
-        let mut current_chunk = String::new();
+        let mut current_chunk = Vec::new();
 
         for ch in text.chars() {
+            current_chunk.push(ch);
+
+            // Check if the current character is a delimiter
             if self.delimiters.contains(&ch) {
-                split_string_list.push(current_chunk + &ch.to_string());
-                current_chunk = String::new();
-            } else {
-                current_chunk.push(ch);
+                split_string_list.push(current_chunk.clone());
+                current_chunk.clear(); // Clear current chunk for the next segment
             }
         }
-        // Current_chunk still have chars but current_delimiter is empty
+
+        // Push any remaining characters as the last chunk
         if !current_chunk.is_empty() {
             split_string_list.push(current_chunk);
         }
@@ -209,12 +228,12 @@ impl OpenCC {
         split_string_list
     }
 
-    fn split_string_inclusive_parallel(&self, text: &str) -> Vec<String> {
-        let split_string_list: Vec<String> = text
+    fn split_string_inclusive_par(&self, text: &str) -> Vec<Vec<char>> {
+        let split_string_list: Vec<Vec<char>> = text
             .par_chars()
-            .collect::<Vec<char>>()
+            .collect::<Vec<char>>() // Collect into Vec<char> to allow splitting
             .par_split_inclusive_mut(|c| self.delimiters.contains(c))
-            .map(|slice| slice.par_iter().collect())
+            .map(|slice| slice.iter().cloned().collect())
             .collect();
 
         split_string_list
@@ -458,14 +477,14 @@ impl OpenCC {
 
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
-        let output = self.convert_by(input, &dict_refs, 1);
+        let output = self.convert_by(&input.par_chars().collect(), &dict_refs, 1);
 
         output
     }
 
     fn ts(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.ts_characters];
-        let output = self.convert_by(input, &dict_refs, 1);
+        let output = self.convert_by(&input.par_chars().collect(), &dict_refs, 1);
 
         output
     }
