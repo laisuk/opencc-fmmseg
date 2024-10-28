@@ -233,7 +233,7 @@ impl OpenCC {
             .par_chars()
             .collect::<Vec<char>>() // Collect into Vec<char> to allow splitting
             .par_split_inclusive_mut(|c| self.delimiters.contains(c))
-            .map(|slice| slice.iter().cloned().collect())
+            .map(|slice| slice.par_iter().cloned().collect())
             .collect();
 
         split_string_list
