@@ -153,7 +153,7 @@ impl OpenCC {
         }
 
         let mut result = String::new();
-        result.reserve(text_chars.len());
+        result.reserve(text_chars.len() * 4);
 
         let mut start_pos = 0;
         while start_pos < text_length {
