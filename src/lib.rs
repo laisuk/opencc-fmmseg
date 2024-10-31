@@ -249,9 +249,9 @@ impl OpenCC {
     }
 
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
-        let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&[&self.dictionary.st_phrases, &self.dictionary.st_characters])
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -260,9 +260,8 @@ impl OpenCC {
     }
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
-        let round_1 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&[&self.dictionary.ts_phrases, &self.dictionary.ts_characters])
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         if punctuation {
             Self::convert_punctuation(&output, "t")
         } else {
@@ -271,27 +270,24 @@ impl OpenCC {
     }
 
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
-        let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let round_2 = [&self.dictionary.tw_variants];
-        let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&[&self.dictionary.st_phrases, &self.dictionary.st_characters])
+            .with_round_2(&[&self.dictionary.tw_variants])
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
-            output.to_string()
+            output
         }
     }
 
     pub fn tw2s(&self, input: &str, punctuation: bool) -> String {
-        let round_1 = [
+        let output = DictRefs::new(&[
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
-        ];
-        let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        ])
+            .with_round_2(&[&self.dictionary.ts_phrases, &self.dictionary.ts_characters])
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         if punctuation {
             Self::convert_punctuation(&output, "t")
         } else {
@@ -305,11 +301,10 @@ impl OpenCC {
         let round_2 = [&self.dictionary.tw_phrases];
         let round_3 = [&self.dictionary.tw_variants];
         // Use the DictRefs struct to handle 3 rounds
-        let dict_refs = DictRefs::new(&round_1)
+        let output = DictRefs::new(&round_1)
             .with_round_2(&round_2)
-            .with_round_3(&round_3);
-        // Apply the segment_replace function using the dictionary references
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .with_round_3(&round_3)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         // Handle punctuation if needed
         if punctuation {
             Self::convert_punctuation(&output, "s")
@@ -325,9 +320,9 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         if punctuation {
             Self::convert_punctuation(&output, "t")
         } else {
@@ -338,9 +333,9 @@ impl OpenCC {
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
         let round_2 = [&self.dictionary.hk_variants];
-        let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         if punctuation {
             Self::convert_punctuation(&output, "s")
         } else {
@@ -354,9 +349,9 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev,
         ];
         let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         if punctuation {
             Self::convert_punctuation(&output, "t")
         } else {
@@ -366,8 +361,8 @@ impl OpenCC {
 
     pub fn t2tw(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_variants];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
@@ -375,9 +370,9 @@ impl OpenCC {
     pub fn t2twp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_phrases];
         let round_2 = [&self.dictionary.tw_variants];
-        let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
@@ -387,8 +382,8 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
@@ -399,17 +394,17 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let round_2 = [&self.dictionary.tw_phrases_rev];
-        let dict_refs = DictRefs::new(&round_1)
-            .with_round_2(&round_2);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
 
     pub fn t2hk(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.hk_variants];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
@@ -419,16 +414,16 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
 
     pub fn t2jp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.jp_variants];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
@@ -439,8 +434,8 @@ impl OpenCC {
             &self.dictionary.jps_characters,
             &self.dictionary.jp_variants_rev,
         ];
-        let dict_refs = DictRefs::new(&round_1);
-        let output = dict_refs.apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let output = DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
 
         output
     }
