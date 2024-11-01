@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use rayon::prelude::*;
 use regex::Regex;
@@ -100,7 +100,7 @@ impl OpenCC {
 
     fn get_translated_string_par(
         &self,
-        split_string_list: Vec<Vec<char>>,
+        split_string_list: Vec<Arc<[char]>>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
@@ -110,36 +110,9 @@ impl OpenCC {
             .collect::<String>()
     }
 
-    // #[allow(dead_code)]
-    // fn get_translated_string_parallel_arc(
-    //     &self,
-    //     split_string_list: Vec<String>,
-    //     dictionaries: &[&(HashMap<String, String>, usize)],
-    //     max_word_length: usize,
-    // ) -> String {
-    //     let result = Arc::new(Mutex::new(Vec::<(usize, String)>::new()));
-    //     split_string_list
-    //         .par_iter()
-    //         .enumerate()
-    //         .for_each(|(index, chunk)| {
-    //             let converted = self.convert_by(chunk, dictionaries, max_word_length);
-    //             let mut result_lock = result.lock().unwrap();
-    //             result_lock.push((index, converted));
-    //         });
-    //     let mut result_lock = result.lock().unwrap();
-    //     result_lock.par_sort_by_key(|(index, _)| *index);
-    //
-    //     let concatenated_result: String = result_lock
-    //         .par_iter()
-    //         .map(|(_, chunk)| chunk.as_str())
-    //         .collect();
-    //
-    //     concatenated_result
-    // }
-
     fn convert_by(
         &self,
-        text_chars: &Vec<char>,
+        text_chars: &[char],
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
@@ -228,17 +201,24 @@ impl OpenCC {
         split_string_list
     }
 
-    fn split_string_inclusive_par(&self, text: &str) -> Vec<Vec<char>> {
-        let split_string_list: Vec<Vec<char>> = text
-            .par_chars()
-            .collect::<Vec<char>>() // Collect into Vec<char> to allow splitting
-            .par_split_inclusive_mut(|c| self.delimiters.contains(c))
-            .map(|slice| slice.par_iter().cloned().collect())
-            .collect();
+    // fn split_string_inclusive_par(&self, text: &str) -> Vec<Vec<char>> {
+    //     let split_string_list: Vec<Vec<char>> = text
+    //         .par_chars()
+    //         .collect::<Vec<char>>() // Collect into Vec<char> to allow splitting
+    //         .par_split_inclusive_mut(|c| self.delimiters.contains(c))
+    //         .map(|slice| slice.par_iter().cloned().collect())
+    //         .collect();
+    //
+    //     split_string_list
+    // }
 
-        split_string_list
+    fn split_string_inclusive_par(&self, text: &str) -> Vec<Arc<[char]>> {
+        let collected: Vec<char> = text.par_chars().collect();
+        collected
+            .par_split_inclusive(|c| self.delimiters.contains(c))
+            .map(|slice| Arc::from(slice)) // Convert each slice to Arc<[char]>
+            .collect()
     }
-
 
     pub fn get_parallel(&self) -> bool {
         self.is_parallel
@@ -472,14 +452,16 @@ impl OpenCC {
 
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
-        let output = self.convert_by(&input.par_chars().collect(), &dict_refs, 1);
+        let chars: Vec<char> = input.par_chars().collect();
+        let output = self.convert_by(&chars, &dict_refs, 1);
 
         output
     }
 
     fn ts(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.ts_characters];
-        let output = self.convert_by(&input.par_chars().collect(), &dict_refs, 1);
+        let chars: Vec<char> = input.par_chars().collect();
+        let output = self.convert_by(&chars, &dict_refs, 1);
 
         output
     }
