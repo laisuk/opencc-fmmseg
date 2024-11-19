@@ -3,6 +3,7 @@ use opencc_fmmseg::{dictionary_lib, OpenCC};
 #[cfg(test)]
 mod tests {
     use opencc_fmmseg::format_thousand;
+    use std::collections::HashSet;
     use std::fs;
 
     use super::*;
@@ -178,5 +179,52 @@ mod tests {
     fn last_error_test() {
         OpenCC::set_last_error("Some error here.");
         assert_eq!(OpenCC::get_last_error().unwrap(), "Some error here.");
+    }
+
+    #[test]
+    fn delimiters_duplicate_test() {
+        const DELIMITERS0: &str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
+        // println!("DELIMITERS0: {}", DELIMITERS0.chars().count());
+        const DELIMITERS2: &str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
+        // println!("DELIMITERS2: {}", DELIMITERS2.chars().count());
+        let mut char_set0 = HashSet::new();
+        let mut has_duplicates0 = false;
+        for c in DELIMITERS0.chars() {
+            if !char_set0.insert(c) {
+                println!("Duplicate character found: {}", c);
+                has_duplicates0 = true;
+            }
+        }
+        if !has_duplicates0 {
+            println!("No duplicate characters found.");
+        }
+        let mut char_set2 = HashSet::new();
+        let mut has_duplicates2 = false;
+        for c in DELIMITERS2.chars() {
+            if !char_set2.insert(c) {
+                println!("Duplicate character found: {}", c);
+                has_duplicates2 = true;
+            }
+        }
+        if !has_duplicates2 {
+            println!("No duplicate characters found.");
+        }
+    }
+
+    #[test]
+    fn delimiters_diff_test() {
+        const DELIMITERS0: &str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
+        println!("DELIMITERS0: {}", DELIMITERS0.chars().count());
+        const DELIMITERS2: &str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
+        println!("DELIMITERS2: {}", DELIMITERS2.chars().count());
+
+        let set0: HashSet<_> = DELIMITERS0.chars().collect();
+        let set2: HashSet<_> = DELIMITERS2.chars().collect();
+        for c in set0.difference(&set2) {
+            println!("Missing character in DELIMITERS2: {}", c);
+        }
+        for c in set2.difference(&set0) {
+            println!("Extra character in DELIMITERS2: {}", c);
+        }
     }
 }
