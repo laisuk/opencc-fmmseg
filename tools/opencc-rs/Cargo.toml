@@ -10,3 +10,4 @@ opencc-fmmseg = {path = "../.."}
 clap = "4.5.23"
 encoding_rs = "0.8.35"
 encoding_rs_io = "0.1.7"
+atty = "0.2.14"
