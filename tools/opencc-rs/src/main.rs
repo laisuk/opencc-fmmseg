@@ -1,6 +1,5 @@
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Write};
-use atty::Stream;
+use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
 use clap::{Arg, Command};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
@@ -154,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(BufReader::new(File::open(file_name)?)),
         None => {
-            if atty::is(Stream::Stdin) {
+            if io::stdin().is_terminal() {
                 // If input is from the terminal
                 println!("{BLUE}Input text to convert, <ctrl-z> or <ctrl-d> to submit:{RESET}");
             }
