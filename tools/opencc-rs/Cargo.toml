@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 opencc-fmmseg = {path = "../.."}
-clap = "4.5.26"
+clap = "4.5.27"
 encoding_rs = "0.8.35"
 encoding_rs_io = "0.1.7"
