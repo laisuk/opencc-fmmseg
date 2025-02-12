@@ -490,8 +490,12 @@ impl OpenCC {
 
         if config.starts_with('s') {
             let s2t_pattern = s2t_punctuation_chars.keys().cloned().collect::<String>();
-            let s2t_regex = Regex::new(&format!("[{}]", s2t_pattern)).unwrap();
-            output_text = s2t_regex
+            // let s2t_regex = Regex::new(&format!("[{}]", s2t_pattern)).unwrap();
+            let mut char_class = String::from("[");
+            char_class.push_str(&s2t_pattern);
+            char_class.push(']');
+            let t2s_regex = Regex::new(&char_class).unwrap();
+            output_text = t2s_regex
                 .replace_all(sv, |caps: &regex::Captures| {
                     s2t_punctuation_chars[caps.get(0).unwrap().as_str()]
                 })
@@ -502,7 +506,11 @@ impl OpenCC {
                 t2s_punctuation_chars.insert(value, key);
             }
             let t2s_pattern = t2s_punctuation_chars.keys().cloned().collect::<String>();
-            let t2s_regex = Regex::new(&format!("[{}]", t2s_pattern)).unwrap();
+            // let t2s_regex = Regex::new(&format!("[{}]", t2s_pattern)).unwrap();
+            let mut char_class = String::from("[");
+            char_class.push_str(&t2s_pattern);
+            char_class.push(']');
+            let t2s_regex = Regex::new(&char_class).unwrap();
             output_text = t2s_regex
                 .replace_all(sv, |caps: &regex::Captures| {
                     t2s_punctuation_chars[caps.get(0).unwrap().as_str()]
