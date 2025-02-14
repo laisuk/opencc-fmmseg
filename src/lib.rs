@@ -268,8 +268,8 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ])
-            .with_round_2(&[&self.dictionary.ts_phrases, &self.dictionary.ts_characters])
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        .with_round_2(&[&self.dictionary.ts_phrases, &self.dictionary.ts_characters])
+        .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
         if punctuation {
             Self::convert_punctuation(&output, "t")
         } else {
@@ -441,12 +441,11 @@ impl OpenCC {
             "jp2t" => self.jp2t(input),
             "t2jp" => self.t2jp(input),
             _ => {
-                OpenCC::set_last_error(format!("Invalid config: {}", config).as_str());
+                Self::set_last_error(format!("Invalid config: {}", config).as_str());
                 String::new()
             }
         }
     }
-
 
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
@@ -479,45 +478,31 @@ impl OpenCC {
         }
     }
 
-    fn convert_punctuation(sv: &str, config: &str) -> String {
+    fn convert_punctuation(text: &str, config: &str) -> String {
         let mut s2t_punctuation_chars: HashMap<&str, &str> = HashMap::new();
         s2t_punctuation_chars.insert("“", "「");
         s2t_punctuation_chars.insert("”", "」");
         s2t_punctuation_chars.insert("‘", "『");
         s2t_punctuation_chars.insert("’", "』");
 
-        let output_text;
-
-        if config.starts_with('s') {
-            let s2t_pattern = s2t_punctuation_chars.keys().cloned().collect::<String>();
-            // let s2t_regex = Regex::new(&format!("[{}]", s2t_pattern)).unwrap();
-            let mut char_class = String::from("[");
-            char_class.push_str(&s2t_pattern);
-            char_class.push(']');
-            let t2s_regex = Regex::new(&char_class).unwrap();
-            output_text = t2s_regex
-                .replace_all(sv, |caps: &regex::Captures| {
-                    s2t_punctuation_chars[caps.get(0).unwrap().as_str()]
-                })
-                .into_owned();
+        let mapping = if config.starts_with('s') {
+            &s2t_punctuation_chars
         } else {
-            let mut t2s_punctuation_chars: HashMap<&str, &str> = HashMap::new();
-            for (key, value) in s2t_punctuation_chars.iter() {
-                t2s_punctuation_chars.insert(value, key);
-            }
-            let t2s_pattern = t2s_punctuation_chars.keys().cloned().collect::<String>();
-            // let t2s_regex = Regex::new(&format!("[{}]", t2s_pattern)).unwrap();
-            let mut char_class = String::from("[");
-            char_class.push_str(&t2s_pattern);
-            char_class.push(']');
-            let t2s_regex = Regex::new(&char_class).unwrap();
-            output_text = t2s_regex
-                .replace_all(sv, |caps: &regex::Captures| {
-                    t2s_punctuation_chars[caps.get(0).unwrap().as_str()]
-                })
-                .into_owned();
-        }
-        output_text
+            // Correctly create a new HashMap with reversed key-value pairs
+            &s2t_punctuation_chars
+                .iter()
+                .map(|(&k, &v)| (v, k))
+                .collect::<HashMap<&str, &str>>()
+        };
+
+        let pattern = format!("[{}]", mapping.keys().cloned().collect::<String>());
+        let regex = Regex::new(&pattern).unwrap();
+
+        regex
+            .replace_all(text, |caps: &regex::Captures| {
+                mapping[caps.get(0).unwrap().as_str()]
+            })
+            .into_owned()
     }
 
     // Function to set the last error message
