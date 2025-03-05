@@ -10,6 +10,7 @@ edition = "2021"
 regex = "1.11.1"
 serde_json = "1.0.139"
 serde = { version = "1.0.218", features = ["derive"] }
+serde_cbor = "0.11.2"
 rayon = "1.10.0"
 lazy_static = "1.5.0"
 

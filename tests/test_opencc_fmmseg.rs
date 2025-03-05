@@ -5,7 +5,7 @@ mod tests {
     use opencc_fmmseg::format_thousand;
     use std::collections::HashSet;
     use std::fs;
-
+    use serde_cbor::to_vec;
     use super::*;
 
     #[test]
@@ -148,6 +148,30 @@ mod tests {
         let expected_json = 1351486;
         assert_eq!(file_contents.trim().len(), expected_json);
         // Clean up: Delete the test file
+        // fs::remove_file(filename).unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn test_dictionary_from_dicts_then_to_cbor() {
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts();
+
+        // Verify that the Dictionary contains the expected data
+        let expected = 16;
+        assert_eq!(dictionary.st_phrases.1, expected);
+
+        let filename = "dictionary_maxlength.cbor";
+
+        // Serialize dictionary to CBOR
+        let cbor_data = to_vec(&dictionary).expect("Failed to serialize dictionary to CBOR");
+        fs::write(filename, &cbor_data).expect("Failed to write CBOR file");
+
+        // Check the expected file size (update this value after first run)
+        let expected_cbor_size = 1113003; // Replace with actual size after first run
+        let file_size = fs::metadata(filename).unwrap().len() as usize;
+        assert_eq!(file_size, expected_cbor_size);
+
+        // Clean up: Uncomment if you want to remove the test file
         // fs::remove_file(filename).unwrap();
     }
     #[test]

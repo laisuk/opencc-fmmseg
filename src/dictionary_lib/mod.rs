@@ -6,6 +6,8 @@ use std::fs::File;
 use std::io::Write;
 use std::sync::Mutex;
 use std::{fs, io};
+use serde_cbor::from_slice;
+
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
@@ -41,6 +43,17 @@ impl DictionaryMaxlength {
         };
 
         Ok(dictionary)
+    }
+
+    /// **New function: Load from CBOR**
+    pub fn new_cbor(cbor_bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+        match from_slice(cbor_bytes) {
+            Ok(dictionary) => Ok(dictionary),
+            Err(err) => {
+                Self::set_last_error(&format!("Failed to read CBOR file: {}", err));
+                Err(Box::new(err))
+            }
+        }
     }
 
     pub fn from_dicts() -> Self {
