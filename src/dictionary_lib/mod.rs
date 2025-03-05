@@ -42,65 +42,48 @@ impl DictionaryMaxlength {
         }
     }
 
-    pub fn from_dicts() -> Self {
-        let stc_file_path = include_str!("dicts/STCharacters.txt");
-        let stp_file_path = include_str!("dicts/STPhrases.txt");
-        let tsc_file_path = include_str!("dicts/TSCharacters.txt");
-        let tsp_file_path = include_str!("dicts/TSPhrases.txt");
-        let twp_file_path = include_str!("dicts/TWPhrases.txt");
-        let twpr_file_path = include_str!("dicts/TWPhrasesRev.txt");
-        let twv_file_path = include_str!("dicts/TWVariants.txt");
-        let twvr_file_path = include_str!("dicts/TWVariantsRev.txt");
-        let twvrp_file_path = include_str!("dicts/TWVariantsRevPhrases.txt");
-        let hkv_file_path = include_str!("dicts/HKVariants.txt");
-        let hkvr_file_path = include_str!("dicts/HKVariantsRev.txt");
-        let hkvrp_file_path = include_str!("dicts/HKVariantsRevPhrases.txt");
-        let jpsc_file_path = include_str!("dicts/JPShinjitaiCharacters.txt");
-        let jpsp_file_path = include_str!("dicts/JPShinjitaiPhrases.txt");
-        let jpv_file_path = include_str!("dicts/JPVariants.txt");
-        let jpvr_file_path = include_str!("dicts/JPVariantsRev.txt");
-        let st_characters = DictionaryMaxlength::load_dictionary_maxlength(stc_file_path).unwrap();
-        let st_phrases = DictionaryMaxlength::load_dictionary_maxlength(stp_file_path).unwrap();
-        let ts_characters = DictionaryMaxlength::load_dictionary_maxlength(tsc_file_path).unwrap();
-        let ts_phrases = DictionaryMaxlength::load_dictionary_maxlength(tsp_file_path).unwrap();
-        let tw_phrases = DictionaryMaxlength::load_dictionary_maxlength(twp_file_path).unwrap();
-        let tw_phrases_rev =
-            DictionaryMaxlength::load_dictionary_maxlength(twpr_file_path).unwrap();
-        let tw_variants = DictionaryMaxlength::load_dictionary_maxlength(twv_file_path).unwrap();
-        let tw_variants_rev =
-            DictionaryMaxlength::load_dictionary_maxlength(twvr_file_path).unwrap();
-        let tw_variants_rev_phrases =
-            DictionaryMaxlength::load_dictionary_maxlength(twvrp_file_path).unwrap();
-        let hk_variants = DictionaryMaxlength::load_dictionary_maxlength(hkv_file_path).unwrap();
-        let hk_variants_rev =
-            DictionaryMaxlength::load_dictionary_maxlength(hkvr_file_path).unwrap();
-        let hk_variants_rev_phrases =
-            DictionaryMaxlength::load_dictionary_maxlength(hkvrp_file_path).unwrap();
-        let jps_characters =
-            DictionaryMaxlength::load_dictionary_maxlength(jpsc_file_path).unwrap();
-        let jps_phrases = DictionaryMaxlength::load_dictionary_maxlength(jpsp_file_path).unwrap();
-        let jp_variants = DictionaryMaxlength::load_dictionary_maxlength(jpv_file_path).unwrap();
-        let jp_variants_rev =
-            DictionaryMaxlength::load_dictionary_maxlength(jpvr_file_path).unwrap();
+    pub fn from_dicts() -> Result<Self, Box<dyn Error>> {
+        let stc_file_path = "dicts/STCharacters.txt";
+        let stp_file_path = "dicts/STPhrases.txt";
+        let tsc_file_path = "dicts/TSCharacters.txt";
+        let tsp_file_path = "dicts/TSPhrases.txt";
+        let twp_file_path = "dicts/TWPhrases.txt";
+        let twpr_file_path = "dicts/TWPhrasesRev.txt";
+        let twv_file_path = "dicts/TWVariants.txt";
+        let twvr_file_path = "dicts/TWVariantsRev.txt";
+        let twvrp_file_path = "dicts/TWVariantsRevPhrases.txt";
+        let hkv_file_path = "dicts/HKVariants.txt";
+        let hkvr_file_path = "dicts/HKVariantsRev.txt";
+        let hkvrp_file_path = "dicts/HKVariantsRevPhrases.txt";
+        let jpsc_file_path = "dicts/JPShinjitaiCharacters.txt";
+        let jpsp_file_path = "dicts/JPShinjitaiPhrases.txt";
+        let jpv_file_path = "dicts/JPVariants.txt";
+        let jpvr_file_path = "dicts/JPVariantsRev.txt";
 
-        DictionaryMaxlength {
-            st_characters,
-            st_phrases,
-            ts_characters,
-            ts_phrases,
-            tw_phrases,
-            tw_phrases_rev,
-            tw_variants,
-            tw_variants_rev,
-            tw_variants_rev_phrases,
-            hk_variants,
-            hk_variants_rev,
-            hk_variants_rev_phrases,
-            jps_characters,
-            jps_phrases,
-            jp_variants,
-            jp_variants_rev,
+        fn load_dict(path: &str) -> Result<(HashMap<String, String>, usize), Box<dyn Error>> {
+            let content = fs::read_to_string(path)?; // Properly propagate the I/O error
+            DictionaryMaxlength::load_dictionary_maxlength(&content).map_err(|e| e.into())
+            // Convert the second error type
         }
+
+        Ok(DictionaryMaxlength {
+            st_characters: load_dict(stc_file_path)?,
+            st_phrases: load_dict(stp_file_path)?,
+            ts_characters: load_dict(tsc_file_path)?,
+            ts_phrases: load_dict(tsp_file_path)?,
+            tw_phrases: load_dict(twp_file_path)?,
+            tw_phrases_rev: load_dict(twpr_file_path)?,
+            tw_variants: load_dict(twv_file_path)?,
+            tw_variants_rev: load_dict(twvr_file_path)?,
+            tw_variants_rev_phrases: load_dict(twvrp_file_path)?,
+            hk_variants: load_dict(hkv_file_path)?,
+            hk_variants_rev: load_dict(hkvr_file_path)?,
+            hk_variants_rev_phrases: load_dict(hkvrp_file_path)?,
+            jps_characters: load_dict(jpsc_file_path)?,
+            jps_phrases: load_dict(jpsp_file_path)?,
+            jp_variants: load_dict(jpv_file_path)?,
+            jp_variants_rev: load_dict(jpvr_file_path)?,
+        })
     }
 
     fn load_dictionary_maxlength(
@@ -238,7 +221,7 @@ mod tests {
     #[test]
     fn test_dictionary_from_dicts_then_to_cbor() {
         // Assuming you have a method `from_dicts` to create a dictionary
-        let dictionary = DictionaryMaxlength::from_dicts();
+        let dictionary = DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the Dictionary contains the expected data
         let expected = 16;
         assert_eq!(dictionary.st_phrases.1, expected);

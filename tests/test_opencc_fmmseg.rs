@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_dictionary_from_dicts() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts();
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the JSON contains the expected data
         let expected = 16;
         assert_eq!(dictionary.st_phrases.1, expected);
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_json() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts();
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the Dictionary contains the expected data
         let expected = 16;
         assert_eq!(dictionary.st_phrases.1, expected);
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_cbor() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts();
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
 
         // Verify that the Dictionary contains the expected data
         let expected = 16;

@@ -41,7 +41,7 @@ impl OpenCC {
     }
 
     pub fn from_dicts() -> Self {
-        let dictionary = DictionaryMaxlength::from_dicts();
+        let dictionary = DictionaryMaxlength::from_dicts().unwrap();
         let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
 
