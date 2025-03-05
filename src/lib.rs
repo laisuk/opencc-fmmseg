@@ -51,8 +51,8 @@ impl OpenCC {
             is_parallel,
         }
     }
-    pub fn from_json(filename: &str) -> Self {
-        let dictionary = DictionaryMaxlength::from_json(filename).unwrap_or_else(|err| {
+    pub fn from_cbor(filename: &str) -> Self {
+        let dictionary = DictionaryMaxlength::deserialize_from_cbor(filename).unwrap_or_else(|err| {
             Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             DictionaryMaxlength::default()
         });

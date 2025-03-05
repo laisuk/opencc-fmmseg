@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_opencc_last_error_2() {
-        let _opencc = OpenCC::from_json("test.json");
+        let _opencc = OpenCC::from_cbor("test.json");
         let last_error_0 = OpenCC::get_last_error().unwrap_or_else(|| "No error".to_string());
         let error_ptr = opencc_last_error();
 

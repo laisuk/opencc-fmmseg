@@ -2,11 +2,11 @@ use opencc_fmmseg::{dictionary_lib, OpenCC};
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use opencc_fmmseg::format_thousand;
+    use serde_cbor::to_vec;
     use std::collections::HashSet;
     use std::fs;
-    use serde_cbor::to_vec;
-    use super::*;
 
     #[test]
     fn zho_check_test() {
@@ -143,7 +143,10 @@ mod tests {
         assert_eq!(dictionary.st_phrases.1, expected);
 
         let filename = "dictionary_maxlength.json";
-        dictionary.serialize_to_json(filename).unwrap();
+        // Serialize to JSON instead of CBOR
+        let json_data =
+            serde_json::to_string(&dictionary).expect("Failed to serialize to JSON");
+        fs::write(filename, json_data).expect("Failed to write JSON file");
         let file_contents = fs::read_to_string(filename).unwrap();
         let expected_json = 1351486;
         assert_eq!(file_contents.trim().len(), expected_json);
@@ -176,12 +179,12 @@ mod tests {
     }
     #[test]
     #[ignore]
-    fn test_serialize_to_json() {
+    fn test_serialize_to_cbor() {
         // Define the filename for testing
-        let filename = "dictionary_maxlength.json";
+        let filename = "dictionary_maxlength.cbor";
         let dictionary = dictionary_lib::DictionaryMaxlength::new().unwrap();
         // Serialize to JSON and write to file
-        dictionary.serialize_to_json(filename).unwrap();
+        dictionary.serialize_to_cbor(filename).unwrap();
         // Read the contents of the file
         let file_contents = fs::read_to_string(filename).unwrap();
         // Verify that the JSON contains the expected data

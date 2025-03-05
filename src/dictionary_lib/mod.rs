@@ -1,12 +1,11 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_cbor::from_slice;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs::File;
-use std::io::Write;
+use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
-use serde_cbor::from_slice;
 
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -104,28 +103,6 @@ impl DictionaryMaxlength {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn from_json(filename: &str) -> io::Result<Self> {
-        // Read the contents of the JSON file
-        let json_string = match fs::read_to_string(filename) {
-            Ok(data) => data,
-            Err(err) => {
-                Self::set_last_error(&format!("Failed to read JSON file: {}", err));
-                return Err(err);
-            }
-        };
-        // Deserialize the JSON string into a Dictionary struct
-        let dictionary: DictionaryMaxlength = match serde_json::from_str(&json_string) {
-            Ok(data) => data,
-            Err(err) => {
-                Self::set_last_error(&format!("Failed to deserialize JSON: {}", err));
-                return Err(io::Error::new(io::ErrorKind::InvalidData, err));
-            }
-        };
-
-        Ok(dictionary)
-    }
-
     fn load_dictionary_maxlength(
         dictionary_content: &str,
     ) -> io::Result<(HashMap<String, String>, usize)> {
@@ -184,31 +161,38 @@ impl DictionaryMaxlength {
         Ok((dictionary, max_length))
     }
 
-    // Function to serialize Dictionary to JSON and write it to a file
-    pub fn serialize_to_json(&self, filename: &str) -> io::Result<()> {
-        // Serialize the Dictionary to JSON
-        let json_string = match serde_json::to_string(&self) {
-            Ok(json) => json,
-            Err(err) => {
-                Self::set_last_error(&format!("Failed to serialize JSON: {}", err));
-                return Err(io::Error::new(io::ErrorKind::InvalidData, err));
+    /// Serialize dictionary to CBOR file
+    pub fn serialize_to_cbor<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn Error>> {
+        match serde_cbor::to_vec(self) {
+            Ok(cbor_data) => {
+                if let Err(err) = fs::write(&path, cbor_data) {
+                    Self::set_last_error(&format!("Failed to write CBOR file: {}", err));
+                    return Err(Box::new(err));
+                }
+                Ok(())
             }
-        };
-        // Write JSON string to file
-        let mut file = match File::create(filename) {
-            Ok(f) => f,
             Err(err) => {
-                Self::set_last_error(&format!("Failed to create file: {}", err));
-                return Err(err);
+                Self::set_last_error(&format!("Failed to serialize to CBOR: {}", err));
+                Err(Box::new(err))
             }
-        };
-
-        if let Err(err) = file.write_all(json_string.as_bytes()) {
-            Self::set_last_error(&format!("Failed to write to file: {}", err));
-            return Err(err);
         }
+    }
 
-        Ok(())
+    /// Deserialize dictionary from CBOR file
+    pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
+        match fs::read(&path) {
+            Ok(cbor_data) => match from_slice(&cbor_data) {
+                Ok(dictionary) => Ok(dictionary),
+                Err(err) => {
+                    Self::set_last_error(&format!("Failed to deserialize CBOR: {}", err));
+                    Err(Box::new(err))
+                }
+            },
+            Err(err) => {
+                Self::set_last_error(&format!("Failed to read CBOR file: {}", err));
+                Err(Box::new(err))
+            }
+        }
     }
 
     // Function to set the last error message
@@ -247,4 +231,24 @@ impl Default for DictionaryMaxlength {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    #[test]
+    fn test_dictionary_from_dicts_then_to_cbor() {
+        // Assuming you have a method `from_dicts` to create a dictionary
+        let dictionary = DictionaryMaxlength::from_dicts();
+        // Verify that the Dictionary contains the expected data
+        let expected = 16;
+        assert_eq!(dictionary.st_phrases.1, expected);
+
+        let filename = "dictionary_maxlength.cbor";
+        dictionary.serialize_to_cbor(filename).unwrap();
+        let file_contents = fs::read(filename).unwrap();
+        let expected_cbor_size = 1113003; // Update this with the actual expected size
+        assert_eq!(file_contents.len(), expected_cbor_size);
+        // Clean up: Delete the test file
+        fs::remove_file(filename).unwrap();
+    }
+}
