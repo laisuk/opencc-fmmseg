@@ -25,13 +25,11 @@ pub struct OpenCC {
 
 impl OpenCC {
     pub fn new() -> Self {
-        let dictionary = DictionaryMaxlength::new().unwrap_or_else(|err| {
-            Self::set_last_error(&format!("Failed to create dictionary: {}", err));
-            // Since DictionaryMaxlength::new() returns a DictionaryMaxlength
-            // instance on success, we create a default instance here to
-            // maintain the structure of OpenCC.
-            DictionaryMaxlength::default()
-        });
+        let dictionary = DictionaryMaxlength::new()
+            .unwrap_or_else(|err| {
+                Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+                DictionaryMaxlength::default()
+            });
         let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
 
@@ -479,12 +477,8 @@ impl OpenCC {
     }
 
     fn convert_punctuation(text: &str, config: &str) -> String {
-        let s2t_punctuation_chars: HashMap<&str, &str> = HashMap::from([
-            ("“", "「"),
-            ("”", "」"),
-            ("‘", "『"),
-            ("’", "』"),
-        ]);
+        let s2t_punctuation_chars: HashMap<&str, &str> =
+            HashMap::from([("“", "「"), ("”", "」"), ("‘", "『"), ("’", "』")]);
 
         let mapping = if config.starts_with('s') {
             &s2t_punctuation_chars
@@ -497,7 +491,11 @@ impl OpenCC {
         };
 
         // let pattern = format!("[{}]", mapping.keys().cloned().collect::<String>());
-        let pattern = mapping.keys().map(|k| regex::escape(k)).collect::<Vec<_>>().join("|");
+        let pattern = mapping
+            .keys()
+            .map(|k| regex::escape(k))
+            .collect::<Vec<_>>()
+            .join("|");
         let regex = Regex::new(&pattern).unwrap();
 
         regex

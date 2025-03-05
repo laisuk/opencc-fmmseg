@@ -33,20 +33,7 @@ pub struct DictionaryMaxlength {
 
 impl DictionaryMaxlength {
     pub fn new() -> Result<Self, Box<dyn Error>> {
-        let json_data = include_str!("dicts/dictionary_maxlength.json");
-        let dictionary: Self = match serde_json::from_str(json_data) {
-            Ok(data) => data,
-            Err(err) => {
-                Self::set_last_error(&format!("Failed to read JSON file: {}", err));
-                return Err(Box::new(err));
-            }
-        };
-
-        Ok(dictionary)
-    }
-
-    /// **New function: Load from CBOR**
-    pub fn new_cbor(cbor_bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+        let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
         match from_slice(cbor_bytes) {
             Ok(dictionary) => Ok(dictionary),
             Err(err) => {
