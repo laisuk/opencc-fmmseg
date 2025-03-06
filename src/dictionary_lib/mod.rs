@@ -1,14 +1,14 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use serde_cbor::from_slice;
+use serde_cbor::{from_reader, from_slice};
 use std::collections::HashMap;
 use std::error::Error;
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Cursor};
 use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
-use std::fs::File;
-use std::io::{BufReader, BufWriter};
-use zstd::{Encoder, Decoder};
+use zstd::{decode_all, Decoder, Encoder};
 
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -117,6 +117,22 @@ impl DictionaryMaxlength {
         Ok((dictionary, max_length))
     }
 
+    pub fn from_zstd() -> Result<Self, DictionaryError> {
+        // Embedded compressed CBOR file at compile time
+        let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
+
+        // Decompress Zstd
+        let decompressed_data = decode_all(Cursor::new(compressed_data)).map_err(|err| {
+            DictionaryError::IoError(format!("Failed to decompress Zstd: {}", err))
+        })?;
+
+        // Deserialize CBOR
+        let dictionary: DictionaryMaxlength = from_slice(&decompressed_data)
+            .map_err(|err| DictionaryError::ParseError(format!("Failed to parse CBOR: {}", err)))?;
+
+        Ok(dictionary)
+    }
+
     #[allow(dead_code)]
     fn load_dictionary_maxlength_par(
         dictionary_content: &str,
@@ -198,12 +214,19 @@ impl DictionaryMaxlength {
     }
 }
 
-pub fn save_compressed(dictionary: &DictionaryMaxlength, path: &str) -> Result<(), DictionaryError> {
+pub fn save_compressed(
+    dictionary: &DictionaryMaxlength,
+    path: &str,
+) -> Result<(), DictionaryError> {
     let file = File::create(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
     let writer = BufWriter::new(file);
-    let mut encoder = Encoder::new(writer, 3).map_err(|e| DictionaryError::IoError(e.to_string()))?;
-    serde_cbor::to_writer(&mut encoder, dictionary).map_err(|e| DictionaryError::ParseError(e.to_string()))?;
-    encoder.finish().map_err(|e| DictionaryError::IoError(e.to_string()))?;
+    let mut encoder =
+        Encoder::new(writer, 3).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+    serde_cbor::to_writer(&mut encoder, dictionary)
+        .map_err(|e| DictionaryError::ParseError(e.to_string()))?;
+    encoder
+        .finish()
+        .map_err(|e| DictionaryError::IoError(e.to_string()))?;
     Ok(())
 }
 
@@ -211,8 +234,8 @@ pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryErro
     let file = File::open(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
     let reader = BufReader::new(file);
     let mut decoder = Decoder::new(reader).map_err(|e| DictionaryError::IoError(e.to_string()))?;
-    let dictionary: DictionaryMaxlength = serde_cbor::from_reader(&mut decoder)
-        .map_err(|e| DictionaryError::ParseError(e.to_string()))?;
+    let dictionary: DictionaryMaxlength =
+        from_reader(&mut decoder).map_err(|e| DictionaryError::ParseError(e.to_string()))?;
     Ok(dictionary)
 }
 
@@ -256,6 +279,18 @@ impl std::fmt::Display for DictionaryError {
 
 impl Error for DictionaryError {}
 
+impl From<io::Error> for DictionaryError {
+    fn from(err: io::Error) -> Self {
+        DictionaryError::IoError(err.to_string())
+    }
+}
+
+impl From<serde_cbor::Error> for DictionaryError {
+    fn from(err: serde_cbor::Error) -> Self {
+        DictionaryError::ParseError(err.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -274,6 +309,55 @@ mod tests {
         let expected_cbor_size = 1113003; // Update this with the actual expected size
         assert_eq!(file_contents.len(), expected_cbor_size);
         // Clean up: Delete the test file
-        fs::remove_file(filename).unwrap();
+        // fs::remove_file(filename).unwrap();
+    }
+
+    #[test]
+    fn test_dictionary_from_dicts_then_to_zstd() {
+        use std::fs;
+        use std::io::Write;
+        use zstd::stream::Encoder;
+
+        // Create dictionary
+        let dictionary = DictionaryMaxlength::from_dicts().unwrap();
+
+        // Serialize to CBOR
+        let cbor_filename = "dictionary_maxlength.cbor";
+        dictionary.serialize_to_cbor(cbor_filename).unwrap();
+
+        // Read the CBOR file
+        let cbor_data = fs::read(cbor_filename).unwrap();
+
+        // Compress with Zstd
+        let zstd_filename = "dictionary_maxlength.zstd";
+        let zstd_file = File::create(zstd_filename).expect("Failed to create zstd file");
+        let mut encoder = Encoder::new(&zstd_file, 3).expect("Failed to create zstd encoder");
+        encoder
+            .write_all(&cbor_data)
+            .expect("Failed to write compressed data");
+        encoder.finish().expect("Failed to finish compression");
+
+        // Verify file size within a reasonable range
+        let compressed_size = fs::metadata(zstd_filename).unwrap().len();
+        let min_size = 595000; // Lower bound
+        let max_size = 605000; // Upper bound
+        assert!(
+            compressed_size >= min_size && compressed_size <= max_size,
+            "Unexpected compressed size: {}",
+            compressed_size
+        );
+
+        // Clean up: Remove test files
+        // fs::remove_file(cbor_filename).unwrap();
+        // fs::remove_file(zstd_filename).unwrap();
+    }
+
+    #[test]
+    fn test_dictionary_from_zstd() {
+        let dictionary = DictionaryMaxlength::from_zstd().expect("Failed to load dictionary from zstd");
+
+        // Verify a known field
+        let expected = 16;
+        assert_eq!(dictionary.st_phrases.1, expected);
     }
 }

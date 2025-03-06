@@ -5,10 +5,10 @@ pub extern "C" fn opencc_new() -> *mut OpenCC {
     Box::into_raw(Box::new(OpenCC::new()))
 }
 
-#[no_mangle]
-pub extern "C" fn opencc_new_from_dicts() -> *mut OpenCC {
-    Box::into_raw(Box::new(OpenCC::from_dicts()))
-}
+// #[no_mangle]
+// pub extern "C" fn opencc_new_from_dicts() -> *mut OpenCC {
+//     Box::into_raw(Box::new(OpenCC::from_dicts()))
+// }
 
 #[no_mangle]
 pub extern "C" fn opencc_free(instance: *mut OpenCC) {
