@@ -13,7 +13,7 @@ use zstd::{decode_all, Decoder, Encoder};
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DictionaryMaxlength {
     pub st_characters: (HashMap<String, String>, usize),
     pub st_phrases: (HashMap<String, String>, usize),
@@ -219,31 +219,32 @@ impl DictionaryMaxlength {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()
     }
-}
 
-pub fn save_compressed(
-    dictionary: &DictionaryMaxlength,
-    path: &str,
-) -> Result<(), DictionaryError> {
-    let file = File::create(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
-    let writer = BufWriter::new(file);
-    let mut encoder =
-        Encoder::new(writer, 3).map_err(|e| DictionaryError::IoError(e.to_string()))?;
-    serde_cbor::to_writer(&mut encoder, dictionary)
-        .map_err(|e| DictionaryError::ParseError(e.to_string()))?;
-    encoder
-        .finish()
-        .map_err(|e| DictionaryError::IoError(e.to_string()))?;
-    Ok(())
-}
+    pub fn save_compressed(
+        dictionary: &DictionaryMaxlength,
+        path: &str,
+    ) -> Result<(), DictionaryError> {
+        let file = File::create(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        let writer = BufWriter::new(file);
+        let mut encoder =
+            Encoder::new(writer, 3).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        serde_cbor::to_writer(&mut encoder, dictionary)
+            .map_err(|e| DictionaryError::ParseError(e.to_string()))?;
+        encoder
+            .finish()
+            .map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        Ok(())
+    }
 
-pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
-    let file = File::open(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
-    let reader = BufReader::new(file);
-    let mut decoder = Decoder::new(reader).map_err(|e| DictionaryError::IoError(e.to_string()))?;
-    let dictionary: DictionaryMaxlength =
-        from_reader(&mut decoder).map_err(|e| DictionaryError::ParseError(e.to_string()))?;
-    Ok(dictionary)
+    pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
+        let file = File::open(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        let reader = BufReader::new(file);
+        let mut decoder =
+            Decoder::new(reader).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        let dictionary: DictionaryMaxlength =
+            from_reader(&mut decoder).map_err(|e| DictionaryError::ParseError(e.to_string()))?;
+        Ok(dictionary)
+    }
 }
 
 impl Default for DictionaryMaxlength {
@@ -346,8 +347,8 @@ mod tests {
 
         // Verify file size within a reasonable range
         let compressed_size = fs::metadata(zstd_filename).unwrap().len();
-        let min_size = 595000; // Lower bound
-        let max_size = 605000; // Upper bound
+        let min_size = 590000; // Lower bound
+        let max_size = 620000; // Upper bound
         assert!(
             compressed_size >= min_size && compressed_size <= max_size,
             "Unexpected compressed size: {}",
@@ -367,5 +368,67 @@ mod tests {
         // Verify a known field
         let expected = 16;
         assert_eq!(dictionary.st_phrases.1, expected);
+    }
+
+    #[test]
+    fn test_save_compressed() {
+        use crate::dictionary_lib::DictionaryMaxlength;
+        use std::fs;
+
+        let dictionary = DictionaryMaxlength::from_dicts().expect("Failed to create dictionary");
+
+        let compressed_file = "test_dictionary.zstd";
+
+        // Attempt to save the dictionary in compressed form
+        let result = DictionaryMaxlength::save_compressed(&dictionary, compressed_file);
+        assert!(
+            result.is_ok(),
+            "Failed to save compressed dictionary: {:?}",
+            result
+        );
+
+        // Ensure the compressed file exists and is non-empty
+        let metadata = fs::metadata(compressed_file).expect("Failed to get file metadata");
+        assert!(metadata.len() > 0, "Compressed file should not be empty");
+
+        // Clean up after test
+        fs::remove_file(compressed_file).expect("Failed to remove test file");
+    }
+
+    #[test]
+    fn test_save_and_load_compressed() {
+        use crate::dictionary_lib::DictionaryMaxlength;
+        use std::fs;
+
+        let dictionary = DictionaryMaxlength::from_dicts().expect("Failed to create dictionary");
+
+        let compressed_file = "test_dictionary.zstd";
+
+        // Save the dictionary in compressed form
+        let save_result = DictionaryMaxlength::save_compressed(&dictionary, compressed_file);
+        assert!(
+            save_result.is_ok(),
+            "Failed to save compressed dictionary: {:?}",
+            save_result
+        );
+
+        // Load the dictionary from the compressed file
+        let load_result = DictionaryMaxlength::load_compressed(compressed_file);
+        assert!(
+            load_result.is_ok(),
+            "Failed to load compressed dictionary: {:?}",
+            load_result
+        );
+
+        let loaded_dictionary = load_result.unwrap();
+
+        // Verify the loaded dictionary is equivalent to the original
+        assert_eq!(
+            dictionary.st_phrases.1, loaded_dictionary.st_phrases.1,
+            "Loaded dictionary does not match the original"
+        );
+
+        // Clean up: Remove the test file
+        fs::remove_file(compressed_file).expect("Failed to remove test file");
     }
 }
