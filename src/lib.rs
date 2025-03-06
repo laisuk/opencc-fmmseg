@@ -25,7 +25,7 @@ pub struct OpenCC {
 
 impl OpenCC {
     pub fn new() -> Self {
-        let dictionary = DictionaryMaxlength::from_zstd()
+        let dictionary = DictionaryMaxlength::new()
             .unwrap_or_else(|err| {
                 Self::set_last_error(&format!("Failed to create dictionary: {}", err));
                 DictionaryMaxlength::default()

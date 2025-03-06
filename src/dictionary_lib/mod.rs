@@ -35,6 +35,13 @@ pub struct DictionaryMaxlength {
 
 impl DictionaryMaxlength {
     pub fn new() -> Result<Self, Box<dyn Error>> {
+        Ok(Self::from_zstd().map_err(|err| {
+            Self::set_last_error(&format!("Failed to load dictionary from Zstd: {}", err));
+            Box::new(err)
+        })?)
+    }
+
+    pub fn from_cbor() -> Result<Self, Box<dyn Error>> {
         let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
         match from_slice(cbor_bytes) {
             Ok(dictionary) => Ok(dictionary),
@@ -354,7 +361,8 @@ mod tests {
 
     #[test]
     fn test_dictionary_from_zstd() {
-        let dictionary = DictionaryMaxlength::from_zstd().expect("Failed to load dictionary from zstd");
+        let dictionary =
+            DictionaryMaxlength::from_zstd().expect("Failed to load dictionary from zstd");
 
         // Verify a known field
         let expected = 16;
