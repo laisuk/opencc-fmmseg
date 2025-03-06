@@ -60,10 +60,14 @@ impl DictionaryMaxlength {
         let jpv_file_path = "dicts/JPVariants.txt";
         let jpvr_file_path = "dicts/JPVariantsRev.txt";
 
-        fn load_dict(path: &str) -> Result<(HashMap<String, String>, usize), Box<dyn Error>> {
-            let content = fs::read_to_string(path)?; // Properly propagate the I/O error
-            DictionaryMaxlength::load_dictionary_maxlength(&content).map_err(|e| e.into())
-            // Convert the second error type
+        fn load_dict(path: &str) -> Result<(HashMap<String, String>, usize), DictionaryError> {
+            let content = fs::read_to_string(path).map_err(|err| {
+                DictionaryError::IoError(format!("Failed to read file {}: {}", path, err))
+            })?;
+
+            DictionaryMaxlength::load_dictionary_maxlength(&content).map_err(|err| {
+                DictionaryError::ParseError(format!("Failed to parse dictionary {}: {}", path, err))
+            })
         }
 
         Ok(DictionaryMaxlength {
@@ -213,6 +217,23 @@ impl Default for DictionaryMaxlength {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum DictionaryError {
+    IoError(String),
+    ParseError(String),
+}
+
+impl std::fmt::Display for DictionaryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DictionaryError::IoError(msg) => write!(f, "I/O Error: {}", msg),
+            DictionaryError::ParseError(msg) => write!(f, "Parse Error: {}", msg),
+        }
+    }
+}
+
+impl Error for DictionaryError {}
 
 #[cfg(test)]
 mod tests {

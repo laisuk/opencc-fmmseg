@@ -41,7 +41,11 @@ impl OpenCC {
     }
 
     pub fn from_dicts() -> Self {
-        let dictionary = DictionaryMaxlength::from_dicts().unwrap();
+        let dictionary = DictionaryMaxlength::from_dicts()
+            .unwrap_or_else(|err| {
+                Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+                DictionaryMaxlength::default()
+            });
         let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
 
@@ -52,7 +56,8 @@ impl OpenCC {
         }
     }
     pub fn from_cbor(filename: &str) -> Self {
-        let dictionary = DictionaryMaxlength::deserialize_from_cbor(filename).unwrap_or_else(|err| {
+        let dictionary = DictionaryMaxlength::deserialize_from_cbor(filename)
+            .unwrap_or_else(|err| {
             Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             DictionaryMaxlength::default()
         });
