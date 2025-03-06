@@ -6,6 +6,9 @@ use std::error::Error;
 use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
+use zstd::{Encoder, Decoder};
 
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -193,6 +196,24 @@ impl DictionaryMaxlength {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()
     }
+}
+
+pub fn save_compressed(dictionary: &DictionaryMaxlength, path: &str) -> Result<(), DictionaryError> {
+    let file = File::create(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+    let writer = BufWriter::new(file);
+    let mut encoder = Encoder::new(writer, 3).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+    serde_cbor::to_writer(&mut encoder, dictionary).map_err(|e| DictionaryError::ParseError(e.to_string()))?;
+    encoder.finish().map_err(|e| DictionaryError::IoError(e.to_string()))?;
+    Ok(())
+}
+
+pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
+    let file = File::open(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+    let reader = BufReader::new(file);
+    let mut decoder = Decoder::new(reader).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+    let dictionary: DictionaryMaxlength = serde_cbor::from_reader(&mut decoder)
+        .map_err(|e| DictionaryError::ParseError(e.to_string()))?;
+    Ok(dictionary)
 }
 
 impl Default for DictionaryMaxlength {

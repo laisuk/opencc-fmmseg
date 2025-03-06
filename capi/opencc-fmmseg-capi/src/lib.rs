@@ -6,6 +6,11 @@ pub extern "C" fn opencc_new() -> *mut OpenCC {
 }
 
 #[no_mangle]
+pub extern "C" fn opencc_new_from_dicts() -> *mut OpenCC {
+    Box::into_raw(Box::new(OpenCC::from_dicts()))
+}
+
+#[no_mangle]
 pub extern "C" fn opencc_free(instance: *mut OpenCC) {
     if !instance.is_null() {
         // Convert the raw pointer back into a Box and let it drop

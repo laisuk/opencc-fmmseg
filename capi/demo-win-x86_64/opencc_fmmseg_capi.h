@@ -8,6 +8,7 @@ extern "C" {
 #include <stdbool.h>
 
 void *opencc_new();
+void *opencc_new_from_dicts();
 char *opencc_convert(const void *instance, const char *input, const char *config, bool punctuation);
 bool opencc_get_parallel(const void *instance);
 void opencc_set_parallel(const void *instance, bool is_parallel);
