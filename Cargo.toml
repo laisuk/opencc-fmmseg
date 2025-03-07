@@ -1,4 +1,4 @@
-workspace = { members = [ "capi/opencc-fmmseg-capi","tools/opencc-clip", "tools/opencc-rs"] }
+workspace = { members = [ "capi/opencc-fmmseg-capi", "tools/dict-generate","tools/opencc-clip", "tools/opencc-rs"] }
 [package]
 name = "opencc-fmmseg"
 version = "0.4.0"
