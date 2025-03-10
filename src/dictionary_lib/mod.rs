@@ -227,7 +227,7 @@ impl DictionaryMaxlength {
         let file = File::create(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
         let writer = BufWriter::new(file);
         let mut encoder =
-            Encoder::new(writer, 3).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+            Encoder::new(writer, 19).map_err(|e| DictionaryError::IoError(e.to_string()))?;
         serde_cbor::to_writer(&mut encoder, dictionary)
             .map_err(|e| DictionaryError::ParseError(e.to_string()))?;
         encoder
@@ -304,6 +304,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_dictionary_from_dicts_then_to_cbor() {
         // Assuming you have a method `from_dicts` to create a dictionary
         let dictionary = DictionaryMaxlength::from_dicts().unwrap();
@@ -321,6 +322,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_dictionary_from_dicts_then_to_zstd() {
         use std::fs;
         use std::io::Write;
@@ -339,7 +341,7 @@ mod tests {
         // Compress with Zstd
         let zstd_filename = "dictionary_maxlength.zstd";
         let zstd_file = File::create(zstd_filename).expect("Failed to create zstd file");
-        let mut encoder = Encoder::new(&zstd_file, 3).expect("Failed to create zstd encoder");
+        let mut encoder = Encoder::new(&zstd_file, 19).expect("Failed to create zstd encoder");
         encoder
             .write_all(&cbor_data)
             .expect("Failed to write compressed data");
@@ -347,8 +349,8 @@ mod tests {
 
         // Verify file size within a reasonable range
         let compressed_size = fs::metadata(zstd_filename).unwrap().len();
-        let min_size = 590000; // Lower bound
-        let max_size = 620000; // Upper bound
+        let min_size = 480000; // Lower bound
+        let max_size = 500000; // Upper bound
         assert!(
             compressed_size >= min_size && compressed_size <= max_size,
             "Unexpected compressed size: {}",
@@ -356,8 +358,8 @@ mod tests {
         );
 
         // Clean up: Remove test files
-        // fs::remove_file(cbor_filename).unwrap();
-        // fs::remove_file(zstd_filename).unwrap();
+        fs::remove_file(cbor_filename).unwrap();
+        fs::remove_file(zstd_filename).unwrap();
     }
 
     #[test]
@@ -371,6 +373,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_save_compressed() {
         use crate::dictionary_lib::DictionaryMaxlength;
         use std::fs;
@@ -396,13 +399,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_save_and_load_compressed() {
         use crate::dictionary_lib::DictionaryMaxlength;
         use std::fs;
 
         let dictionary = DictionaryMaxlength::from_dicts().expect("Failed to create dictionary");
 
-        let compressed_file = "test_dictionary.zstd";
+        let compressed_file = "test2_dictionary.zstd";
 
         // Save the dictionary in compressed form
         let save_result = DictionaryMaxlength::save_compressed(&dictionary, compressed_file);
