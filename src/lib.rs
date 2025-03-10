@@ -484,27 +484,24 @@ impl OpenCC {
     fn convert_punctuation(text: &str, config: &str) -> String {
         let s2t_punctuation_chars: HashMap<&str, &str> =
             HashMap::from([("“", "「"), ("”", "」"), ("‘", "『"), ("’", "』")]);
-
-            let mapping_storage; // Define a variable for longer lifetime
-
-            let mapping = if config.starts_with('s') {
-                &s2t_punctuation_chars
-            } else {
-                mapping_storage = s2t_punctuation_chars
-                    .iter()
-                    .map(|(&k, &v)| (v, k))
-                    .collect::<HashMap<&str, &str>>();
-                &mapping_storage
-            };
-
-        // let pattern = format!("[{}]", mapping.keys().cloned().collect::<String>());
+    
+        let t2s_punctuation_chars: HashMap<&str, &str> = 
+            s2t_punctuation_chars.iter().map(|(&k, &v)| (v, k)).collect();
+    
+        let mapping = if config.starts_with('s') {
+            &s2t_punctuation_chars
+        } else {
+            &t2s_punctuation_chars
+        };
+    
         let pattern = mapping
             .keys()
             .map(|k| regex::escape(k))
             .collect::<Vec<_>>()
             .join("|");
+    
         let regex = Regex::new(&pattern).unwrap();
-
+    
         regex
             .replace_all(text, |caps: &regex::Captures| {
                 mapping[caps.get(0).unwrap().as_str()]
