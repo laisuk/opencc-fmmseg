@@ -488,13 +488,13 @@ impl OpenCC {
             let mapping_storage; // Define a variable for longer lifetime
 
             let mapping = if config.starts_with('s') {
+                &s2t_punctuation_chars
+            } else {
                 mapping_storage = s2t_punctuation_chars
                     .iter()
                     .map(|(&k, &v)| (v, k))
                     .collect::<HashMap<&str, &str>>();
                 &mapping_storage
-            } else {
-                &s2t_punctuation_chars
             };
 
         // let pattern = format!("[{}]", mapping.keys().cloned().collect::<String>());
