@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 opencc-fmmseg = {path = "../.."}
-clap = "4.5.31"
+clap = "4.5.32"
 serde_json = "1.0.140"
 serde_cbor = "0.11.2"
