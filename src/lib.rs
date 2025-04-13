@@ -25,11 +25,10 @@ pub struct OpenCC {
 
 impl OpenCC {
     pub fn new() -> Self {
-        let dictionary = DictionaryMaxlength::new()
-            .unwrap_or_else(|err| {
-                Self::set_last_error(&format!("Failed to create dictionary: {}", err));
-                DictionaryMaxlength::default()
-            });
+        let dictionary = DictionaryMaxlength::new().unwrap_or_else(|err| {
+            Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+            DictionaryMaxlength::default()
+        });
         let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
 
@@ -41,11 +40,10 @@ impl OpenCC {
     }
 
     pub fn from_dicts() -> Self {
-        let dictionary = DictionaryMaxlength::from_dicts()
-            .unwrap_or_else(|err| {
-                Self::set_last_error(&format!("Failed to create dictionary: {}", err));
-                DictionaryMaxlength::default()
-            });
+        let dictionary = DictionaryMaxlength::from_dicts().unwrap_or_else(|err| {
+            Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+            DictionaryMaxlength::default()
+        });
         let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
 
@@ -56,11 +54,11 @@ impl OpenCC {
         }
     }
     pub fn from_cbor(filename: &str) -> Self {
-        let dictionary = DictionaryMaxlength::deserialize_from_cbor(filename)
-            .unwrap_or_else(|err| {
-            Self::set_last_error(&format!("Failed to create dictionary: {}", err));
-            DictionaryMaxlength::default()
-        });
+        let dictionary =
+            DictionaryMaxlength::deserialize_from_cbor(filename).unwrap_or_else(|err| {
+                Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+                DictionaryMaxlength::default()
+            });
         let delimiters = DELIMITERS.chars().collect();
         let is_parallel = true;
 
@@ -75,12 +73,8 @@ impl OpenCC {
         text: &str,
         dictionaries: &[&(HashMap<String, String>, usize)],
     ) -> String {
-        let mut max_word_length: usize = 1;
-        for i in 0..dictionaries.len() {
-            if max_word_length < dictionaries[i].1 {
-                max_word_length = dictionaries[i].1;
-            }
-        }
+        // Get the max word length directly from the dictionaries
+        let max_word_length = dictionaries.iter().map(|(_, len)| *len).max().unwrap_or(1); // Default to 1 if no dictionaries are available
 
         if self.is_parallel {
             let split_string_list = self.split_string_inclusive_par(text);
@@ -130,59 +124,45 @@ impl OpenCC {
             return text_chars[0].to_string();
         }
 
-        let mut result = String::new();
-        result.reserve(text_chars.len() * 4);
-
+        let mut result = String::with_capacity(text_length * 4);
+        let mut candidate = String::with_capacity(max_word_length);
         let mut start_pos = 0;
+
         while start_pos < text_length {
             let max_length = std::cmp::min(max_word_length, text_length - start_pos);
             let mut best_match_length = 0;
-            let mut best_match = String::new();
+            let mut best_match: &str = "";
 
-            for length in 1..=max_length {
-                let candidate: String =
-                    text_chars[start_pos..(start_pos + length)].iter().collect();
+            for length in (1..=max_length).rev() {
+                candidate.clear();
+                candidate.extend(&text_chars[start_pos..start_pos + length]);
+
                 for dictionary in dictionaries {
                     if let Some(value) = dictionary.0.get(&candidate) {
                         best_match_length = length;
-                        best_match = value.to_owned();
-                        break; // Push the corresponding value to the results
+                        best_match = value;
+                        break;
                     }
+                }
+
+                if best_match_length > 0 {
+                    break;
                 }
             }
 
             if best_match_length == 0 {
-                // If no match found, treat the character as a single word
                 best_match_length = 1;
-                best_match = text_chars[start_pos].to_string();
+                candidate.clear();
+                candidate.push(text_chars[start_pos]);
+                best_match = &candidate;
             }
 
-            result.push_str(&best_match);
+            result.push_str(best_match);
             start_pos += best_match_length;
         }
 
         result
     }
-
-    // fn split_string_inclusive(&self, text: &str) -> Vec<String> {
-    //     let mut split_string_list = Vec::new();
-    //     let mut current_chunk = String::new();
-    //
-    //     for ch in text.chars() {
-    //         if self.delimiters.contains(&ch) {
-    //             split_string_list.push(current_chunk + &ch.to_string());
-    //             current_chunk = String::new();
-    //         } else {
-    //             current_chunk.push(ch);
-    //         }
-    //     }
-    //     // Current_chunk still have chars but current_delimiter is empty
-    //     if !current_chunk.is_empty() {
-    //         split_string_list.push(current_chunk);
-    //     }
-    //
-    //     split_string_list
-    // }
 
     fn split_string_inclusive(&self, text: &str) -> Vec<Vec<char>> {
         let mut split_string_list = Vec::new();
@@ -205,17 +185,6 @@ impl OpenCC {
 
         split_string_list
     }
-
-    // fn split_string_inclusive_par(&self, text: &str) -> Vec<Vec<char>> {
-    //     let split_string_list: Vec<Vec<char>> = text
-    //         .par_chars()
-    //         .collect::<Vec<char>>() // Collect into Vec<char> to allow splitting
-    //         .par_split_inclusive_mut(|c| self.delimiters.contains(c))
-    //         .map(|slice| slice.par_iter().cloned().collect())
-    //         .collect();
-    //
-    //     split_string_list
-    // }
 
     fn split_string_inclusive_par(&self, text: &str) -> Vec<Arc<[char]>> {
         let collected: Vec<char> = text.par_chars().collect();
@@ -452,13 +421,21 @@ impl OpenCC {
 
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
-        let chars: Vec<char> = input.par_chars().collect();
+        let chars: Vec<char> = if self.is_parallel {
+            input.par_chars().collect()
+        } else {
+            input.chars().collect()
+        };
         self.convert_by(&chars, &dict_refs, 1)
     }
 
     fn ts(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.ts_characters];
-        let chars: Vec<char> = input.par_chars().collect();
+        let chars: Vec<char> = if self.is_parallel {
+            input.par_chars().collect()
+        } else {
+            input.chars().collect()
+        };
         self.convert_by(&chars, &dict_refs, 1)
     }
 
@@ -484,24 +461,26 @@ impl OpenCC {
     fn convert_punctuation(text: &str, config: &str) -> String {
         let s2t_punctuation_chars: HashMap<&str, &str> =
             HashMap::from([("“", "「"), ("”", "」"), ("‘", "『"), ("’", "』")]);
-    
-        let t2s_punctuation_chars: HashMap<&str, &str> = 
-            s2t_punctuation_chars.iter().map(|(&k, &v)| (v, k)).collect();
-    
+
+        let t2s_punctuation_chars: HashMap<&str, &str> = s2t_punctuation_chars
+            .iter()
+            .map(|(&k, &v)| (v, k))
+            .collect();
+
         let mapping = if config.starts_with('s') {
             &s2t_punctuation_chars
         } else {
             &t2s_punctuation_chars
         };
-    
+
         let pattern = mapping
             .keys()
             .map(|k| regex::escape(k))
             .collect::<Vec<_>>()
             .join("|");
-    
+
         let regex = Regex::new(&pattern).unwrap();
-    
+
         regex
             .replace_all(text, |caps: &regex::Captures| {
                 mapping[caps.get(0).unwrap().as_str()]

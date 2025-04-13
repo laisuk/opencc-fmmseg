@@ -1,12 +1,12 @@
 [package]
 name = "opencc-rs"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 opencc-fmmseg = {path = "../.."}
-clap = "4.5.35"
+clap = "4.5.36"
 encoding_rs = "0.8.35"
 encoding_rs_io = "0.1.7"
