@@ -52,9 +52,11 @@ You can also use `opencc-fmmseg` as a library:
 ```rust
 use opencc_fmmseg::convert_text;
 
-let input = "这是一个测试";
-let output = convert_text(input, "s2t");
-println!("{}", output); // -> "這是一個測試"
+fn main() {
+  let input = "这是一个测试";
+  let output = convert_text(input, "s2t");
+  println!("{}", output); // -> "這是一個測試"
+}
 ```
 
 ## Project Structure
