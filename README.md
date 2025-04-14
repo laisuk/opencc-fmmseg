@@ -1,4 +1,3 @@
-```markdown
 # opencc-fmmseg (Draft)
 
 A Rust-based Chinese text converter that performs accurate word segmentation using a hybrid of **Forward Maximum Matching (FMM)** and **Jieba-style heuristics**, powered by **OpenCC lexicons**. This project aims to provide high-performance and accurate **Simplified ↔ Traditional Chinese** (zh-Hans ↔ zh-Hant) conversion.
