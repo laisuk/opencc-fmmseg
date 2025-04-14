@@ -71,8 +71,4 @@ println!("{}", output); // -> "這是一個測試"
 ## License
 
 MIT License
-```
 
----
-
-Let me know if you want to customize anything — like adding contributors, screenshots, or benchmarks.
