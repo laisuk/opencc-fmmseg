@@ -75,6 +75,67 @@ fn main() {
 }
 ```
 
+Sure! Here's your **C API Usage** section nicely formatted in Markdown, ready to be added to your `README.md`:
+
+
+## C API Usage (`opencc_fmmseg_capi`)
+
+You can also use `opencc-fmmseg` via a C API for integration with C/C++ projects.
+
+### Example
+
+```c
+#include <stdio.h>
+#include "opencc_fmmseg_capi.h"
+
+int main(int argc, char **argv) {
+    void *opencc = opencc_new();
+    bool is_parallel = opencc_get_parallel(opencc);
+    printf("OpenCC is_parallel: %d\n", is_parallel);
+
+    const char *config = u8"s2twp";
+    const char *text = u8"意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+    printf("Text: %s\n", text);
+
+    int code = opencc_zho_check(opencc, text);
+    printf("Text Code: %d\n", code);
+
+    char *result = opencc_convert(opencc, text, config, true);
+    code = opencc_zho_check(opencc, result);
+
+    char *last_error = opencc_last_error();
+    printf("Converted: %s\n", result);
+    printf("Text Code: %d\n", code);
+    printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
+
+    if (result != NULL) {
+        opencc_string_free(result);
+    }
+    if (opencc != NULL) {
+        opencc_free(opencc);
+    }
+
+    return 0;
+}
+```
+
+### Output
+```
+OpenCC is_parallel: 1
+Text: 意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。
+Text Code: 2
+Converted: 義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。
+Text Code: 1
+Last Error: No error
+```
+### Notes
+
+- `opencc_new()` initializes the engine.
+- `opencc_convert(...)` performs the conversion with the specified config (e.g., `s2t`, `t2s`, `s2twp`).
+- `opencc_string_free(...)` must be called to free the returned string.
+- Parallelism support can be queried using `opencc_get_parallel()`.
+- Errors are returned from `opencc_last_error()`.
+
 ## Project Structure
 
 - `src/lib.rs` – Main library with segmentation logic.
