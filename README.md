@@ -141,6 +141,7 @@ Last Error: No error
 ## Project Structure
 
 - `src/lib.rs` – Main library with segmentation logic.
+- `capi/opencc-fmmseg-capi` C API source and demo.
 - `tools/opencc-rs/src/main.rs` – CLI tool (`opencc-cs`) implementation.
 - `dicts/` – OpenCC text lexicons which converted into CBOR format.
 
