@@ -131,8 +131,10 @@ Last Error: No error
 ### Notes
 
 - `opencc_new()` initializes the engine.
+- `opencc_zho_check(...)` to detect zh-Hant (1), zh-Hans (2), others (0).
 - `opencc_convert(...)` performs the conversion with the specified config (e.g., `s2t`, `t2s`, `s2twp`).
 - `opencc_string_free(...)` must be called to free the returned string.
+- `opencc_free(...)` must be called to free OpenCC object.
 - Parallelism support can be queried using `opencc_get_parallel()`.
 - Errors are returned from `opencc_last_error()`.
 
