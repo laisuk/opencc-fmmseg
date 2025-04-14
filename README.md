@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
     printf("OpenCC is_parallel: %d\n", is_parallel);
 
     const char *config = u8"s2twp";
-    const char *text = u8"意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+    const char *text = u8"意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
     printf("Text: %s\n", text);
 
     int code = opencc_zho_check(opencc, text);
@@ -122,9 +122,9 @@ int main(int argc, char **argv) {
 ### Output
 ```
 OpenCC is_parallel: 1
-Text: 意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。
+Text: 意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。
 Text Code: 2
-Converted: 義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。
+Converted: 義大利鄰國法蘭西羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。
 Text Code: 1
 Last Error: No error
 ```
