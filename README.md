@@ -1,6 +1,6 @@
 # opencc-fmmseg
 
-A Rust-based Chinese text converter that performs accurate word segmentation using a hybrid of **Forward Maximum Matching (FMM)** and **Jieba-style heuristics**, powered by **OpenCC lexicons**. This project aims to provide high-performance and accurate **Simplified ↔ Traditional Chinese** (zh-Hans ↔ zh-Hant) conversion.
+A Rust-based Chinese text converter that performs word segmentation using **Forward Maximum Matching (FMM)**, powered by **OpenCC lexicons**. This project aims to provide high-performance and accurate **Simplified ↔ Traditional Chinese** (zh-Hans ↔ zh-Hant) conversion.
 
 ## Features
 
@@ -49,7 +49,12 @@ Options:
 
 - Supported conversions:
   - `s2t` – Simplified to Traditional
+  - `s2tw` – Simplified to Traditional Taiwan
+  - `s2twp` – Simplified to Traditional Taiwan with idioms
   - `t2s` – Traditional to Simplified
+  - `tw2s` – Traditional Taiwan to Simplified
+  - `tw2sp` – Traditional Taiwan to Simplified with idioms
+  - etc
 
 ### Lexicons
 
@@ -74,7 +79,7 @@ fn main() {
 
 - `src/lib.rs` – Main library with segmentation logic.
 - `tools/opencc-rs/src/main.rs` – CLI tool (`opencc-cs`) implementation.
-- `lexicon/` – OpenCC lexicons in CBOR format.
+- `dicts/` – OpenCC text lexicons which converted into CBOR format.
 
 ## Credits
 
