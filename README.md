@@ -27,13 +27,22 @@ target/release/opencc-cs
 ## Usage
 
 ```bash
-./opencc-cs <input_file> <output_file> <conversion> [lexicon_dir]
+opencc-rs.exe [OPTIONS] --config <conversion>
+
+Options:
+  -i, --input <file>         Read original text from <file>.
+  -o, --output <file>        Write converted text to <file>.
+  -c, --config <conversion>  Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]
+  -p, --punct <boolean>      Punctuation conversion: [true|false] [default: false]
+      --in-enc <encoding>    Encoding for input: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
+      --out-enc <encoding>   Encoding for output: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
+  -h, --help                 Print help
 ```
 
 ### Example
 
 ```bash
-./opencc-cs text_simplified.txt text_traditional.txt s2t
+./opencc-cs -i text_simplified.txt -o text_traditional.txt -c s2t
 ```
 
 - Supported conversions:
@@ -49,11 +58,12 @@ By default, it uses OpenCC's built-in lexicon paths. You can also provide your o
 You can also use `opencc-fmmseg` as a library:
 
 ```rust
-use opencc_fmmseg::convert_text;
+use opencc_fmmseg::OpenCC;
 
 fn main() {
   let input = "这是一个测试";
-  let output = convert_text(input, "s2t");
+  let opencc = OpenCC::new();
+  let output = opencc.convert(input, "s2t", false);
   println!("{}", output); // -> "這是一個測試"
 }
 ```

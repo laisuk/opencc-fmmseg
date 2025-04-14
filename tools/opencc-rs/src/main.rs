@@ -1,10 +1,9 @@
-use std::fs::File;
-use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
 use clap::{Arg, Command};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use std::fs::File;
+use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
 
-use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
 
 const CONFIG_LIST: [&str; 16] = [
