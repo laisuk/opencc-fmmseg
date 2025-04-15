@@ -6,7 +6,7 @@ A Rust-based Chinese text converter that performs word segmentation using **Forw
 
 - 📦 Simple CLI tool for converting between Simplified and Traditional Chinese.
 - 🔍 Lexicon-driven segmentation using OpenCC dictionaries.
-- ⚡ High performance using parallel processing (`rayon`).d natural segmentation.
+- ⚡ High performance using parallel processing (`rayon`).
 - 🛠️ Designed to be easily embedded as a Rust library or used standalone.
 
 ## Installation
@@ -20,12 +20,12 @@ cargo build --release --workspace
 The CLI tool will be located at:
 
 ```
-target/release/opencc-cs
+target/release/opencc-rs
 ```
 
 ## Usage
 
-```bash
+```
 (Windows)
 opencc-rs.exe [OPTIONS] --config <conversion>
 (Linux / macOS)
@@ -44,7 +44,7 @@ Options:
 ### Example
 
 ```bash
-./opencc-cs -i text_simplified.txt -o text_traditional.txt -c s2t
+./opencc-rs -c s2t -i text_simplified.txt -o text_traditional.txt
 ```
 
 - Supported conversions:
@@ -74,9 +74,6 @@ fn main() {
   println!("{}", output); // -> "這是一個測試"
 }
 ```
-
-Sure! Here's your **C API Usage** section nicely formatted in Markdown, ready to be added to your `README.md`:
-
 
 ## C API Usage (`opencc_fmmseg_capi`)
 
