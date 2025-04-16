@@ -10,6 +10,12 @@ extern "C" {
 void *opencc_new();
 //void *opencc_new_from_dicts();
 char *opencc_convert(const void *instance, const char *input, const char *config, bool punctuation);
+char *opencc_convert_len(
+          const void *instance,
+          const char *input,
+          size_t input_len,
+          const char *config,
+          bool punctuation);
 bool opencc_get_parallel(const void *instance);
 void opencc_set_parallel(const void *instance, bool is_parallel);
 int opencc_zho_check(const void *instance, const char *input);
