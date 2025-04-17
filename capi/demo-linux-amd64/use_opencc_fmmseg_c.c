@@ -15,7 +15,10 @@ int main(int argc, char **argv) {
     char *last_error = opencc_last_error();
     printf("Converted: %s\n", result);
     printf("Text Code: %d\n", code);
-     printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
+    printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
+    if (last_error != NULL) {
+        opencc_error_free(last_error);
+    }
     if (result != NULL) {
         opencc_string_free(result);
     }

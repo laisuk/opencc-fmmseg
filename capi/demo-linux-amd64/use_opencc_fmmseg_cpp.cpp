@@ -16,6 +16,9 @@ int main(int argc, char **argv) {
     std::cout << "Converted: " << result << "\n";
     std::cout << "Text Code: " << code << "\n";
     std::cout << "Last Error: " << (last_error == NULL ? "No error" : last_error) << "\n";
+    if (last_error != NULL) {
+        opencc_error_free(last_error);
+    }
     if (result != NULL) {
         opencc_string_free(result);
     }
