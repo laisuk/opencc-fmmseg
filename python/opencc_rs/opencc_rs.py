@@ -27,19 +27,27 @@ class OpenCC:
         # Define function prototypes
         self.lib.opencc_new.restype = ctypes.c_void_p
         self.lib.opencc_new.argtypes = []
-        self.lib.opencc_convert.restype = ctypes.c_char_p
+        self.lib.opencc_convert.restype = ctypes.c_void_p
         self.lib.opencc_convert.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_bool]
         self.lib.opencc_zho_check.restype = ctypes.c_int
         self.lib.opencc_zho_check.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        self.lib.opencc_string_free.argtypes = [ctypes.c_void_p]
+        self.lib.opencc_string_free.restype = None
         self.lib.opencc_free.argtypes = [ctypes.c_void_p]
+        self.lib.opencc_free.restype = None
 
     def convert(self, text, punctuation=False):
         opencc = self.lib.opencc_new()
         if opencc is None:
             return text
         result = self.lib.opencc_convert(opencc, text.encode('utf-8'), self.config.encode('utf-8'), punctuation)
+        # Safe copy from C string
+        py_result = ctypes.string_at(result).decode('utf-8')
+        # Free CString from opencc_convert()
+        self.lib.opencc_string_free(result)
+        # Free opencc
         self.lib.opencc_free(opencc)
-        return result.decode('utf-8')
+        return py_result
 
     def zho_check(self, text):
         opencc = self.lib.opencc_new()

@@ -63,6 +63,7 @@ pub extern "C" fn opencc_convert(
 
     c_result.into_raw()
 }
+
 #[no_mangle]
 pub extern "C" fn opencc_convert_len(
     instance: *const OpenCC,
