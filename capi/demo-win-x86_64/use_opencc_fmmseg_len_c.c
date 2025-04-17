@@ -25,6 +25,9 @@ int main(int argc, char **argv) {
     printf("Converted Code: %d\n", code);
     printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
 
+    if (last_error != NULL) {
+        opencc_error_free(last_error);
+    }
     if (result != NULL) {
         opencc_string_free(result);
     }
