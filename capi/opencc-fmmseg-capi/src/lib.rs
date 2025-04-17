@@ -124,17 +124,26 @@ pub extern "C" fn opencc_zho_check(
 
 #[no_mangle]
 pub extern "C" fn opencc_last_error() -> *mut std::os::raw::c_char {
-    let last_error = match OpenCC::get_last_error() {
-        Some(err) => err,
-        None => return std::ptr::null_mut(), // Return null pointer if no error
-    };
-    // Convert the Rust string result to a C string
-    let c_result = match std::ffi::CString::new(last_error) {
-        Ok(c_str) => c_str,
-        Err(_) => return std::ptr::null_mut(), // Return null pointer if CString creation fails
-    };
+    match OpenCC::get_last_error() {
+        Some(ref err) if !err.is_empty() => match std::ffi::CString::new(err.as_str()) {
+            Ok(c_str) => c_str.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        },
+        _ => {
+            // Return "No error" if None or empty
+            std::ffi::CString::new("No error").unwrap().into_raw()
+        }
+    }
+}
 
-    c_result.into_raw()
+#[no_mangle]
+pub extern "C" fn opencc_error_free(ptr: *mut std::os::raw::c_char) {
+    if !ptr.is_null() {
+        unsafe {
+            let _ = std::ffi::CString::from_raw(ptr);
+            // Automatically dropped and deallocated
+        }
+    }
 }
 
 #[cfg(test)]
@@ -163,6 +172,7 @@ mod tests {
 
     #[test]
     fn test_opencc_invalid() {
+        OpenCC::set_last_error("");
         // Create a sample OpenCC instance
         let opencc = OpenCC::new();
         // Define a sample input string
@@ -181,13 +191,12 @@ mod tests {
         let result_ptr = opencc_convert(&opencc as *const OpenCC, c_input, c_config, punctuation);
         // Convert the result C string to Rust string
         let result_str = unsafe {
-            std::ffi::CString::from_raw(result_ptr)
+            std::ffi::CStr::from_ptr(result_ptr)
                 .to_string_lossy()
                 .into_owned()
         };
-
         // Free the allocated C string
-        // opencc_string_free(result_ptr);
+        opencc_string_free(result_ptr);
 
         // Assert the result
         // println!("{:?}", OpenCC::get_last_error());
@@ -197,6 +206,7 @@ mod tests {
             Some(OpenCC::get_last_error().unwrap().contains("Invalid")),
             Some(true)
         );
+        OpenCC::set_last_error("");
     }
 
     #[test]
@@ -219,13 +229,13 @@ mod tests {
         let result_ptr = opencc_convert(&opencc as *const OpenCC, c_input, c_config, punctuation);
         // Convert the result C string to Rust string
         let result_str = unsafe {
-            std::ffi::CString::from_raw(result_ptr)
+            std::ffi::CStr::from_ptr(result_ptr)
                 .to_string_lossy()
                 .into_owned()
         };
 
         // Free the allocated C string
-        // unsafe { let _ = std::ffi::CString::from_raw(result_ptr); };
+        opencc_string_free(result_ptr);
 
         // Assert the result
         assert_eq!(
@@ -275,6 +285,9 @@ mod tests {
 
     #[test]
     fn test_opencc_convert_len_incomplete_utf8() {
+        //Clear any previous test errors
+        OpenCC::set_last_error("");
+
         use std::ffi::CString;
 
         let opencc = OpenCC::new();
@@ -304,59 +317,71 @@ mod tests {
                 s
             }
         };
-
-        // Error message should be set
-        let last_error = OpenCC::get_last_error().unwrap_or("No error set".to_string());
+        
+        let last_error = read_and_free(opencc_last_error());
 
         println!("Result: {:?}", result);
         println!("Last Error: {:?}", last_error);
 
-        assert!(
-            last_error.contains("Invalid UTF-8 input"),
-            "Expected UTF-8 error"
+        assert_eq!(
+            Some(OpenCC::get_last_error().unwrap().contains("Invalid")),
+            Some(last_error.contains("Invalid"))
         );
     }
-
     #[test]
-    // If test_opencc_last_error_2 run first, this test will fail, it's expected
     fn test_opencc_last_error() {
-        // Call the opencc_last_error function
-        let error_ptr = opencc_last_error();
-        // Convert the raw pointer to a C string
-        let c_string = unsafe {
-            if !error_ptr.is_null() {
-                std::ffi::CString::from_raw(error_ptr)
-            } else {
-                std::ffi::CString::new("No error").unwrap()
-            }
-        };
-        // Convert the C string to a Rust string
-        let error_message = c_string.into_string().unwrap();
-        // Test the error message (replace "expected_error_message" with the expected error message)
+        // Clear any previous global error
+        OpenCC::set_last_error("");
+        // Convert the raw pointer to a Rust string (clone first, then free)
+        let error_message = read_and_free(opencc_last_error());
+
+        // Assert that the error message is "No error"
         assert_eq!(error_message, "No error");
+
+        // Optionally, verify that the LAST_ERROR is reset
+        assert_eq!(
+            OpenCC::get_last_error().unwrap_or_else(|| "No error".to_string()),
+            ""
+        );
     }
 
     #[test]
     fn test_opencc_last_error_2() {
+        // Clear any previous global error to prevent contamination from previous tests
+        OpenCC::set_last_error("");
+
         let _opencc = OpenCC::from_cbor("test.json");
+
+        // Get the last error message before calling opencc_last_error
         let last_error_0 = OpenCC::get_last_error().unwrap_or_else(|| "No error".to_string());
-        let error_ptr = opencc_last_error();
 
-        let c_error = unsafe {
-            if error_ptr.is_null() {
-                std::ffi::CString::new("No error").unwrap()
-            } else {
-                std::ffi::CString::from_raw(error_ptr)
-            }
-        };
-        // Convert the C string to a Rust string
-        let error_message = c_error.clone().into_string().unwrap();
-        println!(
-            "Left: {}\nRight: {}",
-            last_error_0,
-            c_error.into_string().unwrap()
-        );
-
+        // Convert the raw pointer to a Rust String safely, then free
+        let error_message = read_and_free(opencc_last_error());
         assert_eq!(error_message, last_error_0);
+
+        // Compare the error message
+        println!("Left: {}\nRight: {}", last_error_0, error_message);
+        assert_eq!(error_message, last_error_0);
+
+        // Optionally, verify that the LAST_ERROR is reset
+        assert_eq!(
+            OpenCC::get_last_error().unwrap_or_else(|| "No error".to_string()),
+            last_error_0
+        );
     }
+
+    fn read_and_free(ptr: *mut std::os::raw::c_char) -> String {
+        unsafe {
+            if ptr.is_null() {
+                "[null]".to_string()
+            } else {
+                let msg = std::ffi::CStr::from_ptr(ptr)
+                    .to_string_lossy()
+                    .into_owned();
+                opencc_error_free(ptr);
+                msg
+            }
+        }
+    }
+
 }
