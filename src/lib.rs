@@ -414,7 +414,7 @@ impl OpenCC {
             "t2jp" => self.t2jp(input),
             _ => {
                 Self::set_last_error(format!("Invalid config: {}", config).as_str());
-                String::new()
+                format!("Invalid config: {}", config)
             }
         }
     }

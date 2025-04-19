@@ -201,7 +201,7 @@ mod tests {
 
         // Assert the result
         // println!("{:?}", OpenCC::get_last_error());
-        assert_eq!(result_str, "");
+        assert_eq!(result_str, "Invalid config: s2s");
         // assert_eq!(result_str, "你好，世界，歡迎！");
         assert_eq!(
             Some(OpenCC::get_last_error().unwrap().contains("Invalid")),
