@@ -148,6 +148,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_enc = matches.get_one::<String>("out_enc").unwrap();
 
     // Determine input source
+    let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(BufReader::new(File::open(file_name)?)),
         None => {
@@ -155,34 +156,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // If input is from the terminal
                 println!("{BLUE}Input text to convert, <ctrl-z> or <ctrl-d> to submit:{RESET}");
             }
-            Box::new(io::stdin())
+            Box::new(BufReader::new(io::stdin().lock()))
         }
     };
-
-    // Read input with chunked reading for console, or all at once for files
-    let is_console = input_file.is_none();
+    
     let mut buffer = read_input(&mut *input, is_console)?;
-
     // Remove BOM if present in UTF-8 input
     if in_enc == "UTF-8" && out_enc != "UTF-8" {
         remove_utf8_bom(&mut buffer);
     }
-
     // Decode input based on encoding
     let input_str = decode_input(&buffer, in_enc)?;
-
     // Initialize OpenCC and convert text
     let opencc = OpenCC::new();
     let output_str = opencc.convert(&input_str, config, punctuation);
 
-    // Initialize output writer
-    let mut output = BufWriter::new(match output_file {
-        Some(file_name) => Box::new(File::create(file_name)?) as Box<dyn Write>,
-        None => Box::new(io::stdout()) as Box<dyn Write>,
-    });
-
+    // Determine output destination
+    let mut output: Box<dyn Write> = match output_file {
+        Some(file_name) => Box::new(BufWriter::new(File::create(file_name)?)),
+        None => Box::new(BufWriter::new(io::stdout().lock())),
+    };
     // Encode and write output
     encode_and_write_output(&output_str, out_enc, &mut output)?;
+    output.flush()?; // ensure everything is written before exit
 
     // Print conversion summary
     if let Some(input_file) = input_file {
