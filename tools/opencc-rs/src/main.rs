@@ -172,12 +172,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_str = opencc.convert(&input_str, config, punctuation);
 
     // Determine output destination
+    let is_console_output = output_file.is_none();
     let mut output: Box<dyn Write> = match output_file {
         Some(file_name) => Box::new(BufWriter::new(File::create(file_name)?)),
         None => Box::new(BufWriter::new(io::stdout().lock())),
     };
+    let final_output = if is_console_output && !output_str.ends_with('\n') {
+        format!("{}\n", output_str)
+    } else {
+        output_str.to_owned()
+    };
     // Encode and write output
-    encode_and_write_output(&output_str, out_enc, &mut output)?;
+    encode_and_write_output(&final_output, out_enc, &mut output)?;
     output.flush()?; // ensure everything is written before exit
 
     // Print conversion summary
