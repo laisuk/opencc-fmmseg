@@ -12,15 +12,14 @@ elif platform.system() == 'Linux':
 else:
     raise OSError("Unsupported operating system")
 
-CONFIG_LIST = [
-    "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "tw2t", "t2twp", "tw2t", "tw2tp",
-    "t2hk", "hk2t", "t2jp", "jp2t"
-]
-
 
 class OpenCC:
     def __init__(self, config=None):
-        self.config = config if config in CONFIG_LIST else "s2t"
+        config_list = [
+            "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "tw2t", "t2twp", "tw2t", "tw2tp",
+            "t2hk", "hk2t", "t2jp", "jp2t"
+        ]
+        self.config = config if config in config_list else "s2t"
         # Load the DLL
         dll_path = os.path.join(os.path.dirname(__file__), DLL_FILE)
         self.lib = ctypes.CDLL(dll_path)
