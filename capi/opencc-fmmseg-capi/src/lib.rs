@@ -42,26 +42,21 @@ pub extern "C" fn opencc_convert(
     if instance.is_null() {
         return std::ptr::null_mut(); // Return null pointer if the instance pointer is null
     }
-    let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-                                        // Convert input from C string to Rust string
+    // Convert the instance pointer back into a reference
+    let opencc = unsafe { &*instance };
+
     let config_c_str = unsafe { std::ffi::CStr::from_ptr(config) };
     let config_str_slice = config_c_str.to_str().unwrap_or("");
-    // // let config_str = config_str_slice.to_owned();
-    //
+
     let input_c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let input_str_slice = input_c_str.to_str().unwrap_or("");
-    // let input_str = input_str_slice.to_owned();
-
-    // let config_str = unsafe { CFixedStr::from_ptr(config, libc::strlen(config)).to_string_lossy() };
-    // let input_str = unsafe { CFixedStr::from_ptr(input, libc::strlen(input)).to_string_lossy() };
 
     let result = opencc.convert(input_str_slice, config_str_slice, punctuation);
 
     // Try to create a CString from result. If it fails, fallback to an empty CString.
-    let c_result =
-        std::ffi::CString::new(result).unwrap_or_else(|_| std::ffi::CString::new("").unwrap());
-
-    c_result.into_raw()
+    std::ffi::CString::new(result)
+        .unwrap_or_else(|_| std::ffi::CString::new("").unwrap())
+        .into_raw()
 }
 
 #[no_mangle]
@@ -115,11 +110,12 @@ pub extern "C" fn opencc_zho_check(
     if instance.is_null() {
         return -1; // Return an error code if the instance pointer is null
     }
-    let opencc = unsafe { &*instance }; // Convert the instance pointer back into a reference
-                                        // Convert input from C string to Rust string
+    // Convert the instance pointer back into a reference
+    let opencc = unsafe { &*instance };
+    // Convert input from C string to Rust string
     let c_str = unsafe { std::ffi::CStr::from_ptr(input) };
     let str_slice = c_str.to_str().unwrap_or("");
-    // let input_str = str_slice.to_owned();
+
     opencc.zho_check(str_slice)
 }
 
@@ -318,7 +314,7 @@ mod tests {
                 s
             }
         };
-        
+
         let last_error = read_and_free(opencc_last_error());
 
         println!("Result: {:?}", result);
@@ -376,13 +372,10 @@ mod tests {
             if ptr.is_null() {
                 "[null]".to_string()
             } else {
-                let msg = std::ffi::CStr::from_ptr(ptr)
-                    .to_string_lossy()
-                    .into_owned();
+                let msg = std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned();
                 opencc_error_free(ptr);
                 msg
             }
         }
     }
-
 }
