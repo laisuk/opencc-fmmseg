@@ -188,13 +188,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Print conversion summary
     if let Some(input_file) = input_file {
-        println!(
+        eprintln!(
             "{BLUE}Conversion completed ({config}): {} -> {}{RESET}",
             input_file,
             output_file.unwrap_or(&"stdout".to_string())
         );
     } else {
-        println!(
+        eprintln!(
             "{BLUE}Conversion completed ({config}): <stdin> -> {}{RESET}",
             output_file.unwrap_or(&"stdout".to_string())
         );
