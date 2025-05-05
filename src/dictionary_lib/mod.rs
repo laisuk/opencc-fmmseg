@@ -41,6 +41,22 @@ impl DictionaryMaxlength {
         })?)
     }
 
+    pub fn from_zstd() -> Result<Self, DictionaryError> {
+        // Embedded compressed CBOR file at compile time
+        let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
+
+        // Decompress Zstd
+        let decompressed_data = decode_all(Cursor::new(compressed_data)).map_err(|err| {
+            DictionaryError::IoError(format!("Failed to decompress Zstd: {}", err))
+        })?;
+
+        // Deserialize CBOR
+        let dictionary: DictionaryMaxlength = from_slice(&decompressed_data)
+            .map_err(|err| DictionaryError::ParseError(format!("Failed to parse CBOR: {}", err)))?;
+
+        Ok(dictionary)
+    }
+
     pub fn from_cbor() -> Result<Self, Box<dyn Error>> {
         let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
         match from_slice(cbor_bytes) {
@@ -122,23 +138,7 @@ impl DictionaryMaxlength {
         }
 
         Ok((dictionary, max_length))
-    }
-
-    pub fn from_zstd() -> Result<Self, DictionaryError> {
-        // Embedded compressed CBOR file at compile time
-        let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
-
-        // Decompress Zstd
-        let decompressed_data = decode_all(Cursor::new(compressed_data)).map_err(|err| {
-            DictionaryError::IoError(format!("Failed to decompress Zstd: {}", err))
-        })?;
-
-        // Deserialize CBOR
-        let dictionary: DictionaryMaxlength = from_slice(&decompressed_data)
-            .map_err(|err| DictionaryError::ParseError(format!("Failed to parse CBOR: {}", err)))?;
-
-        Ok(dictionary)
-    }
+    }    
 
     #[allow(dead_code)]
     fn load_dictionary_maxlength_par(

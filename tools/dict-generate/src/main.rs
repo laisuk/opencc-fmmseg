@@ -45,22 +45,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some("zstd") => {
             let dictionary = DictionaryMaxlength::from_dicts()?;
             DictionaryMaxlength::save_compressed(&dictionary, output_file)?;
-            println!("{BLUE}Dictionary saved in ZSTD format at: {output_file}{RESET}");
+            eprintln!("{BLUE}Dictionary saved in ZSTD format at: {output_file}{RESET}");
         }
         Some("cbor") => {
             let dictionary = DictionaryMaxlength::from_dicts()?;
             let file = File::create(output_file)?;
             serde_cbor::to_writer(file, &dictionary)?;
-            println!("{BLUE}Dictionary saved in CBOR format at: {output_file}{RESET}");
+            eprintln!("{BLUE}Dictionary saved in CBOR format at: {output_file}{RESET}");
         }
         Some("json") => {
             let dictionary = DictionaryMaxlength::from_dicts()?;
             let file = File::create(output_file)?;
             serde_json::to_writer(file, &dictionary)?;
-            println!("{BLUE}Dictionary saved in JSON format at: {output_file}{RESET}");
+            eprintln!("{BLUE}Dictionary saved in JSON format at: {output_file}{RESET}");
         }
-        _ => {
-            eprintln!("{BLUE}Unsupported format: {dict_format:?}{RESET}");
+        other => {
+            let format_str = other.unwrap_or("unknown");
+            eprintln!("{BLUE}Unsupported format: {format_str}{RESET}");
         }
     }
 
