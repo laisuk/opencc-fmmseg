@@ -1,6 +1,7 @@
 import ctypes
 import os
 import platform
+import sys
 
 # Determine the DLL file based on the operating system
 if platform.system() == 'Windows':
@@ -35,21 +36,32 @@ class OpenCC:
         self.lib.opencc_free.argtypes = [ctypes.c_void_p]
         self.lib.opencc_free.restype = None
 
+        self.opencc_instance = self.lib.opencc_new()  # Create the opencc object in the constructor
+        if self.opencc_instance is None:
+            print("Warning: Failed to initialize OpenCC C instance. Operations may not work as expected.",
+                  file=sys.stderr)
+
+    def __del__(self):
+        # Free the C instance when the Python object is garbage collected
+        if hasattr(self, 'opencc_instance') and self.opencc_instance:
+            if hasattr(self, 'lib') and hasattr(self.lib, 'opencc_free'):
+                self.lib.opencc_free(self.opencc_instance)
+            self.opencc_instance = None  # Mark as freed  # Free the opencc object in the destructor
+
     def convert(self, text, punctuation=False):
-        opencc = self.lib.opencc_new()
-        if opencc is None:
+        if not hasattr(self, 'opencc_instance') or self.opencc_instance is None:
+            print("Error: OpenCC instance not available for convert.", file=sys.stderr)
             return text
-        result = self.lib.opencc_convert(opencc, text.encode('utf-8'), self.config.encode('utf-8'), punctuation)
-        # Safe copy from C string
+        input_bytes = text.encode('utf-8')
+        config_bytes = self.config.encode('utf-8')
+        result = self.lib.opencc_convert(self.opencc_instance, input_bytes, config_bytes, punctuation)
         py_result = ctypes.string_at(result).decode('utf-8')
-        # Free CString from opencc_convert()
         self.lib.opencc_string_free(result)
-        # Free opencc
-        self.lib.opencc_free(opencc)
         return py_result
 
     def zho_check(self, text):
-        opencc = self.lib.opencc_new()
-        code = self.lib.opencc_zho_check(opencc, text.encode('utf-8'))
-        self.lib.opencc_free(opencc)
+        if not hasattr(self, 'opencc_instance') or self.opencc_instance is None:
+            print("Error: OpenCC instance not available for zho_check.", file=sys.stderr)
+            return -1  # Indicate error, as the function is expected to return an int
+        code = self.lib.opencc_zho_check(self.opencc_instance, text.encode('utf-8'))
         return code
