@@ -105,8 +105,8 @@ fn main() {
     if args.len() > 1 {
         let config_arg = args[1].to_lowercase();
         if config_arg == "help" {
-            println!("Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
-            println!("Usage: opencc-clip [s2t|t2s|s2tw|tw2s|s2twp|tw2sp|s2hk|hk2s|t2tw|tw2t|t2twp|tw2t|tw2tp|t2hk|hk2t|jp2t|t2jp|auto|help] [punct]\n");
+            eprintln!("Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
+            eprintln!("Usage: opencc-clip [s2t|t2s|s2tw|tw2s|s2twp|tw2sp|s2hk|hk2s|t2tw|tw2t|t2twp|tw2t|tw2tp|t2hk|hk2t|jp2t|t2jp|auto|help] [punct]\n");
             return;
         }
 
@@ -173,18 +173,18 @@ fn main() {
                 (contents.as_str(), output.as_str(), "")
             };
 
-            println!("Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
-            println!(
+            eprintln!("Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai");
+            eprintln!(
                 "Config: {}{}, {}",
                 BLUE,
                 conversion_type.as_str(),
                 use_punctuation
             );
-            println!(
+            eprintln!(
                 "{}Clipboard Input ({}):\n{}{}{}\n",
                 GREEN, display_input_code, YELLOW, display_input, ellipsis
             );
-            println!(
+            eprintln!(
                 "{}Converted Output ({}):\n{}{}{}{}",
                 GREEN, display_output_code, YELLOW, display_output, ellipsis, RESET
             );
@@ -193,7 +193,7 @@ fn main() {
                 eprintln!("{}Error setting clipboard: {}{}", RED, err, RESET);
             } else {
                 let input_length = contents.chars().count();
-                println!(
+                eprintln!(
                     "{}(Output set to clipboard: {} chars){}",
                     BLUE, input_length, RESET
                 );
