@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use rayon::prelude::*;
 use regex::Regex;
@@ -99,7 +99,7 @@ impl OpenCC {
 
     fn get_translated_string_par(
         &self,
-        split_string_list: Vec<Arc<[char]>>,
+        split_string_list: Vec<Vec<char>>,
         dictionaries: &[&(HashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
@@ -186,11 +186,11 @@ impl OpenCC {
         split_string_list
     }
 
-    fn split_string_inclusive_par(&self, text: &str) -> Vec<Arc<[char]>> {
+    fn split_string_inclusive_par(&self, text: &str) -> Vec<Vec<char>> {
         let collected: Vec<char> = text.par_chars().collect();
         collected
             .par_split_inclusive(|c| self.delimiters.contains(c))
-            .map(|slice| Arc::from(slice)) // Convert each slice to Arc<[char]>
+            .map(|slice| slice.to_vec()) // Convert each slice to Vec<char>
             .collect()
     }
 
