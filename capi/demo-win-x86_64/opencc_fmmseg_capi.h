@@ -90,8 +90,12 @@ int opencc_zho_check(const void *instance, const char *input);
  *
  * @param instance A pointer to an instance previously returned by `opencc_new`.
  *                 Passing NULL is safe and does nothing.
+ *
+ * NOTE: Do not use this to free strings returned by `opencc_convert` or `opencc_last_error`.
+ *       Use `opencc_string_free` or `opencc_error_free` for those instead.
  */
 void opencc_free(const void *instance);
+
 
 /**
  * Frees a string returned by `opencc_convert` or `opencc_convert_len`.

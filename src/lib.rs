@@ -138,6 +138,9 @@ impl OpenCC {
                 candidate.extend(&text_chars[start_pos..start_pos + length]);
 
                 for dictionary in dictionaries {
+                    if dictionary.1 < length {
+                        continue
+                    }
                     if let Some(value) = dictionary.0.get(&candidate) {
                         best_match_length = length;
                         best_match = value;
