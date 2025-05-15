@@ -1,5 +1,5 @@
 use rayon::prelude::*;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
 use std::error::Error;
@@ -15,22 +15,22 @@ static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DictionaryMaxlength {
-    pub st_characters: (HashMap<String, String>, usize),
-    pub st_phrases: (HashMap<String, String>, usize),
-    pub ts_characters: (HashMap<String, String>, usize),
-    pub ts_phrases: (HashMap<String, String>, usize),
-    pub tw_phrases: (HashMap<String, String>, usize),
-    pub tw_phrases_rev: (HashMap<String, String>, usize),
-    pub tw_variants: (HashMap<String, String>, usize),
-    pub tw_variants_rev: (HashMap<String, String>, usize),
-    pub tw_variants_rev_phrases: (HashMap<String, String>, usize),
-    pub hk_variants: (HashMap<String, String>, usize),
-    pub hk_variants_rev: (HashMap<String, String>, usize),
-    pub hk_variants_rev_phrases: (HashMap<String, String>, usize),
-    pub jps_characters: (HashMap<String, String>, usize),
-    pub jps_phrases: (HashMap<String, String>, usize),
-    pub jp_variants: (HashMap<String, String>, usize),
-    pub jp_variants_rev: (HashMap<String, String>, usize),
+    pub st_characters: (FxHashMap<String, String>, usize),
+    pub st_phrases: (FxHashMap<String, String>, usize),
+    pub ts_characters: (FxHashMap<String, String>, usize),
+    pub ts_phrases: (FxHashMap<String, String>, usize),
+    pub tw_phrases: (FxHashMap<String, String>, usize),
+    pub tw_phrases_rev: (FxHashMap<String, String>, usize),
+    pub tw_variants: (FxHashMap<String, String>, usize),
+    pub tw_variants_rev: (FxHashMap<String, String>, usize),
+    pub tw_variants_rev_phrases: (FxHashMap<String, String>, usize),
+    pub hk_variants: (FxHashMap<String, String>, usize),
+    pub hk_variants_rev: (FxHashMap<String, String>, usize),
+    pub hk_variants_rev_phrases: (FxHashMap<String, String>, usize),
+    pub jps_characters: (FxHashMap<String, String>, usize),
+    pub jps_phrases: (FxHashMap<String, String>, usize),
+    pub jp_variants: (FxHashMap<String, String>, usize),
+    pub jp_variants_rev: (FxHashMap<String, String>, usize),
 }
 
 impl DictionaryMaxlength {
@@ -86,7 +86,7 @@ impl DictionaryMaxlength {
         let jpv_file_path = "dicts/JPVariants.txt";
         let jpvr_file_path = "dicts/JPVariantsRev.txt";
 
-        fn load_dict(path: &str) -> Result<(HashMap<String, String>, usize), DictionaryError> {
+        fn load_dict(path: &str) -> Result<(FxHashMap<String, String>, usize), DictionaryError> {
             let content = fs::read_to_string(path).map_err(|err| {
                 DictionaryError::IoError(format!("Failed to read file {}: {}", path, err))
             })?;
@@ -118,8 +118,8 @@ impl DictionaryMaxlength {
 
     fn load_dictionary_maxlength(
         dictionary_content: &str,
-    ) -> io::Result<(HashMap<String, String>, usize)> {
-        let mut dictionary = HashMap::default();
+    ) -> io::Result<(FxHashMap<String, String>, usize)> {
+        let mut dictionary = FxHashMap::default();
         let mut max_length: usize = 1;
 
         for line in dictionary_content.lines() {
@@ -143,8 +143,8 @@ impl DictionaryMaxlength {
     #[allow(dead_code)]
     fn load_dictionary_maxlength_par(
         dictionary_content: &str,
-    ) -> io::Result<(HashMap<String, String>, usize)> {
-        let dictionary = Mutex::new(HashMap::default());
+    ) -> io::Result<(FxHashMap<String, String>, usize)> {
+        let dictionary = Mutex::new(FxHashMap::default());
         let max_length = Mutex::new(1);
 
         dictionary_content.par_lines().for_each(|line| {
@@ -250,22 +250,22 @@ impl DictionaryMaxlength {
 impl Default for DictionaryMaxlength {
     fn default() -> Self {
         Self {
-            st_characters: (HashMap::default(), 0),
-            st_phrases: (HashMap::default(), 0),
-            ts_characters: (HashMap::default(), 0),
-            ts_phrases: (HashMap::default(), 0),
-            tw_phrases: (HashMap::default(), 0),
-            tw_phrases_rev: (HashMap::default(), 0),
-            tw_variants: (HashMap::default(), 0),
-            tw_variants_rev: (HashMap::default(), 0),
-            tw_variants_rev_phrases: (HashMap::default(), 0),
-            hk_variants: (HashMap::default(), 0),
-            hk_variants_rev: (HashMap::default(), 0),
-            hk_variants_rev_phrases: (HashMap::default(), 0),
-            jps_characters: (HashMap::default(), 0),
-            jps_phrases: (HashMap::default(), 0),
-            jp_variants: (HashMap::default(), 0),
-            jp_variants_rev: (HashMap::default(), 0),
+            st_characters: (FxHashMap::default(), 0),
+            st_phrases: (FxHashMap::default(), 0),
+            ts_characters: (FxHashMap::default(), 0),
+            ts_phrases: (FxHashMap::default(), 0),
+            tw_phrases: (FxHashMap::default(), 0),
+            tw_phrases_rev: (FxHashMap::default(), 0),
+            tw_variants: (FxHashMap::default(), 0),
+            tw_variants_rev: (FxHashMap::default(), 0),
+            tw_variants_rev_phrases: (FxHashMap::default(), 0),
+            hk_variants: (FxHashMap::default(), 0),
+            hk_variants_rev: (FxHashMap::default(), 0),
+            hk_variants_rev_phrases: (FxHashMap::default(), 0),
+            jps_characters: (FxHashMap::default(), 0),
+            jps_phrases: (FxHashMap::default(), 0),
+            jp_variants: (FxHashMap::default(), 0),
+            jp_variants_rev: (FxHashMap::default(), 0),
         }
     }
 }

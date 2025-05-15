@@ -488,7 +488,7 @@ dependencies = [
 name = "opencc-fmmseg"
 version = "0.6.0"
 dependencies = [
- "lazy_static",
+ "once_cell",
  "rayon",
  "regex",
  "rustc-hash",

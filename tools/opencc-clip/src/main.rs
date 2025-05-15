@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::env;
 
 use copypasta::{ClipboardContext, ClipboardProvider};
-use opencc_fmmseg::{find_max_utf8_length, OpenCC};
+use opencc_fmmseg::{find_max_utf8_length, format_thousand, OpenCC};
 
 #[derive(Debug, PartialEq)]
 enum ConversionType {
@@ -199,7 +199,7 @@ fn main() {
                 let input_length = contents.chars().count();
                 eprintln!(
                     "{}(Output set to clipboard: {} chars){}",
-                    BLUE, input_length, RESET
+                    BLUE, format_thousand(input_length), RESET
                 );
             }
         }

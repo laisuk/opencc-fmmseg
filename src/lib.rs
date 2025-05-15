@@ -1,39 +1,39 @@
-use lazy_static::lazy_static;
+use crate::dictionary_lib::DictionaryMaxlength;
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
-use rustc_hash::{FxHashMap as HashMap, FxHashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::iter::Iterator;
 use std::sync::Mutex;
-
-use crate::dictionary_lib::DictionaryMaxlength;
 pub mod dictionary_lib;
 // Define a global mutable variable to store the error message
-static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
+// static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
+// Use once_cell instead of lazy_static
+static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
+static STRIP_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap());
+static ST_PUNCT_TUPLE: Lazy<(FxHashMap<String, String>, usize)> = Lazy::new(|| {
+    let mut map = FxHashMap::default();
+    map.insert("“".to_string(), "「".to_string());
+    map.insert("”".to_string(), "」".to_string());
+    map.insert("‘".to_string(), "『".to_string());
+    map.insert("’".to_string(), "』".to_string());
+    (map, 1)
+});
 
-lazy_static! {
-    static ref STRIP_REGEX: Regex = Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap();
-    static ref ST_PUNCT_TUPLE: (FxHashMap<String, String>, usize) = {
-        let mut map = FxHashMap::default();
-        map.insert("“".to_string(), "「".to_string());
-        map.insert("”".to_string(), "」".to_string());
-        map.insert("‘".to_string(), "『".to_string());
-        map.insert("’".to_string(), "』".to_string());
-        (map, 1)
-    };
-    static ref TS_PUNCT_TUPLE: (FxHashMap<String, String>, usize) = {
-        let mut map = FxHashMap::default();
-        map.insert("「".to_string(), "“".to_string());
-        map.insert("」".to_string(), "”".to_string());
-        map.insert("『".to_string(), "‘".to_string());
-        map.insert("』".to_string(), "’".to_string());
-        (map, 1)
-    };
-}
+static TS_PUNCT_TUPLE: Lazy<(FxHashMap<String, String>, usize)> = Lazy::new(|| {
+    let mut map = FxHashMap::default();
+    map.insert("「".to_string(), "“".to_string());
+    map.insert("」".to_string(), "”".to_string());
+    map.insert("『".to_string(), "‘".to_string());
+    map.insert("』".to_string(), "’".to_string());
+    (map, 1)
+});
 
 pub struct OpenCC {
     dictionary: DictionaryMaxlength,
-    delimiters: HashSet<char>,
+    delimiters: FxHashSet<char>,
     is_parallel: bool,
 }
 
@@ -86,7 +86,7 @@ impl OpenCC {
     fn segment_replace(
         &self,
         text: &str,
-        dictionaries: &[&(HashMap<String, String>, usize)],
+        dictionaries: &[&(FxHashMap<String, String>, usize)],
     ) -> String {
         // Get the max word length directly from the dictionaries
         let max_word_length = dictionaries.iter().map(|(_, len)| *len).max().unwrap_or(1); // Default to 1 if no dictionaries are available
@@ -103,7 +103,7 @@ impl OpenCC {
     fn get_translated_string(
         &self,
         split_string_list: Vec<Vec<char>>,
-        dictionaries: &[&(HashMap<String, String>, usize)],
+        dictionaries: &[&(FxHashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
         split_string_list
@@ -115,7 +115,7 @@ impl OpenCC {
     fn get_translated_string_par(
         &self,
         split_string_list: Vec<Vec<char>>,
-        dictionaries: &[&(HashMap<String, String>, usize)],
+        dictionaries: &[&(FxHashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
         split_string_list
@@ -127,7 +127,7 @@ impl OpenCC {
     fn convert_by(
         &self,
         text_chars: &[char],
-        dictionaries: &[&(HashMap<String, String>, usize)],
+        dictionaries: &[&(FxHashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
         if text_chars.is_empty() {
@@ -135,9 +135,6 @@ impl OpenCC {
         }
 
         let text_length = text_chars.len();
-        // if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
-        //     return text_chars[0].to_string();
-        // }
 
         let mut result = String::with_capacity(text_length * 4);
         let mut candidate = String::with_capacity(max_word_length);
@@ -220,18 +217,8 @@ impl OpenCC {
         self.is_parallel = is_parallel;
     }
 
-    // pub fn s2t(&self, input: &str, punctuation: bool) -> String {
-    //     let output = DictRefs::new(&[&self.dictionary.st_phrases, &self.dictionary.st_characters])
-    //         .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
-    //
-    //     if punctuation {
-    //         Self::convert_punctuation(&output, "s")
-    //     } else {
-    //         output
-    //     }
-    // }
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -243,7 +230,7 @@ impl OpenCC {
     }
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -255,7 +242,7 @@ impl OpenCC {
     }
 
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -268,7 +255,7 @@ impl OpenCC {
     }
 
     pub fn tw2s(&self, input: &str, punctuation: bool) -> String {
-        let mut round_2: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_2: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -285,7 +272,7 @@ impl OpenCC {
 
     pub fn s2twp(&self, input: &str, punctuation: bool) -> String {
         // Create bindings for each round of dictionary references
-        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -306,7 +293,7 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let mut round_2: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_2: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -319,7 +306,7 @@ impl OpenCC {
     }
 
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -336,7 +323,7 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let mut round_2: Vec<&(HashMap<String, String>, usize)> =
+        let mut round_2: Vec<&(FxHashMap<String, String>, usize)> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -500,7 +487,7 @@ impl OpenCC {
         s2t_punctuation_chars.insert("‘", "『");
         s2t_punctuation_chars.insert("’", "』");
 
-        let t2s_punctuation_chars: HashMap<&str, &str> = s2t_punctuation_chars
+        let t2s_punctuation_chars: FxHashMap<&str, &str> = s2t_punctuation_chars
             .iter()
             .map(|(&k, &v)| (v, k))
             .collect();
@@ -540,32 +527,32 @@ impl OpenCC {
 
 // #[derive(Clone, Copy)]
 pub struct DictRefs<'a> {
-    round_1: &'a [&'a (HashMap<String, String>, usize)],
-    round_2: Option<&'a [&'a (HashMap<String, String>, usize)]>,
-    round_3: Option<&'a [&'a (HashMap<String, String>, usize)]>,
+    round_1: &'a [&'a (FxHashMap<String, String>, usize)],
+    round_2: Option<&'a [&'a (FxHashMap<String, String>, usize)]>,
+    round_3: Option<&'a [&'a (FxHashMap<String, String>, usize)]>,
 }
 
 impl<'a> DictRefs<'a> {
-    pub fn new(round_1: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+    pub fn new(round_1: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
         DictRefs {
             round_1,
             round_2: None,
             round_3: None,
         }
     }
-    pub fn with_round_2(mut self, round_2: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+    pub fn with_round_2(mut self, round_2: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
         self.round_2 = Some(round_2);
         self
     }
 
-    pub fn with_round_3(mut self, round_3: &'a [&'a (HashMap<String, String>, usize)]) -> Self {
+    pub fn with_round_3(mut self, round_3: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
         self.round_3 = Some(round_3);
         self
     }
 
     pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
     where
-        F: Fn(&str, &[&(HashMap<String, String>, usize)]) -> String,
+        F: Fn(&str, &[&(FxHashMap<String, String>, usize)]) -> String,
     {
         let mut output = segment_replace(input, self.round_1);
         if let Some(refs) = self.round_2 {
