@@ -88,11 +88,18 @@ int opencc_zho_check(const void *instance, const char *input);
 /**
  * Frees an instance of OpenCC returned by `opencc_new`.
  *
- * @param instance A pointer to an instance previously returned by `opencc_new`.
+ * @param instance A pointer to an OpenCC instance.
  *                 Passing NULL is safe and does nothing.
+ */
+void opencc_delete(const void *instance);
+
+/**
+ * @deprecated Use `opencc_delete()` instead.
+ *
+ * Frees an instance of OpenCC returned by `opencc_new`.
  *
  * NOTE: Do not use this to free strings returned by `opencc_convert` or `opencc_last_error`.
- *       Use `opencc_string_free` or `opencc_error_free` for those instead.
+ * Use `opencc_string_free` or `opencc_error_free` instead.
  */
 void opencc_free(const void *instance);
 

@@ -11,12 +11,21 @@ pub extern "C" fn opencc_new() -> *mut OpenCC {
 // }
 
 #[no_mangle]
-pub extern "C" fn opencc_free(instance: *mut OpenCC) {
+pub extern "C" fn opencc_delete(instance: *mut OpenCC) {
     if !instance.is_null() {
-        // Convert the raw pointer back into a Box and let it drop
         unsafe {
             let _ = Box::from_raw(instance);
-        };
+        }
+    }
+}
+
+#[deprecated(note = "Use `opencc_delete` instead")]
+#[no_mangle]
+pub extern "C" fn opencc_free(instance: *mut OpenCC) {
+    if !instance.is_null() {
+        unsafe {
+            let _ = Box::from_raw(instance);
+        }
     }
 }
 
