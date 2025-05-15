@@ -1,7 +1,7 @@
 use rayon::prelude::*;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
-use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Cursor};
@@ -119,7 +119,7 @@ impl DictionaryMaxlength {
     fn load_dictionary_maxlength(
         dictionary_content: &str,
     ) -> io::Result<(HashMap<String, String>, usize)> {
-        let mut dictionary = HashMap::new();
+        let mut dictionary = HashMap::default();
         let mut max_length: usize = 1;
 
         for line in dictionary_content.lines() {
@@ -138,13 +138,13 @@ impl DictionaryMaxlength {
         }
 
         Ok((dictionary, max_length))
-    }    
+    }
 
     #[allow(dead_code)]
     fn load_dictionary_maxlength_par(
         dictionary_content: &str,
     ) -> io::Result<(HashMap<String, String>, usize)> {
-        let dictionary = Mutex::new(HashMap::new());
+        let dictionary = Mutex::new(HashMap::default());
         let max_length = Mutex::new(1);
 
         dictionary_content.par_lines().for_each(|line| {
@@ -250,22 +250,22 @@ impl DictionaryMaxlength {
 impl Default for DictionaryMaxlength {
     fn default() -> Self {
         Self {
-            st_characters: (HashMap::new(), 0),
-            st_phrases: (HashMap::new(), 0),
-            ts_characters: (HashMap::new(), 0),
-            ts_phrases: (HashMap::new(), 0),
-            tw_phrases: (HashMap::new(), 0),
-            tw_phrases_rev: (HashMap::new(), 0),
-            tw_variants: (HashMap::new(), 0),
-            tw_variants_rev: (HashMap::new(), 0),
-            tw_variants_rev_phrases: (HashMap::new(), 0),
-            hk_variants: (HashMap::new(), 0),
-            hk_variants_rev: (HashMap::new(), 0),
-            hk_variants_rev_phrases: (HashMap::new(), 0),
-            jps_characters: (HashMap::new(), 0),
-            jps_phrases: (HashMap::new(), 0),
-            jp_variants: (HashMap::new(), 0),
-            jp_variants_rev: (HashMap::new(), 0),
+            st_characters: (HashMap::default(), 0),
+            st_phrases: (HashMap::default(), 0),
+            ts_characters: (HashMap::default(), 0),
+            ts_phrases: (HashMap::default(), 0),
+            tw_phrases: (HashMap::default(), 0),
+            tw_phrases_rev: (HashMap::default(), 0),
+            tw_variants: (HashMap::default(), 0),
+            tw_variants_rev: (HashMap::default(), 0),
+            tw_variants_rev_phrases: (HashMap::default(), 0),
+            hk_variants: (HashMap::default(), 0),
+            hk_variants_rev: (HashMap::default(), 0),
+            hk_variants_rev_phrases: (HashMap::default(), 0),
+            jps_characters: (HashMap::default(), 0),
+            jps_phrases: (HashMap::default(), 0),
+            jp_variants: (HashMap::default(), 0),
+            jp_variants_rev: (HashMap::default(), 0),
         }
     }
 }

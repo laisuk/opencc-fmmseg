@@ -1,20 +1,34 @@
 use lazy_static::lazy_static;
-use std::collections::{HashMap, HashSet};
-use std::iter::Iterator;
-use std::sync::Mutex;
-
 use rayon::prelude::*;
 use regex::Regex;
+use rustc_hash::{FxHashMap as HashMap, FxHashMap, FxHashSet as HashSet};
+use std::iter::Iterator;
+use std::sync::Mutex;
 
 use crate::dictionary_lib::DictionaryMaxlength;
 pub mod dictionary_lib;
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
-// const DELIMITERS0: &'static str = "\t\n\r (){}[]<>\"'\\/|-,.?!*:;@#$%^&_+=　，。、；：？！…“”‘’『』「」﹁﹂—－（）《》〈〉～．／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼";
 const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 
 lazy_static! {
     static ref STRIP_REGEX: Regex = Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap();
+    static ref ST_PUNCT_TUPLE: (FxHashMap<String, String>, usize) = {
+        let mut map = FxHashMap::default();
+        map.insert("“".to_string(), "「".to_string());
+        map.insert("”".to_string(), "」".to_string());
+        map.insert("‘".to_string(), "『".to_string());
+        map.insert("’".to_string(), "』".to_string());
+        (map, 1)
+    };
+    static ref TS_PUNCT_TUPLE: (FxHashMap<String, String>, usize) = {
+        let mut map = FxHashMap::default();
+        map.insert("「".to_string(), "“".to_string());
+        map.insert("」".to_string(), "”".to_string());
+        map.insert("『".to_string(), "‘".to_string());
+        map.insert("』".to_string(), "’".to_string());
+        (map, 1)
+    };
 }
 
 pub struct OpenCC {
@@ -68,6 +82,7 @@ impl OpenCC {
             is_parallel,
         }
     }
+
     fn segment_replace(
         &self,
         text: &str,
@@ -120,9 +135,9 @@ impl OpenCC {
         }
 
         let text_length = text_chars.len();
-        if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
-            return text_chars[0].to_string();
-        }
+        // if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
+        //     return text_chars[0].to_string();
+        // }
 
         let mut result = String::with_capacity(text_length * 4);
         let mut candidate = String::with_capacity(max_word_length);
@@ -139,7 +154,7 @@ impl OpenCC {
 
                 for dictionary in dictionaries {
                     if dictionary.1 < length {
-                        continue
+                        continue;
                     }
                     if let Some(value) = dictionary.0.get(&candidate) {
                         best_match_length = length;
@@ -205,69 +220,84 @@ impl OpenCC {
         self.is_parallel = is_parallel;
     }
 
+    // pub fn s2t(&self, input: &str, punctuation: bool) -> String {
+    //     let output = DictRefs::new(&[&self.dictionary.st_phrases, &self.dictionary.st_characters])
+    //         .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+    //
+    //     if punctuation {
+    //         Self::convert_punctuation(&output, "s")
+    //     } else {
+    //         output
+    //     }
+    // }
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
-        let output = DictRefs::new(&[&self.dictionary.st_phrases, &self.dictionary.st_characters])
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
-            Self::convert_punctuation(&output, "s")
-        } else {
-            output
+            round_1.push(&*ST_PUNCT_TUPLE);
         }
+
+        DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
-        let output = DictRefs::new(&[&self.dictionary.ts_phrases, &self.dictionary.ts_characters])
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+
         if punctuation {
-            Self::convert_punctuation(&output, "t")
-        } else {
-            output
+            round_1.push(&*TS_PUNCT_TUPLE);
         }
+
+        DictRefs::new(&round_1)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
-        let output = DictRefs::new(&[&self.dictionary.st_phrases, &self.dictionary.st_characters])
-            .with_round_2(&[&self.dictionary.tw_variants])
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
-            Self::convert_punctuation(&output, "s")
-        } else {
-            output
+            round_1.push(&*ST_PUNCT_TUPLE);
         }
+
+        DictRefs::new(&round_1)
+            .with_round_2(&[&self.dictionary.tw_variants])
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn tw2s(&self, input: &str, punctuation: bool) -> String {
-        let output = DictRefs::new(&[
+        let mut round_2: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+
+        if punctuation {
+            round_2.push(&*TS_PUNCT_TUPLE);
+        }
+
+        DictRefs::new(&[
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ])
-        .with_round_2(&[&self.dictionary.ts_phrases, &self.dictionary.ts_characters])
-        .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
-        if punctuation {
-            Self::convert_punctuation(&output, "t")
-        } else {
-            output
-        }
+        .with_round_2(&round_2)
+        .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn s2twp(&self, input: &str, punctuation: bool) -> String {
         // Create bindings for each round of dictionary references
-        let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
+        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
+
+        if punctuation {
+            round_1.push(&*ST_PUNCT_TUPLE);
+        }
         let round_2 = [&self.dictionary.tw_phrases];
         let round_3 = [&self.dictionary.tw_variants];
         // Use the DictRefs struct to handle 3 rounds
-        let output = DictRefs::new(&round_1)
+        DictRefs::new(&round_1)
             .with_round_2(&round_2)
             .with_round_3(&round_3)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
-        // Handle punctuation if needed
-        if punctuation {
-            Self::convert_punctuation(&output, "s")
-        } else {
-            output
-        }
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn tw2sp(&self, input: &str, punctuation: bool) -> String {
@@ -276,28 +306,29 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let mut round_2: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+
         if punctuation {
-            Self::convert_punctuation(&output, "t")
-        } else {
-            output
+            round_2.push(&*TS_PUNCT_TUPLE);
         }
+
+        DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
-        let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-        let round_2 = [&self.dictionary.hk_variants];
-        let output = DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let mut round_1: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
+
         if punctuation {
-            Self::convert_punctuation(&output, "s")
-        } else {
-            output
+            round_1.push(&*ST_PUNCT_TUPLE);
         }
+        let round_2 = [&self.dictionary.hk_variants];
+        DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn hk2s(&self, input: &str, punctuation: bool) -> String {
@@ -305,15 +336,15 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-        let output = DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+        let mut round_2: Vec<&(HashMap<String, String>, usize)> =
+            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+
         if punctuation {
-            Self::convert_punctuation(&output, "t")
-        } else {
-            output
+            round_2.push(&*TS_PUNCT_TUPLE);
         }
+        DictRefs::new(&round_1)
+            .with_round_2(&round_2)
+            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
     }
 
     pub fn t2tw(&self, input: &str) -> String {
@@ -461,9 +492,13 @@ impl OpenCC {
         }
     }
 
+    #[allow(dead_code)]
     fn convert_punctuation(text: &str, config: &str) -> String {
-        let s2t_punctuation_chars: HashMap<&str, &str> =
-            HashMap::from([("“", "「"), ("”", "」"), ("‘", "『"), ("’", "』")]);
+        let mut s2t_punctuation_chars: FxHashMap<&str, &str> = FxHashMap::default();
+        s2t_punctuation_chars.insert("“", "「");
+        s2t_punctuation_chars.insert("”", "」");
+        s2t_punctuation_chars.insert("‘", "『");
+        s2t_punctuation_chars.insert("’", "』");
 
         let t2s_punctuation_chars: HashMap<&str, &str> = s2t_punctuation_chars
             .iter()
@@ -490,7 +525,6 @@ impl OpenCC {
             })
             .into_owned()
     }
-
     // Function to set the last error message
     pub fn set_last_error(err_msg: &str) {
         let mut last_error = LAST_ERROR.lock().unwrap();
