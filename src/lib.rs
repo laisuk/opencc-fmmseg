@@ -13,23 +13,6 @@ static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 static STRIP_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap());
-static ST_PUNCT_TUPLE: Lazy<(FxHashMap<String, String>, usize)> = Lazy::new(|| {
-    let mut map = FxHashMap::default();
-    map.insert("“".to_string(), "「".to_string());
-    map.insert("”".to_string(), "」".to_string());
-    map.insert("‘".to_string(), "『".to_string());
-    map.insert("’".to_string(), "』".to_string());
-    (map, 1)
-});
-
-static TS_PUNCT_TUPLE: Lazy<(FxHashMap<String, String>, usize)> = Lazy::new(|| {
-    let mut map = FxHashMap::default();
-    map.insert("「".to_string(), "“".to_string());
-    map.insert("」".to_string(), "”".to_string());
-    map.insert("『".to_string(), "‘".to_string());
-    map.insert("』".to_string(), "’".to_string());
-    (map, 1)
-});
 
 pub struct OpenCC {
     dictionary: DictionaryMaxlength,
@@ -222,7 +205,8 @@ impl OpenCC {
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
-            round_1.push(&*ST_PUNCT_TUPLE);
+            // round_1.push(&*ST_PUNCT_TUPLE);
+            round_1.push(&self.dictionary.st_punctuations);
         }
 
         DictRefs::new(&round_1)
@@ -234,7 +218,8 @@ impl OpenCC {
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
-            round_1.push(&*TS_PUNCT_TUPLE);
+            // round_1.push(&*TS_PUNCT_TUPLE);
+            round_1.push(&self.dictionary.ts_punctuations);
         }
 
         DictRefs::new(&round_1)
@@ -246,7 +231,7 @@ impl OpenCC {
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
-            round_1.push(&*ST_PUNCT_TUPLE);
+            round_1.push(&self.dictionary.st_punctuations);
         }
 
         DictRefs::new(&round_1)
@@ -259,7 +244,7 @@ impl OpenCC {
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
-            round_2.push(&*TS_PUNCT_TUPLE);
+            round_2.push(&self.dictionary.ts_punctuations);
         }
 
         DictRefs::new(&[
@@ -276,7 +261,7 @@ impl OpenCC {
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
-            round_1.push(&*ST_PUNCT_TUPLE);
+            round_1.push(&self.dictionary.st_punctuations);
         }
         let round_2 = [&self.dictionary.tw_phrases];
         let round_3 = [&self.dictionary.tw_variants];
@@ -297,7 +282,7 @@ impl OpenCC {
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
-            round_2.push(&*TS_PUNCT_TUPLE);
+            round_2.push(&self.dictionary.ts_punctuations);
         }
 
         DictRefs::new(&round_1)
@@ -310,7 +295,7 @@ impl OpenCC {
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
-            round_1.push(&*ST_PUNCT_TUPLE);
+            round_1.push(&self.dictionary.st_punctuations);
         }
         let round_2 = [&self.dictionary.hk_variants];
         DictRefs::new(&round_1)
@@ -327,7 +312,7 @@ impl OpenCC {
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
-            round_2.push(&*TS_PUNCT_TUPLE);
+            round_2.push(&self.dictionary.ts_punctuations);
         }
         DictRefs::new(&round_1)
             .with_round_2(&round_2)

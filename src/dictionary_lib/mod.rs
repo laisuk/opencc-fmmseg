@@ -31,6 +31,8 @@ pub struct DictionaryMaxlength {
     pub jps_phrases: (FxHashMap<String, String>, usize),
     pub jp_variants: (FxHashMap<String, String>, usize),
     pub jp_variants_rev: (FxHashMap<String, String>, usize),
+    pub st_punctuations: (FxHashMap<String, String>, usize),
+    pub ts_punctuations: (FxHashMap<String, String>, usize)
 }
 
 impl DictionaryMaxlength {
@@ -85,6 +87,8 @@ impl DictionaryMaxlength {
         let jpsp_file_path = "dicts/JPShinjitaiPhrases.txt";
         let jpv_file_path = "dicts/JPVariants.txt";
         let jpvr_file_path = "dicts/JPVariantsRev.txt";
+        let stpunct_file_path = "dicts/STPunctuations.txt";
+        let tspunct_file_path = "dicts/TSPunctuations.txt";
 
         fn load_dict(path: &str) -> Result<(FxHashMap<String, String>, usize), DictionaryError> {
             let content = fs::read_to_string(path).map_err(|err| {
@@ -113,6 +117,8 @@ impl DictionaryMaxlength {
             jps_phrases: load_dict(jpsp_file_path)?,
             jp_variants: load_dict(jpv_file_path)?,
             jp_variants_rev: load_dict(jpvr_file_path)?,
+            st_punctuations: load_dict(stpunct_file_path)?,
+            ts_punctuations: load_dict(tspunct_file_path)?,
         })
     }
 
@@ -266,6 +272,8 @@ impl Default for DictionaryMaxlength {
             jps_phrases: (FxHashMap::default(), 0),
             jp_variants: (FxHashMap::default(), 0),
             jp_variants_rev: (FxHashMap::default(), 0),
+            st_punctuations: (FxHashMap::default(), 0),
+            ts_punctuations: (FxHashMap::default(), 0),
         }
     }
 }

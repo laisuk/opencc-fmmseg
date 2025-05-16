@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
         opencc_string_free(result);
     }
     if (opencc != NULL) {
-        opencc_free(opencc);
+        opencc_delete(opencc);
     }
 
     return 0;
@@ -133,7 +133,7 @@ Last Error: No error
 - `opencc_new()` initializes the engine.
 - `opencc_convert(...)` performs the conversion with the specified config (e.g., `s2t`, `t2s`, `s2twp`).
 - `opencc_string_free(...)` must be called to free the returned string.
-- `opencc_free(...)` must be called to free OpenCC object.
+- `opencc_delete(...)` must be called to free OpenCC object.
 - `opencc_zho_check(...)` to detect zh-Hant (1), zh-Hans (2), others (0).
 - Parallelism support can be queried using `opencc_get_parallel()`.
 - Errors are returned from `opencc_last_error()`.
