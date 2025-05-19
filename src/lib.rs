@@ -10,7 +10,8 @@ pub mod dictionary_lib;
 // static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 // Use once_cell instead of lazy_static
 static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
-const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
+// const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
+const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 static STRIP_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_]").unwrap());
 
@@ -118,6 +119,9 @@ impl OpenCC {
         }
 
         let text_length = text_chars.len();
+        if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
+            return text_chars[0].to_string();
+        }
 
         let mut result = String::with_capacity(text_length * 4);
         let mut candidate = String::with_capacity(max_word_length);
