@@ -1,11 +1,10 @@
 extern crate copypasta;
-#[macro_use]
-extern crate lazy_static;
 
 use std::collections::HashSet;
 use std::env;
 
 use copypasta::{ClipboardContext, ClipboardProvider};
+use once_cell::sync::Lazy;
 use opencc_fmmseg::{find_max_utf8_length, format_thousand, OpenCC};
 
 #[derive(Debug, PartialEq)]
@@ -81,15 +80,15 @@ impl ConversionType {
     }
 }
 
-lazy_static! {
-    static ref CONFIG_LIST: HashSet<&'static str> = [
+pub static CONFIG_LIST: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+    [
         "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
         "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
     ]
     .iter()
     .cloned()
-    .collect::<HashSet<&'static str>>();
-}
+    .collect()
+});
 
 fn main() {
     const RED: &str = "\x1B[1;31m";
@@ -199,7 +198,9 @@ fn main() {
                 let input_length = contents.chars().count();
                 eprintln!(
                     "{}(Output set to clipboard: {} chars){}",
-                    BLUE, format_thousand(input_length), RESET
+                    BLUE,
+                    format_thousand(input_length),
+                    RESET
                 );
             }
         }

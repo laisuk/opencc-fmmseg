@@ -3,3 +3,6 @@ gcc -o use_opencc_fmmseg_c use_opencc_fmmseg_c.c -I . -L . -l opencc_fmmseg_capi
 
 C++ build command:
 g++ -o use_opencc_fmmseg_cpp use_opencc_fmmseg_cpp.cpp -I . -L. -lopencc_fmmseg_capi -std=c++11
+
+To run:
+Copy libopencc_fmmseg_capi.dylib to /usr/local/lib

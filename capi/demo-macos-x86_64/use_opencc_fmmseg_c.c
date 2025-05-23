@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
         opencc_string_free(result);
     }
     if (opencc != NULL) {
-        opencc_free(opencc);
+        opencc_delete(opencc);
     }
 
     return 0;
