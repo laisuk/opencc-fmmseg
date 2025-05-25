@@ -147,7 +147,7 @@ Last Error: No error
 
 ## Credits
 
-- [OpenCC](https://github.com/BYVoid/OpenCC) – Lexicon source.
+- [OpenCC](https://github.com/BYVoid/OpenCC) by [BYVoid Carbo Kuo](https://github.com/BYVoid) – Lexicon source.
 
 ## License
 
