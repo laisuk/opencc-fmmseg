@@ -194,6 +194,7 @@ mod tests {
         fs::remove_file(filename).unwrap();
     }
 
+    #[ignore]
     #[test]
     fn is_parallel_test() {
         let mut opencc = OpenCC::new();

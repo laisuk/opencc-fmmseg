@@ -51,6 +51,7 @@ impl OpenCC {
             is_parallel,
         }
     }
+
     pub fn from_cbor(filename: &str) -> Self {
         let dictionary =
             DictionaryMaxlength::deserialize_from_cbor(filename).unwrap_or_else(|err| {
@@ -75,12 +76,40 @@ impl OpenCC {
         // Get the max word length directly from the dictionaries
         let max_word_length = dictionaries.iter().map(|(_, len)| *len).max().unwrap_or(1); // Default to 1 if no dictionaries are available
 
-        if self.is_parallel {
-            let split_string_list = self.split_string_inclusive_par(text);
-            self.get_translated_string_par(split_string_list, dictionaries, max_word_length)
+        let split_string_list = self.split_string_inclusive(text, self.is_parallel);
+        self.get_translated_string(
+            split_string_list,
+            dictionaries,
+            max_word_length,
+            self.is_parallel,
+        )
+    }
+
+    fn split_string_inclusive(&self, text: &str, is_parallel: bool) -> Vec<Vec<char>> {
+        if is_parallel {
+            let collected: Vec<char> = text.par_chars().collect();
+            collected
+                .par_split_inclusive(|c| self.delimiters.contains(c))
+                .map(|slice| slice.to_vec())
+                .collect()
         } else {
-            let split_string_list = self.split_string_inclusive(text);
-            self.get_translated_string(split_string_list, dictionaries, max_word_length)
+            let mut split_string_list = Vec::new();
+            let mut current_chunk = Vec::with_capacity(16); // heuristic: most chunks are short
+
+            for ch in text.chars() {
+                current_chunk.push(ch);
+
+                if self.delimiters.contains(&ch) {
+                    split_string_list.push(std::mem::take(&mut current_chunk));
+                    current_chunk = Vec::with_capacity(16); // reuse capacity
+                }
+            }
+
+            if !current_chunk.is_empty() {
+                split_string_list.push(current_chunk);
+            }
+
+            split_string_list
         }
     }
 
@@ -89,23 +118,19 @@ impl OpenCC {
         split_string_list: Vec<Vec<char>>,
         dictionaries: &[&(FxHashMap<String, String>, usize)],
         max_word_length: usize,
+        is_parallel: bool,
     ) -> String {
-        split_string_list
-            .iter()
-            .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
-            .collect::<String>()
-    }
-
-    fn get_translated_string_par(
-        &self,
-        split_string_list: Vec<Vec<char>>,
-        dictionaries: &[&(FxHashMap<String, String>, usize)],
-        max_word_length: usize,
-    ) -> String {
-        split_string_list
-            .par_iter()
-            .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
-            .collect::<String>()
+        if is_parallel {
+            split_string_list
+                .par_iter()
+                .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
+                .collect::<String>()
+        } else {
+            split_string_list
+                .iter()
+                .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
+                .collect::<String>()
+        }
     }
 
     fn convert_by(
@@ -164,36 +189,6 @@ impl OpenCC {
         }
 
         result
-    }
-
-    fn split_string_inclusive(&self, text: &str) -> Vec<Vec<char>> {
-        let mut split_string_list = Vec::new();
-        let mut current_chunk = Vec::new();
-
-        for ch in text.chars() {
-            current_chunk.push(ch);
-
-            // Check if the current character is a delimiter
-            if self.delimiters.contains(&ch) {
-                split_string_list.push(current_chunk.clone());
-                current_chunk.clear(); // Clear current chunk for the next segment
-            }
-        }
-
-        // Push any remaining characters as the last chunk
-        if !current_chunk.is_empty() {
-            split_string_list.push(current_chunk);
-        }
-
-        split_string_list
-    }
-
-    fn split_string_inclusive_par(&self, text: &str) -> Vec<Vec<char>> {
-        let collected: Vec<char> = text.par_chars().collect();
-        collected
-            .par_split_inclusive(|c| self.delimiters.contains(c))
-            .map(|slice| slice.to_vec()) // Convert each slice to Vec<char>
-            .collect()
     }
 
     pub fn get_parallel(&self) -> bool {
