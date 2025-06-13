@@ -33,8 +33,8 @@ class OpenCC:
         self.lib.opencc_zho_check.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         self.lib.opencc_string_free.argtypes = [ctypes.c_void_p]
         self.lib.opencc_string_free.restype = None
-        self.lib.opencc_free.argtypes = [ctypes.c_void_p]
-        self.lib.opencc_free.restype = None
+        self.lib.opencc_delete.argtypes = [ctypes.c_void_p]
+        self.lib.opencc_delete.restype = None
 
         self.opencc_instance = self.lib.opencc_new()  # Create the opencc object in the constructor
         if self.opencc_instance is None:
@@ -45,7 +45,7 @@ class OpenCC:
         # Free the C instance when the Python object is garbage collected
         if hasattr(self, 'opencc_instance') and self.opencc_instance:
             if hasattr(self, 'lib') and hasattr(self.lib, 'opencc_free'):
-                self.lib.opencc_free(self.opencc_instance)
+                self.lib.opencc_delete(self.opencc_instance)
             self.opencc_instance = None  # Mark as freed  # Free the opencc object in the destructor
 
     def convert(self, text, punctuation=False):
