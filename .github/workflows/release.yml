@@ -48,6 +48,7 @@ jobs:
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             cp target/release/opencc_fmmseg_capi.dll.lib dist/lib/
           fi
+        shell: bash
 
       # Create version.txt and README.txt
       - name: Write README.txt and version.txt
