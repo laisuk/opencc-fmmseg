@@ -53,7 +53,7 @@ jobs:
           echo "Version: ${{ github.ref_name }}" > dist/version.txt
 
           cat << EOF > dist/README.txt
-  Opencc-Fmmseg ${{ github.ref_name }}
+Opencc-Fmmseg ${{ github.ref_name }}
 
 Included folders:
   - bin/: Command-line tools (opencc-rs, opencc-clip, dict-generate)
@@ -63,7 +63,7 @@ Included folders:
 Usage:
   - Place the shared library in your LD_LIBRARY_PATH (Linux/macOS) or alongside .exe (Windows).
   - Include the headers in your C/C++ project for FFI integration.
-  EOF
+EOF
 
   - name: Zip Structured Artifacts
     run: 7z a ${{ matrix.artifact_name }}.zip ./dist/*
