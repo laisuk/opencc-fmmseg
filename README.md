@@ -1,10 +1,40 @@
 # opencc-fmmseg
 
-![Build Status](https://github.com/laisuk/opencc-fmmseg/actions/workflows/rust.yml/badge.svg)
+[![GitHub release](https://img.shields.io/github/v/release/laisuk/opencc-fmmseg?sort=semver)](https://github.com/laisuk/opencc-fmmseg/releases)
 ![Crates.io](https://img.shields.io/crates/v/opencc-jieba-rs)
 ![License](https://img.shields.io/github/license/laisuk/opencc-jieba-rs)
+![Build Status](https://github.com/laisuk/opencc-fmmseg/actions/workflows/rust.yml/badge.svg)
 
-A Rust-based Chinese text converter that performs word segmentation using **Forward Maximum Matching (FMM)**, powered by **OpenCC lexicons**. This project aims to provide high-performance and accurate **Simplified ↔ Traditional Chinese** (zh-Hans ↔ zh-Hant) conversion.
+**opencc-fmmseg** is a high-performance Chinese text conversion and segmentation engine.  
+It combines [OpenCC](https://github.com/BYVoid/OpenCC)'s lexicons with an
+optimized [Forward Maximum Matching (FMM)](https://en.wikipedia.org/wiki/Maximum_matching) algorithm, suitable for:
+
+- Traditional ↔ Simplified conversion
+- Lexicon-based segmentation
+- CLI tools and system integration via C/C++ or Python bindings
+
+---
+
+## 📦 Download
+
+Grab the latest version for your platform from the [**Releases**](https://github.com/laisuk/opencc-fmmseg/releases)
+page:
+
+| Platform   | Download Link                                                                        |
+|------------|--------------------------------------------------------------------------------------|
+| 🪟 Windows | [opencc-fmmseg-windows.zip](https://github.com/laisuk/opencc-fmmseg/releases/latest) |
+| 🐧 Linux   | [opencc-fmmseg-linux.zip](https://github.com/laisuk/opencc-fmmseg/releases/latest)   |
+| 🍎 macOS   | [opencc-fmmseg-macos.zip](https://github.com/laisuk/opencc-fmmseg/releases/latest)   |
+
+Each archive contains:
+
+```bash
+README.txt
+version.txt
+bin/ # Command-line tools
+lib/ # Shared library (.dll / .so / .dylib)
+include/ # C API header + C++ helper header
+```
 
 ## Features
 
@@ -21,10 +51,18 @@ cd opencc-fmmseg
 cargo build --release --workspace
 ```
 
+## 🚀 CLI Usage
+
 The CLI tool will be located at:
 
 ```
-target/release/opencc-rs
+target/release/
+```
+
+```bash
+opencc-rs          # CLI text converter
+opencc-clip        # Convert from clipboard, auto detect config
+dict-generate      # Generate dictionary CBOR files
 ```
 
 ## Usage
@@ -52,17 +90,18 @@ Options:
 ```
 
 - Supported conversions:
-  - `s2t` – Simplified to Traditional
-  - `s2tw` – Simplified to Traditional Taiwan
-  - `s2twp` – Simplified to Traditional Taiwan with idioms
-  - `t2s` – Traditional to Simplified
-  - `tw2s` – Traditional Taiwan to Simplified
-  - `tw2sp` – Traditional Taiwan to Simplified with idioms
-  - etc
+    - `s2t` – Simplified to Traditional
+    - `s2tw` – Simplified to Traditional Taiwan
+    - `s2twp` – Simplified to Traditional Taiwan with idioms
+    - `t2s` – Traditional to Simplified
+    - `tw2s` – Traditional Taiwan to Simplified
+    - `tw2sp` – Traditional Taiwan to Simplified with idioms
+    - etc
 
 ### Lexicons
 
-By default, it uses OpenCC's built-in lexicon paths. You can also provide your own lexicon folder as the fourth argument.
+By default, it uses OpenCC's built-in lexicon paths. You can also provide your own lexicon folder as the fourth
+argument.
 
 ## Library Usage
 
@@ -72,18 +111,35 @@ You can also use `opencc-fmmseg` as a library:
 use opencc_fmmseg::OpenCC;
 
 fn main() {
-  let input = "这是一个测试";
-  let opencc = OpenCC::new();
-  let output = opencc.convert(input, "s2t", false);
-  println!("{}", output); // -> "這是一個測試"
+    let input = "这是一个测试";
+    let opencc = OpenCC::new();
+    let output = opencc.convert(input, "s2t", false);
+    println!("{}", output); // -> "這是一個測試"
 }
 ```
 
-## C API Usage (`opencc_fmmseg_capi`)
+## 🧩 C/C++ Integration (`opencc_fmmseg_capi`)
 
 You can also use `opencc-fmmseg` via a C API for integration with C/C++ projects.
 
-### Example
+The zip includes:
+
+- libopencc_fmmseg_capi.{so,dylib,dll}
+- C API: opencc_fmmseg_capi.h
+- Header-only C++ helper: OpenccFmmsegHelper.hpp
+
+You can link against the shared library and call the segmentation/convert functions from any C or C++ project.
+
+### Example 1
+
+```c
+#include "opencc_fmmseg_capi.h"
+void* handle = opencc_fmmseg_new("s2t");
+const char* result = opencc_fmmseg_convert(handle, "汉字");
+opencc_fmmseg_delete(handle);
+```
+
+### Example 2
 
 ```c
 #include <stdio.h>
@@ -124,6 +180,7 @@ int main(int argc, char **argv) {
 ```
 
 ### Output
+
 ```
 OpenCC is_parallel: 1
 Text: 意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。
@@ -132,6 +189,7 @@ Converted: 義大利鄰國法蘭西羅浮宮裡收藏的「蒙娜麗莎的微笑
 Text Code: 1
 Last Error: No error
 ```
+
 ### Notes
 
 - `opencc_new()` initializes the engine.
@@ -149,15 +207,24 @@ Last Error: No error
 - `tools/opencc-rs/src/main.rs` – CLI tool (`opencc-cs`) implementation.
 - `dicts/` – OpenCC text lexicons which converted into CBOR format.
 
+## 🛠 Built With
+
+- Rust + Cargo Workspaces
+- OpenCC-compatible dictionaries
+- Parallelized FMM segmentation
+- GitHub Actions cross-platform release automation
+
 ## Credits
 
 - [OpenCC](https://github.com/BYVoid/OpenCC) by [BYVoid Carbo Kuo](https://github.com/BYVoid) – Lexicon source.
 
-## License
+## 📜 License
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+- MIT License.
+- © Laisuk Lai.
+- See [LICENSE](./LICENSE) for details.
 
+## 💬 Feedback / Contributions
 
-## Contributing
-Contributions are welcome! Please open issues or submit pull requests for improvements or bug fixes.
-
+- Issues and pull requests are welcome.
+- If you find this tool useful, please ⭐ star the repo or fork it.
