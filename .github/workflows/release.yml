@@ -49,47 +49,47 @@ jobs:
             cp target/release/opencc_fmmseg_capi.dll.lib dist/lib/
           fi
 
-          # Create version.txt and README.txt
+      # Create version.txt and README.txt
+      - name: Write README.txt and version.txt
+        run: |
           echo "Version: ${{ github.ref_name }}" > dist/version.txt
+      
+          echo "Opencc-Fmmseg ${{ github.ref_name }}" > dist/README.txt
+          echo "" >> dist/README.txt
+          echo "Included folders:" >> dist/README.txt
+          echo "- bin/: Command-line tools (opencc-rs, opencc-clip, dict-generate)" >> dist/README.txt
+          echo "- lib/: C API shared library (platform-specific)" >> dist/README.txt
+          echo "- include/: C API header and C++ header-only helper" >> dist/README.txt
+          echo "" >> dist/README.txt
+          echo "Usage:" >> dist/README.txt
+          echo "- Place the shared library in your LD_LIBRARY_PATH (Linux/macOS) or alongside .exe (Windows)." >> dist/README.txt
+          echo "- Include the headers in your C/C++ project for FFI integration." >> dist/README.txt
 
-          cat << EOF > dist/README.txt
-Opencc-Fmmseg ${{ github.ref_name }}
+      - name: Zip Structured Artifacts
+        run: 7z a ${{ matrix.artifact_name }}.zip ./dist/*
 
-Included folders:
-  - bin/: Command-line tools (opencc-rs, opencc-clip, dict-generate)
-  - lib/: C API shared library (platform-specific)
-  - include/: C API header and C++ header-only helper
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}.zip
 
-Usage:
-  - Place the shared library in your LD_LIBRARY_PATH (Linux/macOS) or alongside .exe (Windows).
-  - Include the headers in your C/C++ project for FFI integration.
-EOF
+  release:
+    name: Release Artifacts
+    needs: build
+    runs-on: ubuntu-latest
 
-  - name: Zip Structured Artifacts
-    run: 7z a ${{ matrix.artifact_name }}.zip ./dist/*
+    steps:
+      - uses: actions/checkout@v4
 
-  - name: Upload Artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: ${{ matrix.artifact_name }}
-      path: ${{ matrix.artifact_name }}.zip
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-release:
-  name: Release Artifacts
-  needs: build
-  runs-on: ubuntu-latest
-
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Download Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
-    - name: Publish GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: artifacts/**/*.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
