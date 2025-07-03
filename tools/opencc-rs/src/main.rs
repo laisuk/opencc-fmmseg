@@ -1,13 +1,13 @@
 mod office_doc_converter;
-use office_doc_converter::{OfficeDocConverter};
+use office_doc_converter::OfficeDocConverter;
 
-use std::collections::HashSet;
 use clap::{Arg, Command};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use opencc_fmmseg::OpenCC;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
-use opencc_fmmseg::OpenCC;
 
 const CONFIG_LIST: [&str; 16] = [
     "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
@@ -84,9 +84,10 @@ fn remove_utf8_bom(input: &mut Vec<u8>) {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     const BLUE: &str = "\x1B[1;34m";
     const RESET: &str = "\x1B[0m";
-    let office_extensions: HashSet<&'static str> = [
-        "docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"
-    ].into_iter().collect();
+    let office_extensions: HashSet<&'static str> =
+        ["docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"]
+            .into_iter()
+            .collect();
 
     let matches = Command::new("OpenCC Rust")
         .arg(
@@ -195,11 +196,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(f) => f.to_lowercase(),
             None => {
                 if auto_ext {
-                    match std::path::Path::new(input_file).extension().and_then(|e| e.to_str()) {
+                    match std::path::Path::new(input_file)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                    {
                         Some(ext) if office_extensions.contains(ext) => ext.to_string(),
                         Some(ext) => {
                             eprintln!("❌ Invalid Office file extension: .{}", ext);
-                            eprintln!("   Valid: .docx | .xlsx | .pptx | .odt | .ods | .odp | .epub");
+                            eprintln!(
+                                "   Valid: .docx | .xlsx | .pptx | .odt | .ods | .odp | .epub"
+                            );
                             return Ok(());
                         }
                         None => {
@@ -208,7 +214,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                 } else {
-                    eprintln!("❌ Please specify --format or use --auto-ext to infer from extension.");
+                    eprintln!(
+                        "❌ Please specify --format or use --auto-ext to infer from extension."
+                    );
                     return Ok(());
                 }
             }
@@ -217,7 +225,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Determine output file
         let output_file = match output_file {
             Some(path) => {
-                if auto_ext && std::path::Path::new(path).extension().is_none()
+                if auto_ext
+                    && std::path::Path::new(path).extension().is_none()
                     && office_extensions.contains(office_format.as_str())
                 {
                     let new_path = format!("{}.{}", path, office_format);
@@ -229,8 +238,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             None => {
                 let input_path = std::path::Path::new(input_file);
-                let file_stem = input_path.file_stem().and_then(|s| s.to_str()).unwrap_or("converted");
-                let ext = input_path.extension().and_then(|e| e.to_str()).unwrap_or(office_format.as_str());
+                let file_stem = input_path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("converted");
+                let ext = input_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or(office_format.as_str());
                 let parent = input_path.parent().unwrap_or(std::path::Path::new("."));
                 let default_output = parent.join(format!("{file_stem}_converted.{ext}"));
                 let output_str = default_output.to_string_lossy().to_string();
@@ -239,12 +254,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        let mut helper = OpenCC::new();
+        let helper = OpenCC::new();
         let result = OfficeDocConverter::convert(
             input_file,
             &output_file,
             &office_format,
-            &mut helper,
+            &helper,
             config,
             punctuation,
             keep_font,
@@ -260,7 +275,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // -- Plain text implementation --
-    // Determine input source    
+    // Determine input source
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(BufReader::new(File::open(file_name)?)),
@@ -272,7 +287,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Box::new(BufReader::new(io::stdin().lock()))
         }
     };
-    
+
     let mut buffer = read_input(&mut *input, is_console)?;
     // Remove BOM if present in UTF-8 input
     if in_enc == "UTF-8" && out_enc != "UTF-8" {

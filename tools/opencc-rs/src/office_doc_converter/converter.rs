@@ -24,7 +24,7 @@ impl OfficeDocConverter {
         input_path: &str,
         output_path: &str,
         format: &str,
-        helper: &mut OpenCC,
+        helper: &OpenCC,
         config: &str,
         punctuation: bool,
         keep_font: bool,
@@ -49,7 +49,7 @@ impl OfficeDocConverter {
             let raw_name = file.name().replace('\\', "/");
             let relative_path = Path::new(&raw_name);
 
-            // Sanitize: skip if file has '..' or is absolute
+            // Sanitize: skip if file has '...' or is absolute
             if relative_path.components().any(|c| {
                 matches!(
                     c,
@@ -138,8 +138,13 @@ impl OfficeDocConverter {
                 // FIX: Normalize path separators to forward slashes for ZIP
                 let relative_path = relative_path.replace('\\', "/");
 
-                let options: FileOptions<'_, ExtendedFileOptions> =
-                    FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+                // 📦 Store mode only for mimetype (no compression)
+                let is_mimetype = relative_path == "mimetype";
+                let options: FileOptions<'_, ExtendedFileOptions> = if is_mimetype {
+                    FileOptions::default().compression_method(zip::CompressionMethod::Stored)
+                } else {
+                    FileOptions::default().compression_method(zip::CompressionMethod::Deflated)
+                };
 
                 if let Err(e) = zip_writer
                     .start_file(&relative_path, options)
