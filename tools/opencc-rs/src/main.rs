@@ -255,7 +255,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let helper = OpenCC::new();
-        let result = OfficeDocConverter::convert(
+
+        match OfficeDocConverter::convert(
             input_file,
             &output_file,
             &office_format,
@@ -263,12 +264,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             config,
             punctuation,
             keep_font,
-        );
-
-        if result.success {
-            eprintln!("{}\n📁 Output saved to: {}", result.message, output_file);
-        } else {
-            eprintln!("❌ Conversion failed: {}", result.message);
+        ) {
+            Ok(result) => {
+                if result.success {
+                    eprintln!("{}\n📁 Output saved to: {}", result.message, &output_file);
+                } else {
+                    eprintln!("❌ Conversion failed: {}", result.message);
+                }
+            }
+            Err(e) => {
+                eprintln!("❌ Internal error: {}", e);
+            }
         }
 
         return Ok(());

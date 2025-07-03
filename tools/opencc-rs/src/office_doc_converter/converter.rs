@@ -1,23 +1,23 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use regex::Regex;
 use tempfile::tempdir;
-use zip::write::{ExtendedFileOptions, FileOptions};
-// 💡 important!
-use zip::{ZipArchive, ZipWriter};
+use zip::{
+    write::{ExtendedFileOptions, FileOptions},
+    CompressionMethod, ZipArchive, ZipWriter,
+};
 
-use opencc_fmmseg;
 use opencc_fmmseg::OpenCC;
-
-pub struct OfficeDocConverter;
 
 pub struct ConversionResult {
     pub success: bool,
     pub message: String,
 }
+
+pub struct OfficeDocConverter;
 
 impl OfficeDocConverter {
     pub fn convert(
@@ -28,56 +28,42 @@ impl OfficeDocConverter {
         config: &str,
         punctuation: bool,
         keep_font: bool,
-    ) -> ConversionResult {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let temp_path = temp_dir.path().to_path_buf();
+    ) -> io::Result<ConversionResult> {
+        let temp_dir = tempdir()?;
+        let temp_path = temp_dir.path();
 
-        let file = match File::open(input_path) {
-            Ok(f) => f,
-            Err(_) => {
-                return ConversionResult {
-                    success: false,
-                    message: "❌ Failed to open ZIP archive.".to_string(),
-                }
-            }
-        };
+        let file = File::open(input_path)?;
+        let mut archive = ZipArchive::new(file)?;
 
-        let mut archive = ZipArchive::new(file).unwrap();
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i).unwrap();
-
+            let mut file = archive.by_index(i)?;
             let raw_name = file.name().replace('\\', "/");
-            let relative_path = Path::new(&raw_name);
+            let rel_path = Path::new(&raw_name);
 
-            // Sanitize: skip if file has '...' or is absolute
-            if relative_path.components().any(|c| {
+            if rel_path.components().any(|c| {
                 matches!(
                     c,
                     std::path::Component::ParentDir | std::path::Component::RootDir
                 )
             }) {
-                continue; // Skip unsafe paths
+                continue;
             }
 
-            let out_path = temp_path.join(relative_path);
+            let out_path = temp_path.join(rel_path);
             if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent).ok();
+                fs::create_dir_all(parent)?;
             }
 
-            let mut out_file = File::create(&out_path).unwrap();
-            std::io::copy(&mut file, &mut out_file).ok();
+            let mut out_file = File::create(&out_path)?;
+            io::copy(&mut file, &mut out_file)?;
         }
 
-        let target_xmls = get_target_xml_paths(format, &temp_path);
-        for xml_file in target_xmls {
+        for xml_file in get_target_xml_paths(format, temp_path) {
             if !xml_file.exists() {
                 continue;
             }
             let mut content = String::new();
-            File::open(&xml_file)
-                .unwrap()
-                .read_to_string(&mut content)
-                .unwrap();
+            File::open(&xml_file)?.read_to_string(&mut content)?;
 
             let mut font_map = HashMap::new();
             if keep_font {
@@ -85,94 +71,57 @@ impl OfficeDocConverter {
             }
 
             let mut converted = helper.convert(&content, config, punctuation);
-
             if keep_font {
                 for (marker, original) in font_map {
                     converted = converted.replace(&marker, &original);
                 }
             }
 
-            let mut out_file = File::create(&xml_file).unwrap();
-            out_file.write_all(converted.as_bytes()).unwrap();
+            File::create(&xml_file)?.write_all(converted.as_bytes())?;
         }
 
         if Path::new(output_path).exists() {
-            fs::remove_file(output_path).unwrap();
+            fs::remove_file(output_path)?;
         }
 
-        let zip_file = match File::create(output_path) {
-            Ok(f) => f,
-            Err(_) => {
-                return ConversionResult {
-                    success: false,
-                    message: "❌ Failed to create output ZIP.".to_string(),
-                }
-            }
-        };
-
+        let zip_file = File::create(output_path)?;
         let mut zip_writer = ZipWriter::new(zip_file);
 
-        // Replace this section in your code:
-        for entry in walkdir::WalkDir::new(&temp_path) {
-            let entry = entry.unwrap();
+        for entry in walkdir::WalkDir::new(temp_path) {
+            let entry = entry?;
             let path = entry.path();
             if path.is_file() {
                 let mut buffer = Vec::new();
-                if let Err(e) = File::open(path).and_then(|mut f| f.read_to_end(&mut buffer)) {
-                    return ConversionResult {
-                        success: false,
-                        message: format!("❌ Failed to read file {:?}: {}", path, e),
-                    };
-                }
+                File::open(path)?.read_to_end(&mut buffer)?;
 
-                let relative_path = match path.strip_prefix(&temp_path) {
-                    Ok(p) => p.to_string_lossy(),
-                    Err(e) => {
-                        return ConversionResult {
-                            success: false,
-                            message: format!("❌ Failed to compute relative path: {}", e),
-                        };
-                    }
-                };
+                let relative_path = path
+                    .strip_prefix(temp_path)
+                    .map_err(|e| {
+                        io::Error::new(io::ErrorKind::Other, format!("strip_prefix failed: {}", e))
+                    })?
+                    .to_string_lossy()
+                    .replace('\\', "/");
 
-                // FIX: Normalize path separators to forward slashes for ZIP
-                let relative_path = relative_path.replace('\\', "/");
-
-                // 📦 Store mode only for mimetype (no compression)
                 let is_mimetype = relative_path == "mimetype";
-                let options: FileOptions<'_, ExtendedFileOptions> = if is_mimetype {
-                    FileOptions::default().compression_method(zip::CompressionMethod::Stored)
+                let method = if is_mimetype {
+                    CompressionMethod::Stored
                 } else {
-                    FileOptions::default().compression_method(zip::CompressionMethod::Deflated)
+                    CompressionMethod::Deflated
                 };
+                let options: FileOptions<'_, ExtendedFileOptions> =
+                    FileOptions::default().compression_method(method);
 
-                if let Err(e) = zip_writer
-                    .start_file(&relative_path, options)
-                    .and_then(|_| {
-                        zip_writer
-                            .write_all(&buffer)
-                            .map_err(zip::result::ZipError::Io)
-                    })
-                {
-                    return ConversionResult {
-                        success: false,
-                        message: format!("❌ Failed to write {} to ZIP: {}", relative_path, e),
-                    };
-                }
+                zip_writer.start_file(&relative_path, options)?;
+                zip_writer.write_all(&buffer)?;
             }
         }
 
-        if let Err(e) = zip_writer.finish() {
-            return ConversionResult {
-                success: false,
-                message: format!("❌ Failed to finalize ZIP file: {}", e),
-            };
-        }
+        zip_writer.finish()?;
 
-        ConversionResult {
+        Ok(ConversionResult {
             success: true,
             message: "✅ Conversion completed.".to_string(),
-        }
+        })
     }
 }
 
@@ -208,9 +157,9 @@ fn get_target_xml_paths(format: &str, base_dir: &Path) -> Vec<PathBuf> {
 
 fn mask_font(xml: &mut String, format: &str, font_map: &mut HashMap<String, String>) {
     let pattern = match format {
-        "docx" => r#"(w:(?:eastAsia|ascii|hAnsi|cs)=")([^"]+)(")"#,
-        "xlsx" => r#"(val=")([^"]+)(")"#,
-        "pptx" => r#"(typeface=")([^"]+)(")"#,
+        "docx" => r#"(w:(?:eastAsia|ascii|hAnsi|cs)=")(.*?)(")"#,
+        "xlsx" => r#"(val=")(.*?)(")"#,
+        "pptx" => r#"(typeface=")(.*?)(")"#,
         "odt" | "ods" | "odp" => {
             r#"((?:style:font-name(?:-asian|-complex)?|svg:font-family|style:name)=['"])([^'"]+)(['"])"#
         }
@@ -219,21 +168,21 @@ fn mask_font(xml: &mut String, format: &str, font_map: &mut HashMap<String, Stri
     };
     let re = Regex::new(pattern).unwrap();
     let mut counter = 0;
-    let mut result = String::new();
+    let mut result_str = String::new();
     let mut last_end = 0;
     for caps in re.captures_iter(xml) {
         let marker = format!("__F_O_N_T_{}__", counter);
         counter += 1;
         font_map.insert(marker.clone(), caps[2].to_string());
         let mat = caps.get(0).unwrap();
-        result.push_str(&xml[last_end..mat.start()]);
-        result.push_str(&caps[1]);
-        result.push_str(&marker);
+        result_str.push_str(&xml[last_end..mat.start()]);
+        result_str.push_str(&caps[1]);
+        result_str.push_str(&marker);
         if caps.len() > 3 {
-            result.push_str(&caps[3]);
+            result_str.push_str(&caps[3]);
         }
         last_end = mat.end();
     }
-    result.push_str(&xml[last_end..]);
-    *xml = result;
+    result_str.push_str(&xml[last_end..]);
+    *xml = result_str;
 }
