@@ -1,3 +1,7 @@
+mod office_doc_converter;
+use office_doc_converter::{OfficeDocConverter};
+
+use std::collections::HashSet;
 use clap::{Arg, Command};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
@@ -80,6 +84,9 @@ fn remove_utf8_bom(input: &mut Vec<u8>) {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     const BLUE: &str = "\x1B[1;34m";
     const RESET: &str = "\x1B[0m";
+    let office_extensions: HashSet<&'static str> = [
+        "docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"
+    ].into_iter().collect();
 
     let matches = Command::new("OpenCC Rust")
         .arg(
@@ -110,9 +117,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::new("punct")
                 .short('p')
                 .long("punct")
-                .value_name("boolean")
-                .default_value("false")
-                .help("Punctuation conversion: [true|false]"),
+                .action(clap::ArgAction::SetTrue)
+                .help("Enable punctuation conversion."),
         )
         .arg(
             Arg::new("in_enc")
@@ -128,6 +134,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .default_value("UTF-8")
                 .help("Encoding for output: UTF-8|GB2312|GBK|gb18030|BIG5"),
         )
+        .arg(
+            Arg::new("office")
+                .long("office")
+                .action(clap::ArgAction::SetTrue)
+                .help("Enable Office/EPUB mode for docx, odt, epub, etc."),
+        )
+        .arg(
+            Arg::new("keep_font")
+                .long("keep-font")
+                .action(clap::ArgAction::SetTrue)
+                .help("Preserve original font styles (only in Office mode)"),
+        )
+        .arg(
+            Arg::new("format")
+                .short('f')
+                .long("format")
+                .value_name("ext")
+                .help("Force format type: docx, xlsx, odt, epub, etc."),
+        )
+        .arg(
+            Arg::new("auto_ext")
+                .long("auto-ext")
+                .action(clap::ArgAction::SetTrue)
+                .help("Infer format from file extension (if not --format)"),
+        )
         .about(format!(
             "{BLUE}OpenCC Rust: Command Line Open Chinese Converter{RESET}"
         ))
@@ -141,13 +172,95 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Valid Configs: {:?}", CONFIG_LIST);
         return Ok(());
     }
-    let punctuation = matches
-        .get_one::<String>("punct")
-        .map_or(false, |value| value == "true");
+    let punctuation = matches.get_flag("punct");
     let in_enc = matches.get_one::<String>("in_enc").unwrap();
     let out_enc = matches.get_one::<String>("out_enc").unwrap();
 
-    // Determine input source
+    // ✅ These are boolean flags (true if passed)
+    let is_office = matches.get_flag("office");
+    let keep_font = matches.get_flag("keep_font");
+    let auto_ext = matches.get_flag("auto_ext");
+
+    // Optional string like --format=docx
+    let format = matches.get_one::<String>("format").map(|s| s.as_str());
+
+    if is_office {
+        let Some(input_file) = input_file else {
+            eprintln!("❌ --office mode requires an input file.");
+            return Ok(());
+        };
+
+        // Determine format
+        let office_format = match format {
+            Some(f) => f.to_lowercase(),
+            None => {
+                if auto_ext {
+                    match std::path::Path::new(input_file).extension().and_then(|e| e.to_str()) {
+                        Some(ext) if office_extensions.contains(ext) => ext.to_string(),
+                        Some(ext) => {
+                            eprintln!("❌ Invalid Office file extension: .{}", ext);
+                            eprintln!("   Valid: .docx | .xlsx | .pptx | .odt | .ods | .odp | .epub");
+                            return Ok(());
+                        }
+                        None => {
+                            eprintln!("❌ Cannot determine format from file extension.");
+                            return Ok(());
+                        }
+                    }
+                } else {
+                    eprintln!("❌ Please specify --format or use --auto-ext to infer from extension.");
+                    return Ok(());
+                }
+            }
+        };
+
+        // Determine output file
+        let output_file = match output_file {
+            Some(path) => {
+                if auto_ext && std::path::Path::new(path).extension().is_none()
+                    && office_extensions.contains(office_format.as_str())
+                {
+                    let new_path = format!("{}.{}", path, office_format);
+                    eprintln!("ℹ️ Auto-extension applied: {}", new_path);
+                    new_path
+                } else {
+                    path.clone()
+                }
+            }
+            None => {
+                let input_path = std::path::Path::new(input_file);
+                let file_stem = input_path.file_stem().and_then(|s| s.to_str()).unwrap_or("converted");
+                let ext = input_path.extension().and_then(|e| e.to_str()).unwrap_or(office_format.as_str());
+                let parent = input_path.parent().unwrap_or(std::path::Path::new("."));
+                let default_output = parent.join(format!("{file_stem}_converted.{ext}"));
+                let output_str = default_output.to_string_lossy().to_string();
+                eprintln!("ℹ️ Output file not specified. Using: {}", output_str);
+                output_str
+            }
+        };
+
+        let mut helper = OpenCC::new();
+        let result = OfficeDocConverter::convert(
+            input_file,
+            &output_file,
+            &office_format,
+            &mut helper,
+            config,
+            punctuation,
+            keep_font,
+        );
+
+        if result.success {
+            eprintln!("{}\n📁 Output saved to: {}", result.message, output_file);
+        } else {
+            eprintln!("❌ Conversion failed: {}", result.message);
+        }
+
+        return Ok(());
+    }
+
+    // -- Plain text implementation --
+    // Determine input source    
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(BufReader::new(File::open(file_name)?)),
