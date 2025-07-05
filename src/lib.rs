@@ -74,21 +74,42 @@ impl OpenCC {
         dictionaries: &[&(FxHashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
-        let split_string_list = self.split_string_inclusive(text, self.is_parallel);
+        // let split_string_list = self.split_string_inclusive(text, self.is_parallel);
+        //
+        // if self.is_parallel {
+        //     split_string_list
+        //         .par_iter()
+        //         .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+        //         .collect()
+        // } else {
+        //     split_string_list
+        //         .iter()
+        //         .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+        //         .collect()
+        // }
+
+        let chars: Vec<char> = if self.is_parallel {
+            text.par_chars().collect()
+        } else {
+            text.chars().collect()
+        };
+
+        let ranges = self.get_chars_range(&chars);
 
         if self.is_parallel {
-            split_string_list
-                .par_iter()
-                .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+            ranges
+                .into_par_iter()
+                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
                 .collect()
         } else {
-            split_string_list
-                .iter()
-                .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+            ranges
+                .into_iter()
+                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
                 .collect()
         }
     }
 
+    #[allow(dead_code)]
     fn split_string_inclusive(&self, text: &str, is_parallel: bool) -> Vec<Vec<char>> {
         if is_parallel {
             let collected: Vec<char> = text.par_chars().collect();
@@ -115,6 +136,24 @@ impl OpenCC {
 
             split_string_list
         }
+    }
+
+    fn get_chars_range(&self, chars: &[char]) -> Vec<std::ops::Range<usize>> {
+        let mut ranges = Vec::new();
+        let mut start = 0;
+
+        for (i, ch) in chars.iter().enumerate() {
+            if self.delimiters.contains(ch) {
+                ranges.push(start..i + 1); // now exclusive end
+                start = i + 1;
+            }
+        }
+
+        if start < chars.len() {
+            ranges.push(start..chars.len());
+        }
+
+        ranges
     }
 
     fn convert_by(
