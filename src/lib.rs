@@ -106,20 +106,20 @@ impl OpenCC {
     //     } else {
     //         let mut split_string_list = Vec::new();
     //         let mut current_chunk = Vec::with_capacity(16); // heuristic: most chunks are short
-    // 
+    //
     //         for ch in text.chars() {
     //             current_chunk.push(ch);
-    // 
+    //
     //             if self.delimiters.contains(&ch) {
     //                 split_string_list.push(std::mem::take(&mut current_chunk));
     //                 current_chunk = Vec::with_capacity(16); // reuse capacity
     //             }
     //         }
-    // 
+    //
     //         if !current_chunk.is_empty() {
     //             split_string_list.push(current_chunk);
     //         }
-    // 
+    //
     //         split_string_list
     //     }
     // }
@@ -158,7 +158,7 @@ impl OpenCC {
         }
 
         let mut result = String::with_capacity(text_length * 4);
-        let mut candidate = String::with_capacity(max_word_length);
+        let mut candidate = String::with_capacity(max_word_length * 4);
         let mut start_pos = 0;
 
         while start_pos < text_length {
