@@ -6,8 +6,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::iter::Iterator;
 use std::sync::Mutex;
 pub mod dictionary_lib;
-// Define a global mutable variable to store the error message
-// static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 // Use once_cell instead of lazy_static
 static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 // const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。“”‘’『』「」﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
