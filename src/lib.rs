@@ -74,20 +74,6 @@ impl OpenCC {
         dictionaries: &[&(FxHashMap<String, String>, usize)],
         max_word_length: usize,
     ) -> String {
-        // let split_string_list = self.split_string_inclusive(text, self.is_parallel);
-        //
-        // if self.is_parallel {
-        //     split_string_list
-        //         .par_iter()
-        //         .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
-        //         .collect()
-        // } else {
-        //     split_string_list
-        //         .iter()
-        //         .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
-        //         .collect()
-        // }
-
         let chars: Vec<char> = if self.is_parallel {
             text.par_chars().collect()
         } else {
@@ -109,34 +95,34 @@ impl OpenCC {
         }
     }
 
-    #[allow(dead_code)]
-    fn split_string_inclusive(&self, text: &str, is_parallel: bool) -> Vec<Vec<char>> {
-        if is_parallel {
-            let collected: Vec<char> = text.par_chars().collect();
-            collected
-                .par_split_inclusive(|c| self.delimiters.contains(c))
-                .map(|slice| slice.to_vec())
-                .collect()
-        } else {
-            let mut split_string_list = Vec::new();
-            let mut current_chunk = Vec::with_capacity(16); // heuristic: most chunks are short
-
-            for ch in text.chars() {
-                current_chunk.push(ch);
-
-                if self.delimiters.contains(&ch) {
-                    split_string_list.push(std::mem::take(&mut current_chunk));
-                    current_chunk = Vec::with_capacity(16); // reuse capacity
-                }
-            }
-
-            if !current_chunk.is_empty() {
-                split_string_list.push(current_chunk);
-            }
-
-            split_string_list
-        }
-    }
+    // #[allow(dead_code)]
+    // fn split_string_inclusive(&self, text: &str, is_parallel: bool) -> Vec<Vec<char>> {
+    //     if is_parallel {
+    //         let collected: Vec<char> = text.par_chars().collect();
+    //         collected
+    //             .par_split_inclusive(|c| self.delimiters.contains(c))
+    //             .map(|slice| slice.to_vec())
+    //             .collect()
+    //     } else {
+    //         let mut split_string_list = Vec::new();
+    //         let mut current_chunk = Vec::with_capacity(16); // heuristic: most chunks are short
+    // 
+    //         for ch in text.chars() {
+    //             current_chunk.push(ch);
+    // 
+    //             if self.delimiters.contains(&ch) {
+    //                 split_string_list.push(std::mem::take(&mut current_chunk));
+    //                 current_chunk = Vec::with_capacity(16); // reuse capacity
+    //             }
+    //         }
+    // 
+    //         if !current_chunk.is_empty() {
+    //             split_string_list.push(current_chunk);
+    //         }
+    // 
+    //         split_string_list
+    //     }
+    // }
 
     fn get_chars_range(&self, chars: &[char]) -> Vec<std::ops::Range<usize>> {
         let mut ranges = Vec::new();
@@ -618,18 +604,4 @@ pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
         byte_count -= 1;
     }
     byte_count
-}
-
-pub fn format_thousand(n: usize) -> String {
-    let mut result_str = n.to_string();
-    let mut offset = result_str.len() % 3;
-    if offset == 0 {
-        offset = 3;
-    }
-
-    while offset < result_str.len() {
-        result_str.insert(offset, ',');
-        offset += 4; // Including the added comma
-    }
-    result_str
 }

@@ -3,7 +3,6 @@ use opencc_fmmseg::{dictionary_lib, OpenCC};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opencc_fmmseg::format_thousand;
     use serde_cbor::to_vec;
     use std::collections::HashSet;
     use std::fs;
@@ -100,14 +99,6 @@ mod tests {
     }
 
     #[test]
-    fn format_thousand_test() {
-        let input = 1234567890;
-        let expected_output = "1,234,567,890";
-        let actual_output = format_thousand(input);
-        assert_eq!(actual_output, expected_output);
-    }
-
-    #[test]
     fn t2jp_test() {
         let input = "舊字體：廣國，讀賣。";
         let expected_output = "旧字体：広国，読売。";
@@ -144,8 +135,7 @@ mod tests {
 
         let filename = "dictionary_maxlength.json";
         // Serialize to JSON instead of CBOR
-        let json_data =
-            serde_json::to_string(&dictionary).expect("Failed to serialize to JSON");
+        let json_data = serde_json::to_string(&dictionary).expect("Failed to serialize to JSON");
         fs::write(filename, json_data).expect("Failed to write JSON file");
         let file_contents = fs::read_to_string(filename).unwrap();
         let expected_json = 1351486;

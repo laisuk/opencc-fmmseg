@@ -5,7 +5,7 @@ use std::env;
 
 use copypasta::{ClipboardContext, ClipboardProvider};
 use once_cell::sync::Lazy;
-use opencc_fmmseg::{find_max_utf8_length, format_thousand, OpenCC};
+use opencc_fmmseg::{find_max_utf8_length, OpenCC};
 
 #[derive(Debug, PartialEq)]
 enum ConversionType {
@@ -209,4 +209,18 @@ fn main() {
             eprintln!("{}No text in clipboard: {}{}", RED, err, RESET)
         }
     }
+}
+
+pub fn format_thousand(n: usize) -> String {
+    let mut result_str = n.to_string();
+    let mut offset = result_str.len() % 3;
+    if offset == 0 {
+        offset = 3;
+    }
+
+    while offset < result_str.len() {
+        result_str.insert(offset, ',');
+        offset += 4; // Including the added comma
+    }
+    result_str
 }
