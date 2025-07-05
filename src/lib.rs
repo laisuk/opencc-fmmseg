@@ -72,17 +72,21 @@ impl OpenCC {
         &self,
         text: &str,
         dictionaries: &[&(FxHashMap<String, String>, usize)],
+        max_word_length: usize,
     ) -> String {
-        // Get the max word length directly from the dictionaries
-        let max_word_length = dictionaries.iter().map(|(_, len)| *len).max().unwrap_or(1); // Default to 1 if no dictionaries are available
-
         let split_string_list = self.split_string_inclusive(text, self.is_parallel);
-        self.get_translated_string(
-            split_string_list,
-            dictionaries,
-            max_word_length,
-            self.is_parallel,
-        )
+
+        if self.is_parallel {
+            split_string_list
+                .par_iter()
+                .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+                .collect()
+        } else {
+            split_string_list
+                .iter()
+                .map(|chunk| self.convert_by(chunk, dictionaries, max_word_length))
+                .collect()
+        }
     }
 
     fn split_string_inclusive(&self, text: &str, is_parallel: bool) -> Vec<Vec<char>> {
@@ -110,26 +114,6 @@ impl OpenCC {
             }
 
             split_string_list
-        }
-    }
-
-    fn get_translated_string(
-        &self,
-        split_string_list: Vec<Vec<char>>,
-        dictionaries: &[&(FxHashMap<String, String>, usize)],
-        max_word_length: usize,
-        is_parallel: bool,
-    ) -> String {
-        if is_parallel {
-            split_string_list
-                .par_iter()
-                .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
-                .collect::<String>()
-        } else {
-            split_string_list
-                .iter()
-                .map(|chunk| self.convert_by(&chunk, dictionaries, max_word_length))
-                .collect::<String>()
         }
     }
 
@@ -208,8 +192,9 @@ impl OpenCC {
             round_1.push(&self.dictionary.st_punctuations);
         }
 
-        DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+        DictRefs::new(&round_1).apply_segment_replace(input, |input, refs, max_len| {
+            self.segment_replace(input, refs, max_len)
+        })
     }
 
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
@@ -221,8 +206,9 @@ impl OpenCC {
             round_1.push(&self.dictionary.ts_punctuations);
         }
 
-        DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+        DictRefs::new(&round_1).apply_segment_replace(input, |input, refs, max_len| {
+            self.segment_replace(input, refs, max_len)
+        })
     }
 
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
@@ -235,7 +221,9 @@ impl OpenCC {
 
         DictRefs::new(&round_1)
             .with_round_2(&[&self.dictionary.tw_variants])
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            })
     }
 
     pub fn tw2s(&self, input: &str, punctuation: bool) -> String {
@@ -251,7 +239,9 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ])
         .with_round_2(&round_2)
-        .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+        .apply_segment_replace(input, |input, refs, max_len| {
+            self.segment_replace(input, refs, max_len)
+        })
     }
 
     pub fn s2twp(&self, input: &str, punctuation: bool) -> String {
@@ -268,7 +258,9 @@ impl OpenCC {
         DictRefs::new(&round_1)
             .with_round_2(&round_2)
             .with_round_3(&round_3)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            })
     }
 
     pub fn tw2sp(&self, input: &str, punctuation: bool) -> String {
@@ -286,7 +278,9 @@ impl OpenCC {
 
         DictRefs::new(&round_1)
             .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            })
     }
 
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
@@ -299,7 +293,9 @@ impl OpenCC {
         let round_2 = [&self.dictionary.hk_variants];
         DictRefs::new(&round_1)
             .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            })
     }
 
     pub fn hk2s(&self, input: &str, punctuation: bool) -> String {
@@ -315,13 +311,17 @@ impl OpenCC {
         }
         DictRefs::new(&round_1)
             .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs))
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            })
     }
 
     pub fn t2tw(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_variants];
         let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -331,7 +331,9 @@ impl OpenCC {
         let round_2 = [&self.dictionary.tw_variants];
         let output = DictRefs::new(&round_1)
             .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -342,7 +344,9 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -355,7 +359,9 @@ impl OpenCC {
         let round_2 = [&self.dictionary.tw_phrases_rev];
         let output = DictRefs::new(&round_1)
             .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -363,7 +369,9 @@ impl OpenCC {
     pub fn t2hk(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.hk_variants];
         let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -374,7 +382,9 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev,
         ];
         let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -382,7 +392,9 @@ impl OpenCC {
     pub fn t2jp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.jp_variants];
         let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -394,7 +406,9 @@ impl OpenCC {
             &self.dictionary.jp_variants_rev,
         ];
         let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs| self.segment_replace(input, refs));
+            .apply_segment_replace(input, |input, refs, max_len| {
+                self.segment_replace(input, refs, max_len)
+            });
 
         output
     }
@@ -509,41 +523,46 @@ impl OpenCC {
     }
 }
 
-// #[derive(Clone, Copy)]
+type DictRound<'a> = (&'a [&'a (FxHashMap<String, String>, usize)], usize);
+
 pub struct DictRefs<'a> {
-    round_1: &'a [&'a (FxHashMap<String, String>, usize)],
-    round_2: Option<&'a [&'a (FxHashMap<String, String>, usize)]>,
-    round_3: Option<&'a [&'a (FxHashMap<String, String>, usize)]>,
+    round_1: DictRound<'a>,
+    round_2: Option<DictRound<'a>>,
+    round_3: Option<DictRound<'a>>,
 }
 
 impl<'a> DictRefs<'a> {
     pub fn new(round_1: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
+        let max_len = round_1.iter().map(|(_, len)| *len).max().unwrap_or(1);
         DictRefs {
-            round_1,
+            round_1: (round_1, max_len),
             round_2: None,
             round_3: None,
         }
     }
+
     pub fn with_round_2(mut self, round_2: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
-        self.round_2 = Some(round_2);
+        let max_len = round_2.iter().map(|(_, len)| *len).max().unwrap_or(1);
+        self.round_2 = Some((round_2, max_len));
         self
     }
 
     pub fn with_round_3(mut self, round_3: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
-        self.round_3 = Some(round_3);
+        let max_len = round_3.iter().map(|(_, len)| *len).max().unwrap_or(1);
+        self.round_3 = Some((round_3, max_len));
         self
     }
 
     pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
     where
-        F: Fn(&str, &[&(FxHashMap<String, String>, usize)]) -> String,
+        F: Fn(&str, &[&(FxHashMap<String, String>, usize)], usize) -> String,
     {
-        let mut output = segment_replace(input, self.round_1);
-        if let Some(refs) = self.round_2 {
-            output = segment_replace(&output, refs);
+        let mut output = segment_replace(input, self.round_1.0, self.round_1.1);
+        if let Some((refs, max)) = &self.round_2 {
+            output = segment_replace(&output, refs, *max);
         }
-        if let Some(refs) = self.round_3 {
-            output = segment_replace(&output, refs);
+        if let Some((refs, max)) = &self.round_3 {
+            output = segment_replace(&output, refs, *max);
         }
         output
     }
