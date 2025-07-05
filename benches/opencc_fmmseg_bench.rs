@@ -3,7 +3,7 @@ use opencc_fmmseg::OpenCC;
 use std::time::Duration;
 
 fn bench_convert_s2t_100k(c: &mut Criterion) {
-    let input = "汉字转换繁體字簡體字混用的測試文字".repeat(5883); // ~100,011 characters
+    let input = "汉字转换，繁體字簡體字混用的測試文字。\n".repeat(5_000); // With punctuation + newlines
     let helper = OpenCC::new();
 
     c.bench_function("convert_s2t_100k", |b| {
@@ -14,7 +14,7 @@ fn bench_convert_s2t_100k(c: &mut Criterion) {
 }
 
 fn bench_convert_t2s_100k(c: &mut Criterion) {
-    let input = "漢字轉換繁體字簡體字混用的測試文字".repeat(5883); // ~100,011 characters
+    let input = "汉字转换，繁體字簡體字混用的測試文字。\n".repeat(5_000); // With punctuation + newlines
     let helper = OpenCC::new();
 
     c.bench_function("convert_t2s_100k", |b| {
