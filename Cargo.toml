@@ -1,8 +1,29 @@
 workspace = { members = [ "capi/opencc-fmmseg-capi", "tools/dict-generate","tools/opencc-clip", "tools/opencc-rs"] }
+
 [package]
 name = "opencc-fmmseg"
 version = "0.7.0"
 edition = "2021"
+authors = ["Laisuk Lai <laisuk@example.com>"]
+description = "High-performance OpenCC-based Chinese conversion using FMM (Forward Maximum Matching) segmentation."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/laisuk/opencc-fmmseg"
+homepage = "https://github.com/laisuk/opencc-fmmseg"
+documentation = "https://docs.rs/opencc-fmmseg"
+readme = "README.md"
+keywords = ["opencc", "chinese", "segmentation", "fmm", "conversion"]
+categories = ["text-processing", "internationalization"]
+exclude = [
+    "/.github",
+    "/tools/",
+    "/capi/",
+    "/target/",
+    "/benches/",
+    "/examples/",
+    "/tests/",
+    "*.md",
+    "*.yml"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
