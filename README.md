@@ -257,6 +257,29 @@ Last Error: No error
 - Parallelized FMM segmentation
 - GitHub Actions cross-platform release automation
 
+## 🚀 Benchmark Results: `opencc-fmmseg` Conversion Speed
+
+Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on repeated 80-character sentences with punctuation disabled (`punctuation = false`).
+
+| Input Size |  s2t Mean Time |  t2s Mean Time |
+|------------|---------------:|---------------:|
+| 100        |       45.68 µs |       43.54 µs |
+| 1,000      |      131.35 µs |      131.65 µs |
+| 10,000     |      411.68 µs |      412.80 µs |
+| 100,000    |       2.091 ms |       1.930 ms |
+| 1,000,000  |       16.62 ms |       17.11 ms |
+
+
+![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark.png)
+
+### 📊 Observations
+
+- **Linear scalability**: The performance scales almost linearly with input size.
+- `s2t` and `t2s` have **comparable performance**, with minor variation due to lexicon size and match depth.
+- At **1 million characters**, both conversions take around **16–17 ms**, yielding throughput of **~60 million chars/sec**.
+
+---
+
 ## Credits
 
 - [OpenCC](https://github.com/BYVoid/OpenCC) by [BYVoid Carbo Kuo](https://github.com/BYVoid) – Lexicon source.
