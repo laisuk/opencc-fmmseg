@@ -83,27 +83,39 @@ dict-generate      # Generate dictionary CBOR files
 ## Usage
 
 ```
-(Windows)
-opencc-rs.exe [OPTIONS] --config <conversion>
-(Linux / macOS)
-opencc-rs [OPTIONS] --config <conversion>
+opencc-rs --help
+
+OpenCC Rust: Command Line Open Chinese Converter
+
+Usage: opencc-rs.exe [OPTIONS] --config <conversion>
 
 Options:
   -i, --input <file>         Read original text from <file>.
   -o, --output <file>        Write converted text to <file>.
   -c, --config <conversion>  Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]
-  -p, --punct <boolean>      Punctuation conversion: [true|false] [default: false]
+  -p, --punct                Enable punctuation conversion.
       --in-enc <encoding>    Encoding for input: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
       --out-enc <encoding>   Encoding for output: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
+      --office               Enable Office/EPUB mode for docx, odt, epub, etc.
+      --keep-font            Preserve original font styles (only in Office mode)
+  -f, --format <ext>         Force format type: docx, xlsx, odt, epub, etc.
+      --auto-ext             Infer format from file extension (if not --format)
   -h, --help                 Print help
 ```
 
 ### Example
 
+#### Plain Text
+
 ```bash
 ./opencc-rs -c s2t -i text_simplified.txt -o text_traditional.txt
 ```
 
+#### Office Documents or EPUB
+./opencc-rs --office -c s2t --format docx -i doc_simplified.docx -o doc_traditional.docx
+```bash
+
+```
 - Supported conversions:
     - `s2t` – Simplified to Traditional
     - `s2tw` – Simplified to Traditional Taiwan
