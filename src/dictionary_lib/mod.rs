@@ -1,4 +1,12 @@
-use rayon::prelude::*;
+//! Internal module for managing and loading OpenCC dictionaries.
+//!
+//! This module defines the [`DictionaryMaxlength`] struct, which stores all necessary
+//! dictionaries and associated metadata used by the OpenCC text conversion engine.
+//! Each dictionary is paired with a maximum word length for efficient forward maximum
+//! matching (FMM) during segment-based replacement.
+//!
+//! Users generally interact with this indirectly via the `OpenCC` interface, but
+//! advanced users may access it for custom loading, serialization, or optimization.
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
@@ -13,6 +21,11 @@ use zstd::{decode_all, Decoder, Encoder};
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
+/// Represents a collection of OpenCC dictionaries paired with their maximum word lengths.
+///
+/// This structure is used internally by the `OpenCC` engine to support fast, segment-based
+/// forward maximum matching (FMM) for Chinese text conversion. Each dictionary maps a phrase
+/// or character to its target form and tracks the longest entry for lookup performance.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DictionaryMaxlength {
     pub st_characters: (FxHashMap<String, String>, usize),
@@ -32,10 +45,13 @@ pub struct DictionaryMaxlength {
     pub jp_variants: (FxHashMap<String, String>, usize),
     pub jp_variants_rev: (FxHashMap<String, String>, usize),
     pub st_punctuations: (FxHashMap<String, String>, usize),
-    pub ts_punctuations: (FxHashMap<String, String>, usize)
+    pub ts_punctuations: (FxHashMap<String, String>, usize),
 }
 
 impl DictionaryMaxlength {
+    /// Loads the default embedded Zstd-compressed dictionary.
+    ///
+    /// Recommended for normal usage, as it loads a precompiled binary blob built into the application.
     pub fn new() -> Result<Self, Box<dyn Error>> {
         Ok(Self::from_zstd().map_err(|err| {
             Self::set_last_error(&format!("Failed to load dictionary from Zstd: {}", err));
@@ -43,6 +59,7 @@ impl DictionaryMaxlength {
         })?)
     }
 
+    /// Loads dictionary from an embedded Zstd-compressed CBOR blob.
     pub fn from_zstd() -> Result<Self, DictionaryError> {
         // Embedded compressed CBOR file at compile time
         let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
@@ -59,6 +76,7 @@ impl DictionaryMaxlength {
         Ok(dictionary)
     }
 
+    /// Loads dictionary from an embedded CBOR file.
     pub fn from_cbor() -> Result<Self, Box<dyn Error>> {
         let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
         match from_slice(cbor_bytes) {
@@ -70,6 +88,9 @@ impl DictionaryMaxlength {
         }
     }
 
+    /// Loads dictionary from plaintext `.txt` dictionary files.
+    ///
+    /// This method is used primarily for development and regeneration.
     pub fn from_dicts() -> Result<Self, Box<dyn Error>> {
         let stc_file_path = "dicts/STCharacters.txt";
         let stp_file_path = "dicts/STPhrases.txt";
@@ -122,6 +143,7 @@ impl DictionaryMaxlength {
         })
     }
 
+    #[doc(hidden)]
     fn load_dictionary_maxlength(
         dictionary_content: &str,
     ) -> io::Result<(FxHashMap<String, String>, usize)> {
@@ -146,41 +168,7 @@ impl DictionaryMaxlength {
         Ok((dictionary, max_length))
     }
 
-    #[allow(dead_code)]
-    fn load_dictionary_maxlength_par(
-        dictionary_content: &str,
-    ) -> io::Result<(FxHashMap<String, String>, usize)> {
-        let dictionary = Mutex::new(FxHashMap::default());
-        let max_length = Mutex::new(1);
-
-        dictionary_content.par_lines().for_each(|line| {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 2 {
-                let phrase = parts[0].to_string();
-                let translation = parts[1].to_string();
-                let char_count = phrase.chars().count();
-
-                // Update max_length in a thread-safe way
-                let mut max_len_guard = max_length.lock().unwrap();
-                if *max_len_guard < char_count {
-                    *max_len_guard = char_count;
-                }
-
-                // Insert into dictionary in a thread-safe way
-                let mut dict_guard = dictionary.lock().unwrap();
-                dict_guard.insert(phrase, translation);
-            } else {
-                eprintln!("Invalid line format: {}", line);
-            }
-        });
-
-        let dictionary = Mutex::into_inner(dictionary).unwrap();
-        let max_length = Mutex::into_inner(max_length).unwrap();
-
-        Ok((dictionary, max_length))
-    }
-
-    /// Serialize dictionary to CBOR file
+    /// Serializes the dictionary to a CBOR file.
     pub fn serialize_to_cbor<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn Error>> {
         match serde_cbor::to_vec(self) {
             Ok(cbor_data) => {
@@ -197,7 +185,7 @@ impl DictionaryMaxlength {
         }
     }
 
-    /// Deserialize dictionary from CBOR file
+    /// Deserializes the dictionary from a CBOR file.
     pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
         match fs::read(&path) {
             Ok(cbor_data) => match from_slice(&cbor_data) {
@@ -214,18 +202,19 @@ impl DictionaryMaxlength {
         }
     }
 
-    // Function to set the last error message
+    /// Records the last error message encountered during dictionary operations.
     pub fn set_last_error(err_msg: &str) {
         let mut last_error = LAST_ERROR.lock().unwrap();
         *last_error = Some(err_msg.to_string());
     }
 
-    // Function to retrieve the last error message
+    /// Retrieves the last error message set during dictionary loading or saving.
     pub fn get_last_error() -> Option<String> {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()
     }
 
+    /// Saves the dictionary to a Zstd-compressed CBOR file on disk.
     pub fn save_compressed(
         dictionary: &DictionaryMaxlength,
         path: &str,
@@ -242,6 +231,7 @@ impl DictionaryMaxlength {
         Ok(())
     }
 
+    /// Loads the dictionary from a Zstd-compressed CBOR file on disk.
     pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
         let file = File::open(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
         let reader = BufReader::new(file);
@@ -254,6 +244,14 @@ impl DictionaryMaxlength {
 }
 
 impl Default for DictionaryMaxlength {
+    /// Creates an empty `DictionaryMaxlength` with all dictionaries initialized
+    /// to empty `FxHashMap`s and their max word lengths set to `0`.
+    ///
+    /// This is primarily used as a fallback when dictionary loading fails, or
+    /// for testing and placeholder scenarios where real dictionary data is not needed.
+    ///
+    /// Most users should prefer `DictionaryMaxlength::new()` or `from_zstd()` to load
+    /// real data. This implementation ensures structural completeness but contains no mappings.
     fn default() -> Self {
         Self {
             st_characters: (FxHashMap::default(), 0),
@@ -278,6 +276,20 @@ impl Default for DictionaryMaxlength {
     }
 }
 
+/// Represents possible errors that can occur during dictionary loading, parsing, or serialization.
+///
+/// This enum is used throughout the `dictionary_lib` module to wrap low-level I/O or CBOR parsing
+/// failures. It provides a unified error type for convenience and compatibility with standard
+/// Rust error handling.
+///
+/// # Variants
+/// - `IoError(String)` — An error occurred during file access, reading, or writing.
+/// - `ParseError(String)` — An error occurred while deserializing or parsing CBOR or dictionary text.
+///
+/// This error type is used in methods such as:
+/// - [`DictionaryMaxlength::from_zstd()`]
+/// - [`DictionaryMaxlength::load_compressed()`]
+/// - [`DictionaryMaxlength::from_dicts()`]
 #[derive(Debug)]
 pub enum DictionaryError {
     IoError(String),
