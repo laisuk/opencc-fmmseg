@@ -24,7 +24,7 @@ fn main() {
   let input = "汉字转换测试";
   let opencc = OpenCC::new();
   let output = opencc.convert(input, "s2t", false);
-  println!("{}", output);
+  println!("{}", output);  // 漢字轉換測試
 }
 ```
 
@@ -130,9 +130,17 @@ Options:
 By default, it uses OpenCC's built-in lexicon paths. You can also provide your own lexicon folder as the fourth
 argument.
 
-## Library Usage
+## 📚 Library Usage
 
-You can also use `opencc-fmmseg` as a library:
+You can also use `opencc-fmmseg` as a library:  
+To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+opencc-fmmseg = "0.7.0"
+```
+
+Then use it in your code:
 
 ```rust
 use opencc_fmmseg::OpenCC;
@@ -144,6 +152,11 @@ fn main() {
     println!("{}", output); // -> "這是一個測試"
 }
 ```
+
+> 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
+📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.7.0/opencc_fmmseg/)
+
+---
 
 ## 🧩 C/C++ Integration (`opencc_fmmseg_capi`)
 
