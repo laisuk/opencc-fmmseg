@@ -174,9 +174,9 @@ You can link against the shared library and call the segmentation/convert functi
 
 ```c
 #include "opencc_fmmseg_capi.h"
-void* handle = opencc_fmmseg_new("s2t");
-const char* result = opencc_fmmseg_convert(handle, "汉字");
-opencc_fmmseg_delete(handle);
+void* handle = opencc_new("s2t");
+const char* result = opencc_convert(handle, "汉字");
+opencc_delete(handle);
 ```
 
 ### Example 2
