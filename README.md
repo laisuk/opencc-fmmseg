@@ -55,7 +55,7 @@ include/ # C API header + C++ helper header
 
 - 📦 Simple CLI tool for converting between Simplified and Traditional Chinese.
 - 🔍 Lexicon-driven segmentation using OpenCC dictionaries.
-- ⚡ High performance using parallel processing (`rayon`).
+- ⚡ High performance using parallel processing.
 - 🛠️ Designed to be easily embedded as a Rust library or used standalone.
 
 ## Installation
@@ -112,6 +112,8 @@ Options:
 ```
 
 #### Office Documents or EPUB
+
+- Supported OpenDocument formats: `.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods`, `.odp`, `.epub` 
 
 ```bash
 ./opencc-rs --office -c s2t --format docx -i doc_simplified.docx -o doc_traditional.docx
