@@ -280,6 +280,11 @@ Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on re
 
 ![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark.png)
 
+### 🏅 Highlights
+
+![Throughput](https://img.shields.io/badge/Throughput-~60M%20chars%2Fsec-blue)
+![Safe & Parallel](https://img.shields.io/badge/Safe%20%26%20Parallel-Yes-ff69b4)
+
 ### 📊 Observations
 
 - **Linear scalability**: The performance scales almost linearly with input size.
