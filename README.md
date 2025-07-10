@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/crates/l/opencc-fmmseg)](https://github.com/laisuk/opencc-fmmseg/blob/master/LICENSE)
 ![Build Status](https://github.com/laisuk/opencc-fmmseg/actions/workflows/rust.yml/badge.svg)
 
-**opencc-fmmseg** is a high-performance Chinese text conversion and segmentation engine.  
+**opencc-fmmseg** is a high-performance Rust-based engine for Chinese text conversion.    
 It combines [OpenCC](https://github.com/BYVoid/OpenCC)'s lexicons with an
 optimized [Forward Maximum Matching (FMM)](https://en.wikipedia.org/wiki/Maximum_matching) algorithm, suitable for:
 
