@@ -994,19 +994,6 @@ impl<'a> DictRefs<'a> {
     ///
     /// # Returns
     /// A fully transformed string after applying all configured dictionary rounds.
-    ///
-    /// # Example
-    /// ```rust
-    /// use opencc_fmmseg::{DictRefs, OpenCC};
-    /// use rustc_hash::FxHashMap;
-    ///
-    /// let dummy_dict: FxHashMap<String, String> = FxHashMap::default();
-    /// let dict_refs = DictRefs::new(&[&(dummy_dict, 1_usize)]);
-    ///
-    /// let output = dict_refs.apply_segment_replace("测试文本", |segment, _dicts, _max_len| {
-    ///     segment.to_owned() // Simulated segment replacement
-    /// });
-    /// ```
     pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
     where
         F: Fn(&str, &[&(FxHashMap<String, String>, usize)], usize) -> String,
