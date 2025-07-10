@@ -257,6 +257,8 @@ Last Error: No error
 - Parallelized FMM segmentation
 - GitHub Actions cross-platform release automation
 
+---
+
 ## 🚀 Benchmark Results: `opencc-fmmseg` Conversion Speed
 
 Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on repeated 80-character sentences with punctuation disabled (`punctuation = false`).
