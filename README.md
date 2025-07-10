@@ -112,9 +112,9 @@ Options:
 ```
 
 #### Office Documents or EPUB
-./opencc-rs --office -c s2t --format docx -i doc_simplified.docx -o doc_traditional.docx
-```bash
 
+```bash
+./opencc-rs --office -c s2t --format docx -i doc_simplified.docx -o doc_traditional.docx
 ```
 - Supported conversions:
     - `s2t` – Simplified to Traditional
