@@ -66,6 +66,8 @@ cd opencc-fmmseg
 cargo build --release --workspace
 ```
 
+---
+
 ## 🚀 CLI Usage
 
 The CLI tool will be located at:
@@ -131,6 +133,8 @@ Options:
 
 By default, it uses OpenCC's built-in lexicon paths. You can also provide your own lexicon folder as the fourth
 argument.
+
+---
 
 ## 📚 Library Usage
 
@@ -242,6 +246,8 @@ Last Error: No error
 - `opencc_zho_check(...)` to detect zh-Hant (1), zh-Hans (2), others (0).
 - Parallelism support can be queried using `opencc_get_parallel()`.
 - Errors are returned from `opencc_last_error()`.
+
+---
 
 ## Project Structure
 
