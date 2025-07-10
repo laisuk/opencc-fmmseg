@@ -12,7 +12,7 @@ homepage = "https://github.com/laisuk/opencc-fmmseg"
 documentation = "https://docs.rs/opencc-fmmseg"
 readme = "README.md"
 keywords = ["opencc", "chinese", "segmentation", "fmm", "conversion"]
-categories = ["text-processing", "internationalization"]
+categories = ["text-processing", "localization", "command-line-utilities", "parser-implementations"]
 exclude = [
     "/.github",
     "/tools/",
