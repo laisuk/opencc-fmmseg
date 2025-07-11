@@ -283,7 +283,6 @@ Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on re
 
 ### 🏅 Highlights
 
-![Throughput](https://img.shields.io/badge/Throughput-~60M%20chars%2Fsec-blue)
 ![Safe & Parallel](https://img.shields.io/badge/Safe%20%26%20Parallel-Yes-ff69b4)
 
 ### 📊 Observations
