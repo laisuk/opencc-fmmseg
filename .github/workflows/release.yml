@@ -35,7 +35,7 @@ jobs:
 
       - name: Prepare Structured Release Folder
         run: |
-          mkdir -p dist/bin dist/lib dist/include dist/dicts
+          mkdir -p dist/bin/dicts dist/lib dist/include
 
           cp target/release/opencc-rs${{ matrix.bin_ext }} dist/bin/
           cp target/release/opencc-clip${{ matrix.bin_ext }} dist/bin/
@@ -49,7 +49,7 @@ jobs:
             cp target/release/opencc_fmmseg_capi.dll.lib dist/lib/
           fi
           
-          cp dicts/*.txt dist/dicts/
+          cp dicts/*.txt dist/bin/dicts/
         shell: bash
 
       # Create version.txt and README.txt
@@ -60,7 +60,7 @@ jobs:
           echo "Opencc-Fmmseg ${{ github.ref_name }}" > dist/README.txt
           echo "" >> dist/README.txt
           echo "Included folders:" >> dist/README.txt
-          echo "- bin/: Command-line tools (opencc-rs, opencc-clip, dict-generate)" >> dist/README.txt
+          echo "- bin/: Command-line tools (opencc-rs, opencc-clip, dict-generate) and dicts/ folder used at runtime" >> dist/README.txt
           echo "- lib/: C API shared library (platform-specific)" >> dist/README.txt
           echo "- include/: C API header and C++ header-only helper" >> dist/README.txt
           echo "- dicts/: Dictionary TXT files for dict-generate" >> dist/README.txt
