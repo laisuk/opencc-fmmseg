@@ -26,12 +26,62 @@ use std::sync::Mutex;
 
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
+
 /// Thread-safe holder for the last error message (if any).
 static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
-const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
+// const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 /// Regular expression used to normalize or strip punctuation from input.
 static STRIP_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_著]").unwrap());
+
+/// Defines different delimiter modes for segmenting input text.
+///
+/// - `Minimal`: Only line breaks (`\n`). Useful for structured formats like Markdown, chat logs, or CSV.
+/// - `Normal`: Common Chinese sentence delimiters plus `\n`. Ideal for general text, balances split quality and performance.
+/// - `Full`: A comprehensive set of Chinese/ASCII punctuation and whitespace. Suitable for high segmentation granularity.
+#[derive(Debug, Clone, Copy)]
+pub enum DelimiterMode {
+    Minimal,
+    Normal,
+    Full,
+}
+
+/// Returns a [`FxHashSet<char>`] containing the delimiter characters for the given [`DelimiterMode`].
+///
+/// This is used during character-level segmentation in `get_chars_range()` to split text into logical units.
+///
+/// # Parameters
+///
+/// - `mode`: The delimiter mode to use (`Minimal`, `Normal`, or `Full`).
+///
+/// # Returns
+///
+/// A `FxHashSet<char>` containing all characters that should be treated as segment delimiters.
+///
+/// # Examples
+///
+/// ```
+/// let delimiters = opencc_fmmseg::get_delimiters(opencc_fmmseg::DelimiterMode::Normal);
+/// assert!(delimiters.contains(&'。'));
+/// ```
+pub fn get_delimiters(mode: DelimiterMode) -> FxHashSet<char> {
+    match mode {
+        DelimiterMode::Minimal => "\n",
+        DelimiterMode::Normal => "，。！？\n",
+        DelimiterMode::Full => " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：",
+    }
+        .chars()
+        .collect()
+}
+
+/// Default set of delimiters used for text segmentation.
+///
+/// Initialized using [`DelimiterMode::Full`] for fine-grained splitting suitable for
+/// parallel processing with [`rayon`] when processing long or mixed-language input.
+///
+/// This static value is used when no explicit mode is provided.
+pub static DELIMITERS_DEFAULT: Lazy<FxHashSet<char>> =
+    Lazy::new(|| get_delimiters(DelimiterMode::Full));
 
 /// Central interface for performing OpenCC-based conversion with segmentation.
 ///
@@ -74,7 +124,7 @@ impl OpenCC {
             Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             DictionaryMaxlength::default()
         });
-        let delimiters = DELIMITERS.chars().collect();
+        let delimiters = DELIMITERS_DEFAULT.clone();
         let is_parallel = true;
 
         OpenCC {
@@ -107,7 +157,7 @@ impl OpenCC {
             Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             DictionaryMaxlength::default()
         });
-        let delimiters = DELIMITERS.chars().collect();
+        let delimiters = DELIMITERS_DEFAULT.clone();
         let is_parallel = true;
 
         OpenCC {
@@ -148,7 +198,7 @@ impl OpenCC {
                 Self::set_last_error(&format!("Failed to create dictionary: {}", err));
                 DictionaryMaxlength::default()
             });
-        let delimiters = DELIMITERS.chars().collect();
+        let delimiters = DELIMITERS_DEFAULT.clone();
         let is_parallel = true;
 
         OpenCC {
@@ -196,7 +246,7 @@ impl OpenCC {
             text.chars().collect()
         };
 
-        let ranges = self.get_chars_range(&chars);
+        let ranges = self.get_chars_range(&chars, true);
 
         if self.is_parallel {
             ranges
@@ -213,27 +263,37 @@ impl OpenCC {
 
     /// Splits a slice of characters into a list of index ranges based on delimiter boundaries.
     ///
-    /// This function identifies ranges within the character slice where the content is **not split**
-    /// by delimiters (e.g., punctuation, spaces). Each range is defined as a `start..end` index,
-    /// where `end` is exclusive. Delimiters themselves are included as their own ranges.
+    /// This function identifies ranges within the character slice where the content is segmented
+    /// by delimiters (e.g., punctuation, spaces). Each range is defined as `start..end` where `end` is exclusive.
     ///
-    /// This is typically used during segmentation, where the text is split by Chinese or ASCII
-    /// delimiters and only non-delimiter segments are subject to dictionary-based transformation.
+    /// # Parameters
+    /// - `chars`: The input slice of characters to be split.
+    /// - `inclusive`: If `true`, each segment includes the delimiter at the end.
+    ///                If `false`, the delimiter is split into its own range.
     ///
     /// # Behavior
-    /// - A delimiter at position `i` causes a range from `start..i+1` to be added.
-    /// - The delimiter itself is included in the range to preserve punctuation in output.
+    /// - If `inclusive == true`: a delimiter at position `i` causes a range from `start..i+1`.
+    /// - If `inclusive == false`: two ranges are emitted: `start..i` (content) and `i..i+1` (delimiter).
     /// - If there is trailing content after the last delimiter, it is included as the final range.
     ///
     /// # Returns
     /// A vector of `std::ops::Range<usize>` representing all segment boundaries.
-    fn get_chars_range(&self, chars: &[char]) -> Vec<std::ops::Range<usize>> {
+    fn get_chars_range(&self, chars: &[char], inclusive: bool) -> Vec<std::ops::Range<usize>> {
         let mut ranges = Vec::new();
         let mut start = 0;
 
         for (i, ch) in chars.iter().enumerate() {
             if self.delimiters.contains(ch) {
-                ranges.push(start..i + 1); // now exclusive end
+                if inclusive {
+                    if i + 1 > start {
+                        ranges.push(start..i + 1);
+                    }
+                } else {
+                    if i > start {
+                        ranges.push(start..i);
+                    }
+                    ranges.push(i..i + 1);
+                }
                 start = i + 1;
             }
         }

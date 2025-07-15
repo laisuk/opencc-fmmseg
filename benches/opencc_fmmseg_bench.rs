@@ -4,8 +4,8 @@ use std::time::Duration;
 use once_cell::sync::Lazy;
 
 // Base text of length ~80
-static BASE_SIMP: &str = "蟹者之王，应该是大闸蟹。市面上能买到的螃蟹，我都试过，也有些不卖的，全部加起来，一比较，就知道没有一种蟹比大闸蟹更香了。";
-static BASE_TRAD: &str = "蟹者之王，應該是大閘蟹。市面上能買到的螃蟹，我都試過，也有些不賣的，全部加起來，一比較，就知道沒有一種蟹比大閘蟹更香了。";
+static BASE_SIMP: &str = "蟹者之王，应该是大闸蟹。市面上能买到的螃蟹，我都试过，也有些不卖的，全部加起来，一比较，就知道没有一种蟹比大闸蟹更香了。\n";
+static BASE_TRAD: &str = "蟹者之王，應該是大閘蟹。市面上能買到的螃蟹，我都試過，也有些不賣的，全部加起來，一比較，就知道沒有一種蟹比大閘蟹更香了。\n";
 
 // Shared OpenCC instance
 static OPENCC: Lazy<OpenCC> = Lazy::new(OpenCC::new);

@@ -244,4 +244,68 @@ mod tests {
             println!("Extra character in DELIMITERS2: {}", c);
         }
     }
+
+    #[test]
+    fn test_split_ranges_on_newline() {
+        use std::ops::Range;
+
+        // Simulate your struct with delimiters
+        struct Dummy {
+            delimiters: FxHashSet<char>,
+        }
+
+        impl Dummy {
+            fn get_chars_range(&self, chars: &[char], inclusive: bool) -> Vec<Range<usize>> {
+                let mut ranges = Vec::new();
+                let mut start = 0;
+
+                for (i, ch) in chars.iter().enumerate() {
+                    if self.delimiters.contains(ch) {
+                        if inclusive {
+                            if i + 1 > start {
+                                ranges.push(start..i + 1);
+                            }
+                        } else {
+                            if i > start {
+                                ranges.push(start..i);
+                            }
+                            ranges.push(i..i + 1);
+                        }
+                        start = i + 1;
+                    }
+                }
+
+                if start < chars.len() {
+                    ranges.push(start..chars.len());
+                }
+
+                ranges
+            }
+        }
+
+        use rustc_hash::FxHashSet;
+
+        let dummy = Dummy {
+            delimiters: FxHashSet::from_iter("\n".chars()),
+        };
+
+        let base = "你好世界\n";
+        let text = base.repeat(3); // "你好世界\n你好世界\n你好世界\n"
+        let chars: Vec<char> = text.chars().collect();
+
+        let ranges = dummy.get_chars_range(&chars, true);
+
+        // Print result
+        for (i, range) in ranges.iter().enumerate() {
+            let segment: String = chars[range.clone()].iter().collect();
+            println!("Segment {}: [{}..{}] = {:?}", i, range.start, range.end, segment);
+        }
+
+        // Optional assertion: should have 3 segments ending with '\n'
+        assert_eq!(ranges.len(), 3);
+        for range in &ranges {
+            assert_eq!(chars[range.end - 1], '\n');
+        }
+    }
+
 }
