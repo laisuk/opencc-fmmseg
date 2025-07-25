@@ -23,10 +23,10 @@ optimized [Forward Maximum Matching (FMM)](https://en.wikipedia.org/wiki/Maximum
 use opencc_fmmseg::OpenCC;
 
 fn main() {
-  let input = "汉字转换测试";
-  let opencc = OpenCC::new();
-  let output = opencc.convert(input, "s2t", false);
-  println!("{}", output);  // 漢字轉換測試
+    let input = "汉字转换测试";
+    let opencc = OpenCC::new();
+    let output = opencc.convert(input, "s2t", false);
+    println!("{}", output);  // 漢字轉換測試
 }
 ```
 
@@ -86,25 +86,39 @@ dict-generate      # Generate dictionary CBOR files
 
 ## Usage
 
+### `opencc-rs convert`
+
 ```
-opencc-rs --help
+Convert plain text using OpenCC
 
-OpenCC Rust: Command Line Open Chinese Converter
-
-Usage: opencc-rs.exe [OPTIONS] --config <conversion>
+Usage: opencc-rs.exe convert [OPTIONS] --config <config>
 
 Options:
-  -i, --input <file>         Read original text from <file>.
-  -o, --output <file>        Write converted text to <file>.
-  -c, --config <conversion>  Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]
-  -p, --punct                Enable punctuation conversion.
-      --in-enc <encoding>    Encoding for input: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
-      --out-enc <encoding>   Encoding for output: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
-      --office               Enable Office/EPUB mode for docx, odt, epub, etc.
-      --keep-font            Preserve original font styles (only in Office mode)
-  -f, --format <ext>         Force format type: docx, xlsx, odt, epub, etc.
-      --auto-ext             Infer format from file extension (if not --format)
-  -h, --help                 Print help
+  -i, --input <file>       Input file (use stdin if omitted for non-office documents)
+  -o, --output <file>      Output file (use stdout if omitted for non-office documents)
+  -c, --config <config>    Conversion configuration [possible values: s2t, t2s, s2tw, tw2s, s2twp, tw2sp, s2hk, hk2s, t2tw, t2twp, t2hk, tw2t, tw2tp, hk2t, t2jp, jp2t]
+  -p, --punct              Enable punctuation conversion
+      --in-enc <in_enc>    Encoding for input [default: UTF-8]
+      --out-enc <out_enc>  Encoding for output [default: UTF-8]
+  -h, --help               Print help
+```
+
+### `opencc-rs office`
+
+```
+Convert Office or EPUB documents using OpenCC
+
+Usage: opencc-rs.exe office [OPTIONS] --config <config>
+
+Options:
+  -i, --input <file>     Input file (use stdin if omitted for non-office documents)
+  -o, --output <file>    Output file (use stdout if omitted for non-office documents)
+  -c, --config <config>  Conversion configuration [possible values: s2t, t2s, s2tw, tw2s, s2twp, tw2sp, s2hk, hk2s, t2tw, t2twp, t2hk, tw2t, tw2tp, hk2t, t2jp, jp2t]
+  -p, --punct            Enable punctuation conversion
+  -f, --format <ext>     Force document format: docx, odt, epub...
+      --keep-font        Preserve original font styles
+      --auto-ext         Infer format from file extension
+  -h, --help             Print help
 ```
 
 ### Example
@@ -112,16 +126,17 @@ Options:
 #### Plain Text
 
 ```bash
-./opencc-rs -c s2t -i text_simplified.txt -o text_traditional.txt
+./opencc-rs convert -c s2t -i text_simplified.txt -o text_traditional.txt
 ```
 
 #### Office Documents or EPUB
 
-- Supported OpenDocument formats: `.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods`, `.odp`, `.epub` 
+- Supported OpenDocument formats: `.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods`, `.odp`, `.epub`
 
 ```bash
-./opencc-rs --office -c s2t --format docx -i doc_simplified.docx -o doc_traditional.docx
+./opencc-rs office -c s2t --format docx -i doc_simplified.docx -o doc_traditional.docx
 ```
+
 - Supported conversions:
     - `s2t` – Simplified to Traditional
     - `s2tw` – Simplified to Traditional Taiwan
@@ -162,7 +177,7 @@ fn main() {
 ```
 
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.7.0/opencc_fmmseg/)
+> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.7.0/opencc_fmmseg/)
 
 ---
 
@@ -269,16 +284,16 @@ Last Error: No error
 
 ## 🚀 Benchmark Results: `opencc-fmmseg` Conversion Speed
 
-Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on repeated 80-character sentences with punctuation disabled (`punctuation = false`).
+Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on repeated 80-character sentences with
+punctuation disabled (`punctuation = false`).
 
-| Input Size |  s2t Mean Time |  t2s Mean Time |
-|------------|---------------:|---------------:|
-| 100        |       45.68 µs |       43.54 µs |
-| 1,000      |      131.35 µs |      131.65 µs |
-| 10,000     |      411.68 µs |      412.80 µs |
-| 100,000    |       2.091 ms |       1.930 ms |
-| 1,000,000  |       16.62 ms |       17.11 ms |
-
+| Input Size | s2t Mean Time | t2s Mean Time |
+|------------|--------------:|--------------:|
+| 100        |      45.68 µs |      43.54 µs |
+| 1,000      |     131.35 µs |     131.65 µs |
+| 10,000     |     411.68 µs |     412.80 µs |
+| 100,000    |      2.091 ms |      1.930 ms |
+| 1,000,000  |      16.62 ms |      17.11 ms |
 
 ![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark.png)
 
@@ -290,7 +305,8 @@ Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on re
 
 - **Linear scalability**: The performance scales almost linearly with input size.
 - `s2t` and `t2s` have **comparable performance**, with minor variation due to lexicon size and match depth.
-- At **1 million characters**, both conversions take around **16–17 ms**, yielding throughput of **~60 million chars/sec**.
+- At **1 million characters**, both conversions take around **16–17 ms**, yielding throughput of **~60 million chars/sec
+  **.
 
 ---
 

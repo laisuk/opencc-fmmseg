@@ -1,7 +1,6 @@
 import ctypes
 import os
 import platform
-import sys
 
 # Determine the DLL file based on the operating system
 if platform.system() == 'Windows':
@@ -36,32 +35,38 @@ class OpenCC:
         self.lib.opencc_delete.argtypes = [ctypes.c_void_p]
         self.lib.opencc_delete.restype = None
 
-        self.opencc_instance = self.lib.opencc_new()  # Create the opencc object in the constructor
-        if self.opencc_instance is None:
-            print("Warning: Failed to initialize OpenCC C instance. Operations may not work as expected.",
-                  file=sys.stderr)
+        self._openccInstance = self.lib.opencc_new()  # Create the opencc object in the constructor
+        if self._openccInstance is None:
+            raise RuntimeError("Failed to create OpenCC converter")
 
     def __del__(self):
-        # Free the C instance when the Python object is garbage collected
-        if hasattr(self, 'opencc_instance') and self.opencc_instance:
-            if hasattr(self, 'lib') and hasattr(self.lib, 'opencc_free'):
-                self.lib.opencc_delete(self.opencc_instance)
-            self.opencc_instance = None  # Mark as freed  # Free the opencc object in the destructor
+        if hasattr(self, '_openccInstance') and self._openccInstance is not None:
+            self.lib.opencc_delete(self._openccInstance)  # Free the opencc object in the destructor
 
     def convert(self, text, punctuation=False):
-        if not hasattr(self, 'opencc_instance') or self.opencc_instance is None:
-            print("Error: OpenCC instance not available for convert.", file=sys.stderr)
-            return text
+        if not hasattr(self, '_openccInstance') or self._openccInstance is None:
+            raise RuntimeError("OpenCC converter not initialized")
         input_bytes = text.encode('utf-8')
         config_bytes = self.config.encode('utf-8')
-        result = self.lib.opencc_convert(self.opencc_instance, input_bytes, config_bytes, punctuation)
-        py_result = ctypes.string_at(result).decode('utf-8')
-        self.lib.opencc_string_free(result)
-        return py_result
+        result = self.lib.opencc_convert(self._openccInstance, input_bytes, config_bytes, punctuation)
+        if result:
+            py_result = ctypes.string_at(result).decode('utf-8')
+            self.lib.opencc_string_free(result)
+            return py_result
+        return text  # Or handle the error appropriately
 
     def zho_check(self, text):
-        if not hasattr(self, 'opencc_instance') or self.opencc_instance is None:
-            print("Error: OpenCC instance not available for zho_check.", file=sys.stderr)
-            return -1  # Indicate error, as the function is expected to return an int
-        code = self.lib.opencc_zho_check(self.opencc_instance, text.encode('utf-8'))
+        if not hasattr(self, '_openccInstance') or self._openccInstance is None:
+            raise RuntimeError("OpenCC converter not initialized")
+        code = self.lib.opencc_zho_check(self._openccInstance, text.encode('utf-8'))
         return code
+
+    def set_config(self, config):
+        if not hasattr(self, '_openccInstance') or self._openccInstance is None:
+            raise RuntimeError("OpenCC converter not initialized")
+        self.config = config
+
+    def get_config(self) -> str:
+        if not hasattr(self, '_openccInstance') or self._openccInstance is None:
+            raise RuntimeError("OpenCC converter not initialized")
+        return self.config

@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.1] - 2025*07-26
+
+### Changed
+- CLI `opencc-rs` - changed `--office` to subcommand `opencc-rs office`
+- Update STPhrases.txt
+
+---
+
 ## [0.7.0] – 2025-07-10
 
 ### Added
