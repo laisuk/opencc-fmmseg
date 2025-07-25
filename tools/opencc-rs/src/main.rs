@@ -1,5 +1,5 @@
 mod office_converter;
-use office_converter::OfficeDocConverter;
+use office_converter::OfficeConverter;
 
 use clap::{Arg, ArgMatches, Command};
 use encoding_rs::Encoding;
@@ -201,7 +201,7 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
     };
 
     let helper = OpenCC::new();
-    match OfficeDocConverter::convert(
+    match OfficeConverter::convert(
         input_file,
         &final_output,
         &office_format,

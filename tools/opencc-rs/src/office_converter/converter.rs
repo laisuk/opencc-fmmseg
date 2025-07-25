@@ -17,9 +17,9 @@ pub struct ConversionResult {
     pub message: String,
 }
 
-pub struct OfficeDocConverter;
+pub struct OfficeConverter;
 
-impl OfficeDocConverter {
+impl OfficeConverter {
     pub fn convert(
         input_path: &str,
         output_path: &str,

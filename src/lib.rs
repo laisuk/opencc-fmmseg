@@ -208,59 +208,6 @@ impl OpenCC {
         }
     }
 
-    /// Internal segment replacement logic based on maximum dictionary match.
-    ///
-    /// This method performs dictionary-based text conversion by first splitting the input text
-    /// into segments using delimiter-aware boundaries. Each segment is then processed independently
-    /// using a longest-match strategy over the provided dictionaries.
-    ///
-    /// The input is first converted to a vector of `char` to enable accurate segmentation and indexing.
-    /// It uses `self.get_chars_range()` to identify segments that are separated by delimiters
-    /// (such as spaces, punctuation, etc.), and then applies `convert_by()` on each segment.
-    ///
-    /// Parallelism is applied if `self.is_parallel` is enabled:
-    /// - Each segment is processed independently using Rayon (via `par_iter`).
-    /// - This improves throughput on large inputs, especially in multicore environments.
-    ///
-    /// # Arguments
-    /// * `text` – The input string to convert.
-    /// * `dictionaries` – A list of dictionary references, each paired with its max word length.
-    /// * `max_word_length` – The maximum length of phrases to match in the dictionary.
-    ///
-    /// # Returns
-    /// A `String` resulting from applying all dictionary replacements across each segment.
-    ///
-    /// # Notes
-    /// - Delimiters are preserved in output and not transformed.
-    /// - This is the core routine that powers all multi-round dictionary applications.
-    /// - Should not be exposed publicly; used by `DictRefs::apply_segment_replace`.
-    fn segment_replace(
-        &self,
-        text: &str,
-        dictionaries: &[&(FxHashMap<String, String>, usize)],
-        max_word_length: usize,
-    ) -> String {
-        let chars: Vec<char> = if self.is_parallel {
-            text.par_chars().collect()
-        } else {
-            text.chars().collect()
-        };
-
-        let ranges = self.get_chars_range(&chars, true);
-
-        if self.is_parallel {
-            ranges
-                .into_par_iter()
-                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
-                .collect()
-        } else {
-            ranges
-                .into_iter()
-                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
-                .collect()
-        }
-    }
-
     /// Splits a slice of characters into a list of index ranges based on delimiter boundaries.
     ///
     /// This function identifies ranges within the character slice where the content is segmented
@@ -303,6 +250,59 @@ impl OpenCC {
         }
 
         ranges
+    }
+
+    /// Internal segment replacement logic based on maximum dictionary match.
+    ///
+    /// This method performs dictionary-based text conversion by first splitting the input text
+    /// into segments using delimiter-aware boundaries. Each segment is then processed independently
+    /// using a longest-match strategy over the provided dictionaries.
+    ///
+    /// The input is first converted to a vector of `char` to enable accurate segmentation and indexing.
+    /// It uses `self.get_chars_range()` to identify segments that are separated by delimiters
+    /// (such as spaces, punctuation, etc.), and then applies `convert_by()` on each segment.
+    ///
+    /// Parallelism is applied if `self.is_parallel` is enabled:
+    /// - Each segment is processed independently using Rayon (via `par_iter`).
+    /// - This improves throughput on large inputs, especially in multicore environments.
+    ///
+    /// # Arguments
+    /// * `text` – The input string to convert.
+    /// * `dictionaries` – A list of dictionary references, each paired with its max word length.
+    /// * `max_word_length` – The maximum length of phrases to match in the dictionary.
+    ///
+    /// # Returns
+    /// A `String` resulting from applying all dictionary replacements across each segment.
+    ///
+    /// # Notes
+    /// - Delimiters are preserved in output and not transformed.
+    /// - This is the core routine that powers all multi-round dictionary applications.
+    /// - Should not be exposed publicly; used by `DictRefs::apply_segment_replace`.
+    fn segment_replace(
+        &self,
+        text: &str,
+        dictionaries: &[&(FxHashMap<String, String>, usize)],
+        max_word_length: usize,
+    ) -> String {
+        let chars: Vec<char> = if self.is_parallel {
+            text.par_chars().collect()
+        } else {
+            text.chars().collect()
+        };
+
+        let ranges = self.get_chars_range(&chars, false);
+
+        if self.is_parallel {
+            ranges
+                .into_par_iter()
+                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
+                .collect()
+        } else {
+            ranges
+                .into_iter()
+                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
+                .collect()
+        }
     }
 
     /// Core dictionary-matching routine using Forward Maximum Matching (FMM).

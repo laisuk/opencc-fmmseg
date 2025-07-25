@@ -1,2 +1,2 @@
 pub mod converter;
-pub use converter::OfficeDocConverter;
+pub use converter::OfficeConverter;
