@@ -145,7 +145,7 @@ fn get_target_xml_paths(format: &str, base_dir: &Path) -> Vec<PathBuf> {
             for entry in walkdir::WalkDir::new(base_dir) {
                 let path = entry.unwrap().path().to_path_buf();
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if matches!(ext, "xhtml" | "opf" | "ncx") {
+                if matches!(ext, "xhtml" | "opf" | "ncx" | "html") {
                     result.push(path);
                 }
             }
