@@ -10,9 +10,10 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Cursor};
+use std::io::{BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
@@ -92,54 +93,68 @@ impl DictionaryMaxlength {
     ///
     /// This method is used primarily for development and regeneration.
     pub fn from_dicts() -> Result<Self, Box<dyn Error>> {
-        let stc_file_path = "dicts/STCharacters.txt";
-        let stp_file_path = "dicts/STPhrases.txt";
-        let tsc_file_path = "dicts/TSCharacters.txt";
-        let tsp_file_path = "dicts/TSPhrases.txt";
-        let twp_file_path = "dicts/TWPhrases.txt";
-        let twpr_file_path = "dicts/TWPhrasesRev.txt";
-        let twv_file_path = "dicts/TWVariants.txt";
-        let twvr_file_path = "dicts/TWVariantsRev.txt";
-        let twvrp_file_path = "dicts/TWVariantsRevPhrases.txt";
-        let hkv_file_path = "dicts/HKVariants.txt";
-        let hkvr_file_path = "dicts/HKVariantsRev.txt";
-        let hkvrp_file_path = "dicts/HKVariantsRevPhrases.txt";
-        let jpsc_file_path = "dicts/JPShinjitaiCharacters.txt";
-        let jpsp_file_path = "dicts/JPShinjitaiPhrases.txt";
-        let jpv_file_path = "dicts/JPVariants.txt";
-        let jpvr_file_path = "dicts/JPVariantsRev.txt";
-        let stpunct_file_path = "dicts/STPunctuations.txt";
-        let tspunct_file_path = "dicts/TSPunctuations.txt";
+        let base_dir = "dicts";
 
-        fn load_dict(path: &str) -> Result<(FxHashMap<String, String>, usize), DictionaryError> {
-            let content = fs::read_to_string(path).map_err(|err| {
-                DictionaryError::IoError(format!("Failed to read file {}: {}", path, err))
+        let dict_files: HashMap<&str, &str> = [
+            ("st_characters", "STCharacters.txt"),
+            ("st_phrases", "STPhrases.txt"),
+            ("ts_characters", "TSCharacters.txt"),
+            ("ts_phrases", "TSPhrases.txt"),
+            ("tw_phrases", "TWPhrases.txt"),
+            ("tw_phrases_rev", "TWPhrasesRev.txt"),
+            ("tw_variants", "TWVariants.txt"),
+            ("tw_variants_rev", "TWVariantsRev.txt"),
+            ("tw_variants_rev_phrases", "TWVariantsRevPhrases.txt"),
+            ("hk_variants", "HKVariants.txt"),
+            ("hk_variants_rev", "HKVariantsRev.txt"),
+            ("hk_variants_rev_phrases", "HKVariantsRevPhrases.txt"),
+            ("jps_characters", "JPShinjitaiCharacters.txt"),
+            ("jps_phrases", "JPShinjitaiPhrases.txt"),
+            ("jp_variants", "JPVariants.txt"),
+            ("jp_variants_rev", "JPVariantsRev.txt"),
+            ("st_punctuations", "STPunctuations.txt"),
+            ("ts_punctuations", "TSPunctuations.txt"),
+        ]
+        .into_iter()
+        .collect();
+
+        fn load_dict(
+            base_dir: &str,
+            filename: &str,
+        ) -> Result<(FxHashMap<String, String>, usize), DictionaryError> {
+            let path = Path::new(base_dir).join(filename);
+            let path_str = path.to_string_lossy();
+            let content = fs::read_to_string(&path).map_err(|err| {
+                DictionaryError::IoError(format!("Failed to read file {}: {}", path_str, err))
             })?;
 
             DictionaryMaxlength::load_dictionary_maxlength(&content).map_err(|err| {
-                DictionaryError::ParseError(format!("Failed to parse dictionary {}: {}", path, err))
+                DictionaryError::ParseError(format!(
+                    "Failed to parse dictionary {}: {}",
+                    path_str, err
+                ))
             })
         }
 
         Ok(DictionaryMaxlength {
-            st_characters: load_dict(stc_file_path)?,
-            st_phrases: load_dict(stp_file_path)?,
-            ts_characters: load_dict(tsc_file_path)?,
-            ts_phrases: load_dict(tsp_file_path)?,
-            tw_phrases: load_dict(twp_file_path)?,
-            tw_phrases_rev: load_dict(twpr_file_path)?,
-            tw_variants: load_dict(twv_file_path)?,
-            tw_variants_rev: load_dict(twvr_file_path)?,
-            tw_variants_rev_phrases: load_dict(twvrp_file_path)?,
-            hk_variants: load_dict(hkv_file_path)?,
-            hk_variants_rev: load_dict(hkvr_file_path)?,
-            hk_variants_rev_phrases: load_dict(hkvrp_file_path)?,
-            jps_characters: load_dict(jpsc_file_path)?,
-            jps_phrases: load_dict(jpsp_file_path)?,
-            jp_variants: load_dict(jpv_file_path)?,
-            jp_variants_rev: load_dict(jpvr_file_path)?,
-            st_punctuations: load_dict(stpunct_file_path)?,
-            ts_punctuations: load_dict(tspunct_file_path)?,
+            st_characters: load_dict(base_dir, dict_files["st_characters"])?,
+            st_phrases: load_dict(base_dir, dict_files["st_phrases"])?,
+            ts_characters: load_dict(base_dir, dict_files["ts_characters"])?,
+            ts_phrases: load_dict(base_dir, dict_files["ts_phrases"])?,
+            tw_phrases: load_dict(base_dir, dict_files["tw_phrases"])?,
+            tw_phrases_rev: load_dict(base_dir, dict_files["tw_phrases_rev"])?,
+            tw_variants: load_dict(base_dir, dict_files["tw_variants"])?,
+            tw_variants_rev: load_dict(base_dir, dict_files["tw_variants_rev"])?,
+            tw_variants_rev_phrases: load_dict(base_dir, dict_files["tw_variants_rev_phrases"])?,
+            hk_variants: load_dict(base_dir, dict_files["hk_variants"])?,
+            hk_variants_rev: load_dict(base_dir, dict_files["hk_variants_rev"])?,
+            hk_variants_rev_phrases: load_dict(base_dir, dict_files["hk_variants_rev_phrases"])?,
+            jps_characters: load_dict(base_dir, dict_files["jps_characters"])?,
+            jps_phrases: load_dict(base_dir, dict_files["jps_phrases"])?,
+            jp_variants: load_dict(base_dir, dict_files["jp_variants"])?,
+            jp_variants_rev: load_dict(base_dir, dict_files["jp_variants_rev"])?,
+            st_punctuations: load_dict(base_dir, dict_files["st_punctuations"])?,
+            ts_punctuations: load_dict(base_dir, dict_files["ts_punctuations"])?,
         })
     }
 
@@ -166,6 +181,45 @@ impl DictionaryMaxlength {
         }
 
         Ok((dictionary, max_length))
+    }
+
+    /// Saves all dictionaries to plaintext `.txt` files in the specified directory.
+    pub fn to_dicts(&self, base_dir: &str) -> Result<(), Box<dyn Error>> {
+        let dict_map: HashMap<&str, &FxHashMap<String, String>> = [
+            ("STCharacters.txt", &self.st_characters.0),
+            ("STPhrases.txt", &self.st_phrases.0),
+            ("TSCharacters.txt", &self.ts_characters.0),
+            ("TSPhrases.txt", &self.ts_phrases.0),
+            ("TWPhrases.txt", &self.tw_phrases.0),
+            ("TWPhrasesRev.txt", &self.tw_phrases_rev.0),
+            ("TWVariants.txt", &self.tw_variants.0),
+            ("TWVariantsRev.txt", &self.tw_variants_rev.0),
+            ("TWVariantsRevPhrases.txt", &self.tw_variants_rev_phrases.0),
+            ("HKVariants.txt", &self.hk_variants.0),
+            ("HKVariantsRev.txt", &self.hk_variants_rev.0),
+            ("HKVariantsRevPhrases.txt", &self.hk_variants_rev_phrases.0),
+            ("JPShinjitaiCharacters.txt", &self.jps_characters.0),
+            ("JPShinjitaiPhrases.txt", &self.jps_phrases.0),
+            ("JPVariants.txt", &self.jp_variants.0),
+            ("JPVariantsRev.txt", &self.jp_variants_rev.0),
+            ("STPunctuations.txt", &self.st_punctuations.0),
+            ("TSPunctuations.txt", &self.ts_punctuations.0),
+        ]
+        .into_iter()
+        .collect();
+
+        fs::create_dir_all(base_dir)?; // ensure base_dir exists
+
+        for (filename, dict) in dict_map {
+            let path = Path::new(base_dir).join(filename);
+            let mut file = File::create(&path)?;
+
+            for (key, value) in dict {
+                writeln!(file, "{}\t{}", key, value)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Serializes the dictionary to a CBOR file.
@@ -454,5 +508,61 @@ mod tests {
 
         // Clean up: Remove the test file
         fs::remove_file(compressed_file).expect("Failed to remove test file");
+    }
+
+    #[ignore]
+    #[test]
+    fn test_to_dicts_writes_expected_txt_files() -> Result<(), Box<dyn Error>> {
+        let output_dir = "test_output_dicts";
+
+        // Clean output_dir if exists from previous runs
+        if Path::new(output_dir).exists() {
+            fs::remove_dir_all(output_dir)?;
+        }
+
+        // Dummy data for just 2 fields (you can fill more if needed)
+        let mut dummy_map = FxHashMap::default();
+        dummy_map.insert("测试".to_string(), "測試".to_string());
+        dummy_map.insert("语言".to_string(), "語言".to_string());
+
+        let dicts = DictionaryMaxlength {
+            st_characters: (dummy_map.clone(), 2),
+            st_phrases: (dummy_map.clone(), 2),
+            ts_characters: Default::default(),
+            ts_phrases: Default::default(),
+            tw_phrases: Default::default(),
+            tw_phrases_rev: Default::default(),
+            tw_variants: Default::default(),
+            tw_variants_rev: Default::default(),
+            tw_variants_rev_phrases: Default::default(),
+            hk_variants: Default::default(),
+            hk_variants_rev: Default::default(),
+            hk_variants_rev_phrases: Default::default(),
+            jps_characters: Default::default(),
+            jps_phrases: Default::default(),
+            jp_variants: Default::default(),
+            jp_variants_rev: Default::default(),
+            st_punctuations: Default::default(),
+            ts_punctuations: Default::default(),
+        };
+
+        dicts.to_dicts(output_dir)?;
+
+        // Check a few output files
+        let stc_path = format!("{}/STCharacters.txt", output_dir);
+        let stp_path = format!("{}/STPhrases.txt", output_dir);
+
+        let content_stc = fs::read_to_string(&stc_path)?;
+        let content_stp = fs::read_to_string(&stp_path)?;
+
+        assert!(content_stc.contains("测试\t測試"));
+        assert!(content_stc.contains("语言\t語言"));
+        assert!(content_stp.contains("测试\t測試"));
+        assert!(content_stp.contains("语言\t語言"));
+
+        // Cleanup
+        fs::remove_dir_all(output_dir)?;
+
+        Ok(())
     }
 }
