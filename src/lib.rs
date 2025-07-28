@@ -15,8 +15,6 @@
 //! ```
 //!
 //! See [README](https://github.com/laisuk/opencc-fmmseg) for more usage examples.
-
-use crate::dictionary_lib::DictionaryMaxlength;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
@@ -26,6 +24,7 @@ use std::sync::Mutex;
 
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
+use crate::dictionary_lib::DictionaryMaxlength;
 
 /// Thread-safe holder for the last error message (if any).
 static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
