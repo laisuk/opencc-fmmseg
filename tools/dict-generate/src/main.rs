@@ -1,5 +1,4 @@
 use clap::{Arg, Command};
-use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -7,6 +6,7 @@ use std::{fs, io};
 
 use std::time::Duration;
 use ureq::Agent;
+use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     const BLUE: &str = "\x1B[1;34m"; // Bold Blue

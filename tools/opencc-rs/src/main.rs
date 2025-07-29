@@ -211,10 +211,7 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
         keep_font,
     ) {
         Ok(result) if result.success => {
-            eprintln!(
-                "{}\n📁  Output saved to: {}",
-                result.message, final_output
-            );
+            eprintln!("{}\n📁  Output saved to: {}", result.message, final_output);
         }
         Ok(result) => {
             eprintln!("❌  Office document conversion failed: {}", result.message);

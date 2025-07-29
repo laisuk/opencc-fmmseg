@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.7.1] - 2025*07-26
+## [0.7.1] - 2025*07-29
 
 ### Added
 - dict-generate - add downloading dictionaries from GitHub if dicts/ folder missing
@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - CLI `opencc-rs` - changed `--office` to subcommand `opencc-rs office`
 - Update STPhrases.txt
+- Restructure module dictionary_lib
 
 ---
 

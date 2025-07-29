@@ -24,7 +24,7 @@ use std::sync::Mutex;
 
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
-use crate::dictionary_lib::DictionaryMaxlength;
+use dictionary_lib::DictionaryMaxlength;
 
 /// Thread-safe holder for the last error message (if any).
 static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
