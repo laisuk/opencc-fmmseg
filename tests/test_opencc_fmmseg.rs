@@ -121,7 +121,7 @@ mod tests {
         let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the JSON contains the expected data
         let expected = 16;
-        assert_eq!(dictionary.st_phrases.1, expected);
+        assert_eq!(dictionary.st_phrases.max_len, expected);
     }
 
     // Use this to generate "dictionary_maxlength.json" when you edit dicts_ data
@@ -131,7 +131,7 @@ mod tests {
         let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the Dictionary contains the expected data
         let expected = 16;
-        assert_eq!(dictionary.st_phrases.1, expected);
+        assert_eq!(dictionary.st_phrases.max_len, expected);
 
         let filename = "dictionary_maxlength.json";
         // Serialize to JSON instead of CBOR
@@ -151,7 +151,7 @@ mod tests {
 
         // Verify that the Dictionary contains the expected data
         let expected = 16;
-        assert_eq!(dictionary.st_phrases.1, expected);
+        assert_eq!(dictionary.st_phrases.max_len, expected);
 
         let filename = "dictionary_maxlength.cbor";
 

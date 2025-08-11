@@ -24,6 +24,7 @@ use std::sync::Mutex;
 
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
+use crate::dictionary_lib::dictionary_maxlength::DictMaxLen;
 use dictionary_lib::DictionaryMaxlength;
 
 /// Thread-safe holder for the last error message (if any).
@@ -280,7 +281,7 @@ impl OpenCC {
     fn segment_replace(
         &self,
         text: &str,
-        dictionaries: &[&(FxHashMap<String, String>, usize)],
+        dictionaries: &[&DictMaxLen],
         max_word_length: usize,
     ) -> String {
         let chars: Vec<char> = if self.is_parallel {
@@ -291,15 +292,18 @@ impl OpenCC {
 
         let ranges = self.get_chars_range(&chars, false);
 
+        // Build once per call for this dict set
+        let union = StarterUnion::build(dictionaries);
+
         if self.is_parallel {
             ranges
                 .into_par_iter()
-                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
+                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
                 .collect()
         } else {
             ranges
                 .into_iter()
-                .map(|r| self.convert_by(&chars[r], dictionaries, max_word_length))
+                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
                 .collect()
         }
     }
@@ -336,11 +340,198 @@ impl OpenCC {
     /// # Internal Use
     /// Called by `segment_replace()` and ultimately by `DictRefs::apply_segment_replace()`.
     /// Not intended for public use; exposed internally for performance-critical path.
-    fn convert_by(
+    // fn convert_by(
+    //     &self,
+    //     text_chars: &[char],
+    //     dictionaries: &[&DictMaxLen],
+    //     max_word_length: usize,
+    // ) -> String {
+    //     if text_chars.is_empty() {
+    //         return String::new();
+    //     }
+    //
+    //     let text_length = text_chars.len();
+    //     if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
+    //         return text_chars[0].to_string();
+    //     }
+    //
+    //     const CAP_BIT: usize = 63;
+    //
+    //     let mut result = String::with_capacity(text_length * 4);
+    //     let mut start_pos = 0;
+    //
+    //     while start_pos < text_length {
+    //         let c0 = text_chars[start_pos];
+    //         let u0 = c0 as u32;
+    //         let rem = text_length - start_pos;
+    //         let global_cap = max_word_length.min(rem);
+    //
+    //         // -------- BMP starter fast path (prebuilt indexes) --------
+    //         if u0 <= 0xFFFF {
+    //             let idx = u0 as usize;
+    //
+    //             // Union of masks over all dicts; and overall per-starter cap across dicts
+    //             let mut union_mask: u64 = 0;
+    //             let mut overall_cap: usize = 0;
+    //
+    //             for &dict in dictionaries {
+    //                 let cap = dict.first_char_max_len[idx] as usize;
+    //                 if cap == 0 {
+    //                     continue; // this dict has no entries starting with c0
+    //                 }
+    //                 union_mask |= dict.first_len_mask64[idx];
+    //
+    //                 // respect both dict.max_len and per-starter cap
+    //                 let dict_cap = cap.min(dict.max_len);
+    //                 if dict_cap > overall_cap {
+    //                     overall_cap = dict_cap;
+    //                 }
+    //             }
+    //
+    //             // If no dict has any entry for this starter, emit char and continue
+    //             if union_mask == 0 || overall_cap == 0 {
+    //                 result.push(c0);
+    //                 start_pos += 1;
+    //                 continue;
+    //             }
+    //
+    //             // Final cap cannot exceed remaining/global limits
+    //             let cap_here = overall_cap.min(global_cap);
+    //
+    //             let mut matched = false;
+    //
+    //             // Try longest -> shortest
+    //             for length in (1..=cap_here).rev() {
+    //                 // Skip impossible lengths quickly via mask
+    //                 let bit = if length >= 64 { CAP_BIT } else { length - 1 };
+    //                 if (union_mask & (1u64 << bit)) == 0 {
+    //                     continue;
+    //                 }
+    //
+    //                 let slice = &text_chars[start_pos..start_pos + length];
+    //
+    //                 // Probe each dict that *could* have this length for this starter
+    //                 for &dict in dictionaries {
+    //                     if dict.max_len < length {
+    //                         continue;
+    //                     }
+    //                     let cap = dict.first_char_max_len[idx] as usize;
+    //                     if cap < length {
+    //                         continue;
+    //                     }
+    //                     if let Some(val) = dict.map.get(slice) {
+    //                         result.push_str(val);
+    //                         start_pos += length;
+    //                         matched = true;
+    //                         break;
+    //                     }
+    //                 }
+    //                 if matched {
+    //                     break;
+    //                 }
+    //             }
+    //
+    //             if matched {
+    //                 continue;
+    //             } else {
+    //                 // No phrase matched — emit one char
+    //                 result.push(c0);
+    //                 start_pos += 1;
+    //                 continue;
+    //             }
+    //         }
+    //
+    //         // -------- Non-BMP (astral) starter fast path (on-the-fly) --------
+    //         // Build a union mask + overall cap for this starter by scanning only dicts that
+    //         // *claim* to have entries for c0 via starter_cap. Astrals are rare, so this is fine.
+    //         let mut union_mask: u64 = 0;
+    //         let mut overall_cap: usize = 0;
+    //
+    //         for &dict in dictionaries {
+    //             // Quick skip if this dict has no entries starting with c0
+    //             let Some(&cap_u8) = dict.starter_cap.get(&c0) else {
+    //                 continue;
+    //             };
+    //             let dict_cap = (cap_u8 as usize).min(dict.max_len);
+    //             if dict_cap == 0 {
+    //                 continue;
+    //             }
+    //             if dict_cap > overall_cap {
+    //                 overall_cap = dict_cap;
+    //             }
+    //
+    //             // Collect length bits for this starter in this dict
+    //             // (scan keys only for this starter)
+    //             for k in dict.map.keys() {
+    //                 if k.first().copied() != Some(c0) {
+    //                     continue;
+    //                 }
+    //                 let len = k.len();
+    //                 let bit = if len >= 64 { CAP_BIT } else { len - 1 };
+    //                 union_mask |= 1u64 << bit;
+    //             }
+    //         }
+    //
+    //         // No dict has any astral entry starting with this char
+    //         if union_mask == 0 || overall_cap == 0 {
+    //             result.push(c0);
+    //             start_pos += 1;
+    //             continue;
+    //         }
+    //
+    //         let cap_here = overall_cap.min(global_cap);
+    //         let mut matched = false;
+    //
+    //         // Try longest -> shortest, pruning by union mask
+    //         for length in (1..=cap_here).rev() {
+    //             let bit = if length >= 64 { CAP_BIT } else { length - 1 };
+    //             if (union_mask & (1u64 << bit)) == 0 {
+    //                 continue;
+    //             }
+    //
+    //             let slice = &text_chars[start_pos..start_pos + length];
+    //
+    //             // Probe dicts (astral: we don't have per-dict mask/cap; probing is rare)
+    //             for &dict in dictionaries {
+    //                 if dict.max_len < length {
+    //                     continue;
+    //                 }
+    //                 // Optional micro-prune: skip if starter_cap for this dict < length
+    //                 if let Some(&cap_u8) = dict.starter_cap.get(&c0) {
+    //                     if (cap_u8 as usize) < length {
+    //                         continue;
+    //                     }
+    //                 } else {
+    //                     continue;
+    //                 }
+    //
+    //                 if let Some(val) = dict.map.get(slice) {
+    //                     result.push_str(val);
+    //                     start_pos += length;
+    //                     matched = true;
+    //                     break;
+    //                 }
+    //             }
+    //             if matched {
+    //                 break;
+    //             }
+    //         }
+    //
+    //         if !matched {
+    //             result.push(text_chars[start_pos]);
+    //             start_pos += 1;
+    //         }
+    //     }
+    //
+    //     result
+    // }
+
+    pub fn convert_by_union(
         &self,
         text_chars: &[char],
-        dictionaries: &[&(FxHashMap<String, String>, usize)],
+        dictionaries: &[&DictMaxLen],
         max_word_length: usize,
+        union: &StarterUnion,
     ) -> String {
         if text_chars.is_empty() {
             return String::new();
@@ -351,47 +542,149 @@ impl OpenCC {
             return text_chars[0].to_string();
         }
 
+        // const CAP_BIT: usize = 63;
         let mut result = String::with_capacity(text_length * 4);
-        let mut candidate = String::with_capacity(max_word_length * 4);
         let mut start_pos = 0;
 
         while start_pos < text_length {
-            let max_length = std::cmp::min(max_word_length, text_length - start_pos);
-            let mut best_match_length = 0;
-            let mut best_match: &str = "";
+            let c0 = text_chars[start_pos];
+            let u0 = c0 as u32;
+            let rem = text_length - start_pos;
+            let global_cap = max_word_length.min(rem);
 
-            for length in (1..=max_length).rev() {
-                candidate.clear();
-                candidate.extend(&text_chars[start_pos..start_pos + length]);
+            // Pull precomputed mask + cap
+            let (mask, cap_u16) = if u0 <= 0xFFFF {
+                let idx = u0 as usize;
+                (union.bmp_mask[idx], union.bmp_cap[idx])
+            } else {
+                (
+                    *union.astral_mask.get(&c0).unwrap_or(&0),
+                    *union.astral_cap.get(&c0).unwrap_or(&0),
+                )
+            };
 
-                for dictionary in dictionaries {
-                    if dictionary.1 < length {
+            if mask == 0 || cap_u16 == 0 {
+                result.push(c0);
+                start_pos += 1;
+                continue;
+            }
+
+            let cap_here = global_cap.min(cap_u16 as usize);
+            let mut matched = false;
+
+            // Longest -> shortest, only lengths whose bit is set
+            // for length in (1..=cap_here).rev() {
+            //     let bit = if length >= 64 { CAP_BIT } else { length - 1 };
+            //     if (mask & (1u64 << bit)) == 0 { continue; }
+            //
+            //     let slice = &text_chars[start_pos..start_pos + length];
+            //
+            //     // Probe only dicts that can possibly have this length for this starter
+            //     for &dict in dictionaries {
+            //         if dict.max_len < length { continue; }
+            //
+            //         if u0 <= 0xFFFF {
+            //             let idx = u0 as usize;
+            //             if (dict.first_char_max_len[idx] as usize) < length { continue; }
+            //         } else if let Some(&cap_u8) = dict.starter_cap.get(&c0) {
+            //             if (cap_u8 as usize) < length { continue; }
+            //         } else {
+            //             continue;
+            //         }
+            //
+            //         if let Some(val) = dict.map.get(slice) {
+            //             result.push_str(val);
+            //             start_pos += length;
+            //             matched = true;
+            //             break;
+            //         }
+            //     }
+            //     if matched { break; }
+            // }
+            Self::for_each_len_dec(mask, cap_here, |length| {
+                let slice = &text_chars[start_pos..start_pos + length];
+
+                // Probe only dicts that can possibly have this length for this starter
+                for &dict in dictionaries {
+                    if dict.max_len < length {
                         continue;
                     }
-                    if let Some(value) = dictionary.0.get(&candidate) {
-                        best_match_length = length;
-                        best_match = value;
-                        break;
+
+                    if u0 <= 0xFFFF {
+                        let idx = u0 as usize;
+                        if (dict.first_char_max_len[idx] as usize) < length {
+                            continue;
+                        }
+                    } else if let Some(&cap_u8) = dict.starter_cap.get(&c0) {
+                        if (cap_u8 as usize) < length {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+
+                    if let Some(val) = dict.map.get(slice) {
+                        result.push_str(val);
+                        start_pos += length;
+                        matched = true;
+                        return true; // stop iterating lengths
                     }
                 }
 
-                if best_match_length > 0 {
-                    break;
-                }
-            }
+                false // keep iterating lengths
+            });
 
-            if best_match_length == 0 {
-                best_match_length = 1;
-                candidate.clear();
-                candidate.push(text_chars[start_pos]);
-                best_match = &candidate;
+            if !matched {
+                result.push(c0);
+                start_pos += 1;
             }
-
-            result.push_str(best_match);
-            start_pos += best_match_length;
         }
 
         result
+    }
+
+    #[inline]
+    fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool) {
+        // bit 63 means "len >= 64"
+        const CAP_BIT: usize = 63;
+        if cap_here == 0 {
+            return;
+        }
+
+        // First handle lengths > 64 explicitly (only if CAP bit is set).
+        if cap_here > 64 && (mask & (1u64 << CAP_BIT)) != 0 {
+            let mut len = cap_here;
+            loop {
+                if f(len) {
+                    return;
+                }
+                if len == 64 {
+                    break;
+                }
+                len -= 1;
+            }
+        }
+
+        // Now handle lengths 1..=min(64, cap_here) using set bits only.
+        let limit = cap_here.min(64);
+        if limit == 0 {
+            return;
+        }
+
+        // If cap_here > 64 we've already tried len=64 above; clear CAP bit.
+        let mut m = mask & ((1u64 << limit) - 1);
+        if cap_here > 64 {
+            m &= !(1u64 << CAP_BIT);
+        }
+
+        while m != 0 {
+            let bit = 63 - m.leading_zeros() as usize; // highest set bit
+            let len = bit + 1; // 1..=64
+            if f(len) {
+                return;
+            }
+            m &= !(1u64 << bit);
+        }
     }
 
     /// Returns whether parallel segment conversion is currently enabled.
@@ -462,7 +755,7 @@ impl OpenCC {
     /// assert_eq!(result, "漢字轉換測試");
     /// ```
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -476,7 +769,7 @@ impl OpenCC {
 
     /// Performs Traditional-to-Simplified Chinese conversion.
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -490,7 +783,7 @@ impl OpenCC {
 
     /// Performs Simplified-to-Taiwanese conversion.
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -506,7 +799,7 @@ impl OpenCC {
 
     /// Performs Taiwanese-to-Simplified conversion.
     pub fn tw2s(&self, input: &str, punctuation: bool) -> String {
-        let mut round_2: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_2: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -526,7 +819,7 @@ impl OpenCC {
     /// Performs simplified to Traditional Taiwan conversion with idioms
     pub fn s2twp(&self, input: &str, punctuation: bool) -> String {
         // Create bindings for each round of dictionary references
-        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -550,7 +843,7 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let mut round_2: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_2: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -566,7 +859,7 @@ impl OpenCC {
 
     /// Performs simplified to Traditional Hong Kong
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
 
         if punctuation {
@@ -586,7 +879,7 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let mut round_2: Vec<&(FxHashMap<String, String>, usize)> =
+        let mut round_2: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
@@ -811,7 +1104,8 @@ impl OpenCC {
         } else {
             input.chars().collect()
         };
-        self.convert_by(&chars, &dict_refs, 1)
+        let union = StarterUnion::build(&dict_refs);
+        self.convert_by_union(&chars, &dict_refs, 1, &union)
     }
 
     /// Internal: Applies a fast character-level Traditional-to-Simplified conversion.
@@ -836,7 +1130,8 @@ impl OpenCC {
         } else {
             input.chars().collect()
         };
-        self.convert_by(&chars, &dict_refs, 1)
+        let union = StarterUnion::build(&dict_refs);
+        self.convert_by_union(&chars, &dict_refs, 1, &union)
     }
 
     /// Detects the likely Chinese script type of the input text.
@@ -954,108 +1249,54 @@ impl OpenCC {
     }
 }
 
-/// Internal type representing a single round of dictionary application.
-/// Each round includes a slice of dictionary references and the maximum word length.
-///
-/// Format: `(&[&(dict, max_len)], max_len)`
-type DictRound<'a> = (&'a [&'a (FxHashMap<String, String>, usize)], usize);
+// New backing type for a round: slice of &DictMaxLen plus its computed max_len
+type DictRound<'a> = (&'a [&'a DictMaxLen], usize);
 
-/// Builder-style struct for managing multi-round dictionary segment replacement.
-///
-/// `DictRefs` is used to group one or more rounds of dictionary reference sets,
-/// where each round is a list of `(dictionary, max_word_length)` pairs. Each round is applied
-/// in order to transform input text using the same segment replacement strategy.
-///
-/// This design allows `OpenCC`-style multi-stage conversion pipelines (e.g., `s2tw -> tw_variants`)
-/// to be composed with readable, chainable syntax.
-///
-/// # Usage
-/// Example of multi-round dictionary construction:
-/// ```rust,no_run
-/// use opencc_fmmseg::DictRefs;
-/// use rustc_hash::FxHashMap;
-///
-/// let dict1: FxHashMap<String, String> = FxHashMap::default();
-/// let dict2: FxHashMap<String, String> = FxHashMap::default();
-/// let dict3: FxHashMap<String, String> = FxHashMap::default();
-/// let refs = DictRefs::new(&[&(dict1, 1)])
-///     .with_round_2(&[&(dict2, 1)])
-///     .with_round_3(&[&(dict3, 1)]);
-/// ```
-/// Then passed to `apply_segment_replace()` to perform all dictionary rounds.
 pub struct DictRefs<'a> {
     round_1: DictRound<'a>,
     round_2: Option<DictRound<'a>>,
     round_3: Option<DictRound<'a>>,
 }
 
+#[inline]
+fn compute_round<'a>(dicts: &'a [&'a DictMaxLen]) -> DictRound<'a> {
+    let max_len = dicts.iter().map(|d| d.max_len).max().unwrap_or(1);
+    (dicts, max_len)
+}
+
 impl<'a> DictRefs<'a> {
-    /// Creates a new `DictRefs` instance with a required first round of dictionaries.
-    ///
-    /// This is the entry point for composing a dictionary pipeline. The `max_word_length` for
-    /// the first round is automatically calculated.
-    ///
-    /// # Arguments
-    /// * `round_1` – A slice of dictionary references, each paired with a `max_word_length`.
-    ///
-    /// # Returns
-    /// A `DictRefs` instance with round 1 populated, and rounds 2 and 3 unset.
-    pub fn new(round_1: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
-        let max_len = round_1.iter().map(|(_, len)| *len).max().unwrap_or(1);
-        DictRefs {
-            round_1: (round_1, max_len),
+    /// Build with required round 1 (slice of &DictMaxLen). max_len is computed.
+    pub fn new(round_1_dicts: &'a [&'a DictMaxLen]) -> Self {
+        Self {
+            round_1: compute_round(round_1_dicts),
             round_2: None,
             round_3: None,
         }
     }
 
-    /// Adds a second round of dictionary conversion to the pipeline.
-    ///
-    /// This round will be applied after round 1. Typically used for conversions like:
-    /// `s2tw -> tw_variants`, or `t2s -> t2jp`.
-    ///
-    /// # Arguments
-    /// * `round_2` – A slice of dictionary references to apply in the second pass.
-    ///
-    /// # Returns
-    /// A modified `DictRefs` with round 2 included.
-    pub fn with_round_2(mut self, round_2: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
-        let max_len = round_2.iter().map(|(_, len)| *len).max().unwrap_or(1);
-        self.round_2 = Some((round_2, max_len));
+    /// Add optional round 2.
+    pub fn with_round_2(mut self, round_2_dicts: &'a [&'a DictMaxLen]) -> Self {
+        self.round_2 = Some(compute_round(round_2_dicts));
         self
     }
 
-    /// Adds a third round of dictionary conversion to the pipeline.
-    ///
-    /// Useful for rare cases where three-stage transformation is needed.
-    /// Example: `s2tw -> tw_variants -> punctuation` conversion.
-    ///
-    /// # Arguments
-    /// * `round_3` – A slice of dictionary references to apply in the third pass.
-    ///
-    /// # Returns
-    /// A modified `DictRefs` with round 3 included.
-    pub fn with_round_3(mut self, round_3: &'a [&'a (FxHashMap<String, String>, usize)]) -> Self {
-        let max_len = round_3.iter().map(|(_, len)| *len).max().unwrap_or(1);
-        self.round_3 = Some((round_3, max_len));
+    /// Add optional round 3.
+    pub fn with_round_3(mut self, round_3_dicts: &'a [&'a DictMaxLen]) -> Self {
+        self.round_3 = Some(compute_round(round_3_dicts));
         self
     }
 
-    /// Applies up to three rounds of segment-based dictionary replacement to the input text.
+    /// Apply up to three rounds using a caller-provided segment/replace closure.
     ///
-    /// Each round is applied sequentially: round 1 → round 2 (optional) → round 3 (optional).
-    /// The replacement is performed using a user-supplied closure, typically `OpenCC::segment_replace()`,
-    /// which handles the delimiter-aware segmentation and longest-match logic.
+    /// The closure gets:
+    /// - `&str` input
+    /// - `&[&DictMaxLen]` dicts for the round
+    /// - `usize` max_len (in chars) computed for that round
     ///
-    /// # Arguments
-    /// * `input` – The original input text to transform.
-    /// * `segment_replace` – A closure that takes a text chunk, dictionary slice, and max length.
-    ///
-    /// # Returns
-    /// A fully transformed string after applying all configured dictionary rounds.
+    /// It returns the transformed `String` for that round.
     pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
     where
-        F: Fn(&str, &[&(FxHashMap<String, String>, usize)], usize) -> String,
+        F: Fn(&str, &[&DictMaxLen], usize) -> String,
     {
         let mut output = segment_replace(input, self.round_1.0, self.round_1.1);
         if let Some((refs, max)) = &self.round_2 {
@@ -1067,6 +1308,69 @@ impl<'a> DictRefs<'a> {
         output
     }
 }
+
+// ----------------------------------------------
+
+pub struct StarterUnion {
+    pub bmp_mask: Vec<u64>, // 0x10000
+    pub bmp_cap: Vec<u16>,  // 0x10000
+    pub astral_mask: FxHashMap<char, u64>,
+    pub astral_cap: FxHashMap<char, u16>,
+}
+
+impl StarterUnion {
+    pub fn build(dicts: &[&DictMaxLen]) -> Self {
+        const N: usize = 0x10000;
+        let mut bmp_mask = vec![0u64; N];
+        let mut bmp_cap = vec![0u16; N];
+        let mut astral_mask = FxHashMap::default();
+        let mut astral_cap = FxHashMap::default();
+
+        for d in dicts {
+            // BMP union
+            for i in 0..N {
+                let m = d.first_len_mask64[i];
+                if m != 0 {
+                    bmp_mask[i] |= m;
+                    let c = d.first_char_max_len[i];
+                    if c > bmp_cap[i] {
+                        bmp_cap[i] = c;
+                    }
+                }
+            }
+            // Astral sparse union
+            for key in d.map.keys() {
+                if key.is_empty() {
+                    continue;
+                }
+                let c0 = key[0];
+                if (c0 as u32) <= 0xFFFF {
+                    continue;
+                }
+                let len = key.len();
+                let bit = if len >= 64 { 63 } else { len - 1 };
+                *astral_mask.entry(c0).or_default() |= 1u64 << bit;
+                astral_cap
+                    .entry(c0)
+                    .and_modify(|m| {
+                        if *m < len as u16 {
+                            *m = len as u16
+                        }
+                    })
+                    .or_insert(len as u16);
+            }
+        }
+
+        Self {
+            bmp_mask,
+            bmp_cap,
+            astral_mask,
+            astral_cap,
+        }
+    }
+}
+
+// -------------------------------------------------
 
 /// Finds a valid UTF-8 boundary within the given string, limited by a maximum byte count.
 ///
