@@ -24,7 +24,7 @@ use std::sync::Mutex;
 
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
-use crate::dictionary_lib::dictionary_maxlength::DictMaxLen;
+use dictionary_lib::dict_max_len::DictMaxLen;
 use dictionary_lib::DictionaryMaxlength;
 
 /// Thread-safe holder for the last error message (if any).
@@ -94,6 +94,76 @@ pub struct OpenCC {
     /// Delimiter characters that separate text into segments.
     delimiters: FxHashSet<char>,
     is_parallel: bool,
+}
+
+/// Iterates possible phrase lengths in **descending** order using a precomputed bitmask,
+/// stopping early if the callback returns `true`.
+///
+/// - `mask` encodes which lengths exist for a given starter:
+///   - bit 0  ⇒ length = 1
+///   - bit 1  ⇒ length = 2
+///   - ...
+///   - bit 63 ⇒ length **≥ 64** (the “CAP” bucket)
+/// - `cap_here` is the effective upper bound at the current position (e.g. `min(global_max, remaining)`).
+/// - `f(len)` is called from longest to shortest; if it returns `true`, iteration stops.
+///
+/// This function first yields all lengths **> 64** (only if the CAP bit is set and `cap_here > 64`),
+/// in the sequence `cap_here, cap_here-1, …, 64`. Then it processes the set bits for
+/// `1..=min(64, cap_here)` in descending order.
+///
+/// # Notes
+/// - If `cap_here == 64`, the CAP bit represents exactly length 64.
+/// - If `cap_here > 64`, the CAP binary bit just signals that there exists a length ≥ 64; the function
+///   will explicitly try `cap_here..=64` regardless of which exact ≥64 lengths are present in `mask`.
+/// - This helper is typically fed by `first_len_mask64[c0]` and a per-starter `cap_here`.
+#[inline]
+fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool) {
+    const CAP_BIT: usize = 63;
+    if cap_here == 0 {
+        return;
+    }
+
+    // 1) Handle lengths > 64 if CAP bit is set.
+    if cap_here > 64 && (mask & (1u64 << CAP_BIT)) != 0 {
+        let mut len = cap_here;
+        loop {
+            if f(len) {
+                return;
+            }
+            if len == 64 {
+                break;
+            }
+            len -= 1;
+        }
+    }
+
+    // 2) Handle lengths 1..=min(64, cap_here) by walking set bits from high→low.
+    let limit = cap_here.min(64);
+    if limit == 0 {
+        return;
+    }
+
+    // Avoid `(1u64 << 64)` overflow: when `limit == 64`, take all bits.
+    let mut m = if limit == 64 {
+        mask
+    } else {
+        mask & ((1u64 << limit) - 1)
+    };
+
+    // If we already tried 64+ above, drop CAP bit to avoid repeating 64.
+    if cap_here > 64 {
+        m &= !(1u64 << CAP_BIT);
+    }
+
+    while m != 0 {
+        // highest set bit
+        let bit = 63 - m.leading_zeros() as usize;
+        let len = bit + 1; // 1..=64
+        if f(len) {
+            return;
+        }
+        m &= !(1u64 << bit);
+    }
 }
 
 impl OpenCC {
@@ -252,32 +322,55 @@ impl OpenCC {
         ranges
     }
 
-    /// Internal segment replacement logic based on maximum dictionary match.
+    /// Internal segment-replacement bridge that drives FMM conversion using a **starter union**.
     ///
-    /// This method performs dictionary-based text conversion by first splitting the input text
-    /// into segments using delimiter-aware boundaries. Each segment is then processed independently
-    /// using a longest-match strategy over the provided dictionaries.
+    /// This function splits the input into delimiter-aware segments, then converts each segment
+    /// independently via [`convert_by_union`]. A single [`StarterUnion`] is built **once per call**
+    /// from the provided dictionaries and reused across all segments.
     ///
-    /// The input is first converted to a vector of `char` to enable accurate segmentation and indexing.
-    /// It uses `self.get_chars_range()` to identify segments that are separated by delimiters
-    /// (such as spaces, punctuation, etc.), and then applies `convert_by()` on each segment.
-    ///
-    /// Parallelism is applied if `self.is_parallel` is enabled:
-    /// - Each segment is processed independently using Rayon (via `par_iter`).
-    /// - This improves throughput on large inputs, especially in multicore environments.
+    /// # Pipeline
+    /// 1. Collect the input into `Vec<char>` (parallel or sequential).
+    /// 2. Use [`get_chars_range`] to compute non-delimited ranges.
+    /// 3. Build a `StarterUnion` **once** from `dictionaries`.
+    /// 4. For each segment, call [`convert_by_union`] with the prebuilt union.
+    /// 5. Concatenate results in the original order (delimiters preserved).
     ///
     /// # Arguments
-    /// * `text` – The input string to convert.
-    /// * `dictionaries` – A list of dictionary references, each paired with its max word length.
-    /// * `max_word_length` – The maximum length of phrases to match in the dictionary.
+    /// - `text`: Source string.
+    /// - `dictionaries`: The dictionaries to consult (probe order = precedence). Each must have
+    ///   populated starter indexes (done by `DictMaxLen::build_from_pairs` or `populate_starter_indexes`).
+    /// - `max_word_length`: Global cap for match length in chars (e.g., 16).
     ///
-    /// # Returns
-    /// A `String` resulting from applying all dictionary replacements across each segment.
+    /// # Parallelism
+    /// If `self.is_parallel` is `true`:
+    /// - Input chars are collected using a parallel iterator.
+    /// - Each segment is converted in parallel (`into_par_iter()`).
+    /// This can significantly improve throughput on large inputs with many segments.
+    ///
+    /// # Behavior
+    /// - Delimiters are **not** transformed; they are preserved exactly.
+    /// - Each segment (a contiguous non-delimiter run) is processed with FMM using only viable
+    ///   lengths implied by the union’s bitmasks/caps.
+    /// - First dictionary hit at the longest viable length wins (short-circuit).
+    ///
+    /// # Complexity
+    /// Let *N* be the number of chars, *S* the number of segments, *D* the number of dictionaries:
+    /// - Union build: `O(D · 65_536)` for BMP + sparse astral merge (once per call).
+    /// - Conversion: Sum over segments of `O(len(segment) · K · D)` where `K ≤ 64` viable lengths
+    ///   after union pruning; often less due to early exits.
+    ///
+    /// # Example (illustrative)
+    /// ```ignore
+    /// use opencc_fmmseg::{DictMaxLen, StarterUnion};
+    ///
+    /// // `opencc.segment_replace("...")`
+    /// //   builds one StarterUnion from the given dictionaries,
+    /// //   then calls `convert_by_union` per non-delimited segment.
+    /// ```
     ///
     /// # Notes
-    /// - Delimiters are preserved in output and not transformed.
-    /// - This is the core routine that powers all multi-round dictionary applications.
-    /// - Should not be exposed publicly; used by `DictRefs::apply_segment_replace`.
+    /// - If the set or contents of `dictionaries` changes, rebuild the union (this function does it for you).
+    /// - This is an internal bridge used by higher-level routines (e.g., `DictRefs::apply_segment_replace`).
     fn segment_replace(
         &self,
         text: &str,
@@ -298,234 +391,98 @@ impl OpenCC {
         if self.is_parallel {
             ranges
                 .into_par_iter()
+                .with_min_len(8)
                 .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
-                .collect()
+                .reduce(String::new, |mut a, b| {
+                    a.push_str(&b);
+                    a
+                })
         } else {
             ranges
                 .into_iter()
                 .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
-                .collect()
+                .fold(String::new(), |mut acc, s| {
+                    acc.push_str(&s);
+                    acc
+                })
         }
     }
 
-    /// Core dictionary-matching routine using Forward Maximum Matching (FMM).
+    /// Core dictionary-matching routine (FMM) optimized with a precomputed **starter union**.
     ///
-    /// This is the tightest loop of the OpenCC segment replacement engine. It takes a slice of
-    /// characters (already segmented and delimiter-free) and performs a left-to-right scan using
-    /// longest-prefix dictionary matching.
+    /// This is the tightest loop of the OpenCC segment-replacement engine. It performs a
+    /// left-to-right scan over a delimiter-free `&[char]` using **Forward Maximum Matching (FMM)**,
+    /// but accelerates matching by using a `StarterUnion` (bitmask + per-starter caps) that
+    /// unions multiple dictionaries up front.
     ///
-    /// For each position in the input character slice:
-    /// - It tries to match the longest possible substring (up to `max_word_length`) against all provided dictionaries.
-    /// - If a match is found, it writes the corresponding replacement to the output string.
-    /// - If no match is found, it falls back to copying the current character.
+    /// Compared to `convert_by()`:
+    /// - Uses `union.bmp_mask / union.bmp_cap` (BMP) and `union.astral_mask / union.astral_cap`
+    ///   (astral) to **prune impossible lengths** before touching any individual dictionary.
+    /// - Iterates viable lengths in **descending order** via [`for_each_len_dec`] and short-circuits
+    ///   on the first dictionary hit.
     ///
     /// # Matching Strategy
-    /// - Match lengths are attempted in descending order (`max_word_length → 1`).
-    /// - Dictionaries are scanned in order; the first match wins (short-circuit logic).
-    /// - Dictionaries may represent phrases, characters, or punctuation mappings.
+    /// For each position:
+    /// 1. Compute the effective cap `cap_here = min(max_word_length, remaining, union_cap)`.
+    /// 2. Use `union` to enumerate **only viable lengths** (from longest → shortest).
+    /// 3. For each viable length, probe each dictionary **only if** that dict can possibly
+    ///    host such a key (checked against `dict.max_len` and the dict’s own per-starter cap).
+    /// 4. On the first match, emit the replacement, advance, and continue scanning.
+    /// 5. If no match is found, copy the current char and advance by 1.
     ///
     /// # Arguments
-    /// * `text_chars` – A slice of `char` representing a segment of text (non-delimited).
-    /// * `dictionaries` – A list of `(dictionary, max_word_length)` pairs for lookup.
-    /// * `max_word_length` – The maximum allowed match length across all dictionaries.
+    /// - `text_chars`: Non-delimited slice of `char` (a single segment).
+    /// - `dictionaries`: The list of dictionaries to consult (probe order = precedence).
+    /// - `max_word_length`: Global cap for match length in chars (e.g., 16).
+    /// - `union`: Precomputed [`StarterUnion`] built from exactly the same dictionaries.
     ///
     /// # Returns
-    /// A `String` containing the fully converted result for the input segment.
+    /// A `String` containing the converted segment.
+    ///
+    /// # Requirements
+    /// - `union` **must** be built from these `dictionaries` (same set and contents).
+    ///   If the dictionaries change, rebuild the union.
+    /// - Each `DictMaxLen` should have populated starter indexes
+    ///   (done automatically by `DictMaxLen::build_from_pairs`).
     ///
     /// # Performance Notes
-    /// - This function uses pre-allocated `String` buffers to minimize heap allocations.
-    /// - It avoids repeated UTF-8 conversions by working entirely at the `char` level.
-    /// - Inner `candidate` buffer is reused across iterations for string key construction.
+    /// - Union pruning avoids per-dict checks for impossible lengths/starters.
+    /// - Lengths are tried longest→shortest; first match wins (best-case early exit).
+    /// - Astral starters are sparse-map pruned; BMP starters are O(1) masked.
     ///
-    /// # Internal Use
-    /// Called by `segment_replace()` and ultimately by `DictRefs::apply_segment_replace()`.
-    /// Not intended for public use; exposed internally for performance-critical path.
-    // fn convert_by(
-    //     &self,
-    //     text_chars: &[char],
-    //     dictionaries: &[&DictMaxLen],
-    //     max_word_length: usize,
-    // ) -> String {
-    //     if text_chars.is_empty() {
-    //         return String::new();
-    //     }
-    //
-    //     let text_length = text_chars.len();
-    //     if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
-    //         return text_chars[0].to_string();
-    //     }
-    //
-    //     const CAP_BIT: usize = 63;
-    //
-    //     let mut result = String::with_capacity(text_length * 4);
-    //     let mut start_pos = 0;
-    //
-    //     while start_pos < text_length {
-    //         let c0 = text_chars[start_pos];
-    //         let u0 = c0 as u32;
-    //         let rem = text_length - start_pos;
-    //         let global_cap = max_word_length.min(rem);
-    //
-    //         // -------- BMP starter fast path (prebuilt indexes) --------
-    //         if u0 <= 0xFFFF {
-    //             let idx = u0 as usize;
-    //
-    //             // Union of masks over all dicts; and overall per-starter cap across dicts
-    //             let mut union_mask: u64 = 0;
-    //             let mut overall_cap: usize = 0;
-    //
-    //             for &dict in dictionaries {
-    //                 let cap = dict.first_char_max_len[idx] as usize;
-    //                 if cap == 0 {
-    //                     continue; // this dict has no entries starting with c0
-    //                 }
-    //                 union_mask |= dict.first_len_mask64[idx];
-    //
-    //                 // respect both dict.max_len and per-starter cap
-    //                 let dict_cap = cap.min(dict.max_len);
-    //                 if dict_cap > overall_cap {
-    //                     overall_cap = dict_cap;
-    //                 }
-    //             }
-    //
-    //             // If no dict has any entry for this starter, emit char and continue
-    //             if union_mask == 0 || overall_cap == 0 {
-    //                 result.push(c0);
-    //                 start_pos += 1;
-    //                 continue;
-    //             }
-    //
-    //             // Final cap cannot exceed remaining/global limits
-    //             let cap_here = overall_cap.min(global_cap);
-    //
-    //             let mut matched = false;
-    //
-    //             // Try longest -> shortest
-    //             for length in (1..=cap_here).rev() {
-    //                 // Skip impossible lengths quickly via mask
-    //                 let bit = if length >= 64 { CAP_BIT } else { length - 1 };
-    //                 if (union_mask & (1u64 << bit)) == 0 {
-    //                     continue;
-    //                 }
-    //
-    //                 let slice = &text_chars[start_pos..start_pos + length];
-    //
-    //                 // Probe each dict that *could* have this length for this starter
-    //                 for &dict in dictionaries {
-    //                     if dict.max_len < length {
-    //                         continue;
-    //                     }
-    //                     let cap = dict.first_char_max_len[idx] as usize;
-    //                     if cap < length {
-    //                         continue;
-    //                     }
-    //                     if let Some(val) = dict.map.get(slice) {
-    //                         result.push_str(val);
-    //                         start_pos += length;
-    //                         matched = true;
-    //                         break;
-    //                     }
-    //                 }
-    //                 if matched {
-    //                     break;
-    //                 }
-    //             }
-    //
-    //             if matched {
-    //                 continue;
-    //             } else {
-    //                 // No phrase matched — emit one char
-    //                 result.push(c0);
-    //                 start_pos += 1;
-    //                 continue;
-    //             }
-    //         }
-    //
-    //         // -------- Non-BMP (astral) starter fast path (on-the-fly) --------
-    //         // Build a union mask + overall cap for this starter by scanning only dicts that
-    //         // *claim* to have entries for c0 via starter_cap. Astrals are rare, so this is fine.
-    //         let mut union_mask: u64 = 0;
-    //         let mut overall_cap: usize = 0;
-    //
-    //         for &dict in dictionaries {
-    //             // Quick skip if this dict has no entries starting with c0
-    //             let Some(&cap_u8) = dict.starter_cap.get(&c0) else {
-    //                 continue;
-    //             };
-    //             let dict_cap = (cap_u8 as usize).min(dict.max_len);
-    //             if dict_cap == 0 {
-    //                 continue;
-    //             }
-    //             if dict_cap > overall_cap {
-    //                 overall_cap = dict_cap;
-    //             }
-    //
-    //             // Collect length bits for this starter in this dict
-    //             // (scan keys only for this starter)
-    //             for k in dict.map.keys() {
-    //                 if k.first().copied() != Some(c0) {
-    //                     continue;
-    //                 }
-    //                 let len = k.len();
-    //                 let bit = if len >= 64 { CAP_BIT } else { len - 1 };
-    //                 union_mask |= 1u64 << bit;
-    //             }
-    //         }
-    //
-    //         // No dict has any astral entry starting with this char
-    //         if union_mask == 0 || overall_cap == 0 {
-    //             result.push(c0);
-    //             start_pos += 1;
-    //             continue;
-    //         }
-    //
-    //         let cap_here = overall_cap.min(global_cap);
-    //         let mut matched = false;
-    //
-    //         // Try longest -> shortest, pruning by union mask
-    //         for length in (1..=cap_here).rev() {
-    //             let bit = if length >= 64 { CAP_BIT } else { length - 1 };
-    //             if (union_mask & (1u64 << bit)) == 0 {
-    //                 continue;
-    //             }
-    //
-    //             let slice = &text_chars[start_pos..start_pos + length];
-    //
-    //             // Probe dicts (astral: we don't have per-dict mask/cap; probing is rare)
-    //             for &dict in dictionaries {
-    //                 if dict.max_len < length {
-    //                     continue;
-    //                 }
-    //                 // Optional micro-prune: skip if starter_cap for this dict < length
-    //                 if let Some(&cap_u8) = dict.starter_cap.get(&c0) {
-    //                     if (cap_u8 as usize) < length {
-    //                         continue;
-    //                     }
-    //                 } else {
-    //                     continue;
-    //                 }
-    //
-    //                 if let Some(val) = dict.map.get(slice) {
-    //                     result.push_str(val);
-    //                     start_pos += length;
-    //                     matched = true;
-    //                     break;
-    //                 }
-    //             }
-    //             if matched {
-    //                 break;
-    //             }
-    //         }
-    //
-    //         if !matched {
-    //             result.push(text_chars[start_pos]);
-    //             start_pos += 1;
-    //         }
-    //     }
-    //
-    //     result
-    // }
-
+    /// # BMP vs Astral
+    /// - **BMP** starters use dense arrays (`union.bmp_*`) indexed by `starter as usize`.
+    /// - **Astral** starters use sparse maps (`union.astral_*`), looked up by `char`.
+    ///
+    /// # Complexity
+    /// Let *N* be input length, *D* number of dictionaries, *L* max length.
+    /// - Typical: `O(N · K · D)` where `K ≤ 64` viable lengths per position after pruning.
+    /// - Best case: early exit on first long match.
+    ///
+    /// # Example (internal)
+    /// This method relies on internal fields (e.g., `self.delimiters`). For illustration only:
+    /// ```ignore
+    /// use opencc_fmmseg::{DictMaxLen, StarterUnion};
+    ///
+    /// let d1 = DictMaxLen::build_from_pairs(vec![
+    ///     ("你好".into(), "您好".into()),
+    ///     ("世界".into(), "世間".into()),
+    /// ]);
+    /// let d2 = DictMaxLen::build_from_pairs(vec![
+    ///     ("你们".into(), "您們".into()),
+    /// ]);
+    ///
+    /// let dicts: [&DictMaxLen; 2] = [&d1, &d2];
+    /// let union = StarterUnion::build(&dicts);
+    ///
+    /// // Suppose `opencc` is your core struct instance and `text_chars` is a delimiter-free segment:
+    /// // let out = opencc.convert_by_union(&text_chars, &dicts, 16, &union);
+    /// ```
+    ///
+    /// # Safety & Invariants
+    /// - Slices are only taken within `start_pos..start_pos+length` after ensuring
+    ///   `length ≤ remaining`.
+    /// - The union’s CAP bit (≥64) is respected via `for_each_len_dec`.
     pub fn convert_by_union(
         &self,
         text_chars: &[char],
@@ -572,36 +529,7 @@ impl OpenCC {
             let cap_here = global_cap.min(cap_u16 as usize);
             let mut matched = false;
 
-            // Longest -> shortest, only lengths whose bit is set
-            // for length in (1..=cap_here).rev() {
-            //     let bit = if length >= 64 { CAP_BIT } else { length - 1 };
-            //     if (mask & (1u64 << bit)) == 0 { continue; }
-            //
-            //     let slice = &text_chars[start_pos..start_pos + length];
-            //
-            //     // Probe only dicts that can possibly have this length for this starter
-            //     for &dict in dictionaries {
-            //         if dict.max_len < length { continue; }
-            //
-            //         if u0 <= 0xFFFF {
-            //             let idx = u0 as usize;
-            //             if (dict.first_char_max_len[idx] as usize) < length { continue; }
-            //         } else if let Some(&cap_u8) = dict.starter_cap.get(&c0) {
-            //             if (cap_u8 as usize) < length { continue; }
-            //         } else {
-            //             continue;
-            //         }
-            //
-            //         if let Some(val) = dict.map.get(slice) {
-            //             result.push_str(val);
-            //             start_pos += length;
-            //             matched = true;
-            //             break;
-            //         }
-            //     }
-            //     if matched { break; }
-            // }
-            Self::for_each_len_dec(mask, cap_here, |length| {
+            for_each_len_dec(mask, cap_here, |length| {
                 let slice = &text_chars[start_pos..start_pos + length];
 
                 // Probe only dicts that can possibly have this length for this starter
@@ -641,50 +569,6 @@ impl OpenCC {
         }
 
         result
-    }
-
-    #[inline]
-    fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool) {
-        // bit 63 means "len >= 64"
-        const CAP_BIT: usize = 63;
-        if cap_here == 0 {
-            return;
-        }
-
-        // First handle lengths > 64 explicitly (only if CAP bit is set).
-        if cap_here > 64 && (mask & (1u64 << CAP_BIT)) != 0 {
-            let mut len = cap_here;
-            loop {
-                if f(len) {
-                    return;
-                }
-                if len == 64 {
-                    break;
-                }
-                len -= 1;
-            }
-        }
-
-        // Now handle lengths 1..=min(64, cap_here) using set bits only.
-        let limit = cap_here.min(64);
-        if limit == 0 {
-            return;
-        }
-
-        // If cap_here > 64 we've already tried len=64 above; clear CAP bit.
-        let mut m = mask & ((1u64 << limit) - 1);
-        if cap_here > 64 {
-            m &= !(1u64 << CAP_BIT);
-        }
-
-        while m != 0 {
-            let bit = 63 - m.leading_zeros() as usize; // highest set bit
-            let len = bit + 1; // 1..=64
-            if f(len) {
-                return;
-            }
-            m &= !(1u64 << bit);
-        }
     }
 
     /// Returns whether parallel segment conversion is currently enabled.
@@ -1311,14 +1195,95 @@ impl<'a> DictRefs<'a> {
 
 // ----------------------------------------------
 
+/// Union view of starter-length metadata across multiple [`DictMaxLen`] tables.
+///
+/// `StarterUnion` merges (unions) the **per-starter length masks** and
+/// **per-starter maximum lengths** from several dictionaries, so the caller
+/// can do a single starter check when matching across multiple tables.
+///
+/// - **BMP (0x0000..=0xFFFF)** starters are stored densely in fixed-size arrays:
+///   - [`bmp_mask`]: bitmask of available lengths per starter (`u64`).
+///   - [`bmp_cap`]: maximum length per starter (`u16`).
+/// - **Astral (> 0xFFFF)** starters are sparse:
+///   - [`astral_mask`], [`astral_cap`] keyed by the non-BMP starter `char`.
+///
+/// # Bit layout
+/// For each starter:
+/// - bit 0  ⇒ length = 1
+/// - bit 1  ⇒ length = 2
+/// - …
+/// - bit 63 ⇒ length **≥ 64** (the “CAP” bucket)
+///
+/// # Invariants
+/// - `bmp_mask.len() == 0x10000`; `bmp_cap.len() == 0x10000`.
+/// - A set bit for a given starter implies at least one phrase length for that starter.
+/// - By construction, `bmp_cap[c]` ≥ the largest set bit (converted to length) for `bmp_mask[c]`.
+///
+/// # Typical use
+/// Build once after you’ve constructed your per-locale/per-variant dictionaries,
+/// then use the union’s mask/cap to drive fast longest-match scans.
 pub struct StarterUnion {
+    /// Dense BMP length bitmasks, indexed by `starter as usize`.
     pub bmp_mask: Vec<u64>, // 0x10000
-    pub bmp_cap: Vec<u16>,  // 0x10000
+
+    /// Dense BMP per-starter maximum length (in characters), indexed by `starter as usize`.
+    pub bmp_cap: Vec<u16>, // 0x10000
+
+    /// Sparse length bitmasks for astral starters (`starter > 0xFFFF`).
     pub astral_mask: FxHashMap<char, u64>,
+
+    /// Sparse per-starter maximum length (in characters) for astral starters.
     pub astral_cap: FxHashMap<char, u16>,
 }
 
 impl StarterUnion {
+    /// Builds a union of starter metadata from multiple [`DictMaxLen`] tables.
+    ///
+    /// For each input dictionary:
+    /// - **BMP** starters: bitwise-ORs the length masks into [`bmp_mask`], and takes
+    ///   the element-wise maximum into [`bmp_cap`].
+    /// - **Astral** starters: updates [`astral_mask`] and [`astral_cap`] in a sparse map.
+    ///
+    /// # Requirements
+    /// Each `DictMaxLen` should have populated starter indexes
+    /// (i.e., `populate_starter_indexes()` has been called, which is already done by
+    /// [`DictMaxLen::build_from_pairs`]).
+    ///
+    /// # Complexity
+    /// Let *D* be the number of dictionaries. The BMP union is `O(D · 65_536)`.
+    /// Astral merging is proportional to the number of **distinct** astral starters.
+    ///
+    /// # Example
+    /// ```
+    /// use opencc_fmmseg::dictionary_lib::{DictMaxLen};
+    /// use opencc_fmmseg::StarterUnion;
+    ///
+    /// // d1: has "你好" and one non-BMP char key "𢫊"
+    /// let d1 = DictMaxLen::build_from_pairs(vec![
+    ///     ("你好".to_string(), "您好".to_string()),
+    ///     ("𢫊".to_string(), "替".to_string()),
+    /// ]);
+    ///
+    /// // d2: has single-char "你" and "世界"
+    /// let d2 = DictMaxLen::build_from_pairs(vec![
+    ///     ("你".to_string(), "您".to_string()),
+    ///     ("世界".to_string(), "世間".to_string()),
+    /// ]);
+    ///
+    /// let u = StarterUnion::build(&[&d1, &d2]);
+    ///
+    /// // BMP starter checks for '你'
+    /// let i = '你' as usize;
+    /// assert_ne!(u.bmp_mask[i] & (1 << 0), 0); // len=1 exists ("你")
+    /// assert_ne!(u.bmp_mask[i] & (1 << 1), 0); // len=2 exists ("你好")
+    /// assert!(u.bmp_cap[i] >= 2);
+    ///
+    /// // Astral starter checks for '𢫊' (U+22ACA)
+    /// let c_astral = '𢫊';
+    /// let m = u.astral_mask.get(&c_astral).copied().unwrap_or(0);
+    /// assert_ne!(m & (1 << 0), 0); // len=1 exists
+    /// assert!(u.astral_cap.get(&c_astral).copied().unwrap_or(0) >= 1);
+    /// ```
     pub fn build(dicts: &[&DictMaxLen]) -> Self {
         const N: usize = 0x10000;
         let mut bmp_mask = vec![0u64; N];
@@ -1338,6 +1303,7 @@ impl StarterUnion {
                     }
                 }
             }
+
             // Astral sparse union
             for key in d.map.keys() {
                 if key.is_empty() {
@@ -1369,7 +1335,6 @@ impl StarterUnion {
         }
     }
 }
-
 // -------------------------------------------------
 
 /// Finds a valid UTF-8 boundary within the given string, limited by a maximum byte count.

@@ -8,9 +8,9 @@
 //! Users generally interact with this indirectly via the `OpenCC` interface, but
 //! advanced users may access it for custom loading, serialization, or optimization.
 
+use crate::dictionary_lib::dict_max_len::DictMaxLen;
 use rustc_hash::FxHashMap;
-use serde::de::{self};
-use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
 use std::collections::HashMap;
 use std::error::Error;
@@ -60,14 +60,45 @@ impl DictionaryMaxlength {
             Self::set_last_error(&format!("Failed to load dictionary from Zstd: {}", err));
             Box::new(err)
         })?)
-        // let dicts = Self::from_dicts().map_err(|err| {
-        //     Self::set_last_error(&format!("Failed to load dictionary from dicts: {}", err));
-        //     err
-        // })?;
-        // Ok(dicts)
     }
 
-    /// Loads dictionary from an embedded Zstd-compressed CBOR blob.
+    /// Loads the default dictionary from an **embedded Zstd-compressed CBOR blob**.
+    ///
+    /// This method is the fastest way to load the OpenCC dictionary at runtime,
+    /// because the dictionary is:
+    ///
+    /// - **Embedded** in the binary at compile time via [`include_bytes!`].
+    /// - **Pre-serialized** in CBOR format for compactness and fast parsing.
+    /// - **Compressed** with Zstandard (Zstd) to reduce binary size.
+    ///
+    /// # Behavior
+    /// 1. Reads the embedded `dicts/dictionary_maxlength.zstd` file directly from the binary.
+    /// 2. Decompresses the Zstd data into raw CBOR bytes.
+    /// 3. Deserializes the CBOR into a [`DictionaryMaxlength`] structure.
+    /// 4. Calls [`finish`](#method.finish) to populate all starter indexes.
+    ///
+    /// # Advantages
+    /// - **No disk I/O**: The dictionary is built into the compiled binary.
+    /// - **Fast startup**: CBOR decoding + Zstd decompression is much faster
+    ///   than parsing 18+ plaintext `.txt` files.
+    /// - **Smaller binaries**: The Zstd-compressed CBOR blob is significantly smaller
+    ///   than raw text or even uncompressed CBOR.
+    ///
+    /// # Example
+    /// ```
+    /// use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
+    ///
+    /// let dicts = DictionaryMaxlength::from_zstd().unwrap();
+    /// assert!(dicts.st_characters.is_populated());
+    /// ```
+    ///
+    /// # Errors
+    /// - [`DictionaryError::IoError`] if Zstd decompression fails.
+    /// - [`DictionaryError::ParseError`] if CBOR deserialization fails.
+    ///
+    /// # See also
+    /// - [`from_dicts`](#method.from_dicts) — loads from plaintext `.txt` files.
+    /// - [`from_json`](#method.from_json) — loads from JSON.
     pub fn from_zstd() -> Result<Self, DictionaryError> {
         // Embedded compressed CBOR file at compile time
         let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
@@ -88,10 +119,7 @@ impl DictionaryMaxlength {
     pub fn from_cbor() -> Result<Self, Box<dyn Error>> {
         let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
         match from_slice::<DictionaryMaxlength>(cbor_bytes) {
-            Ok(mut dictionary) => {
-                dictionary.populate_all();
-                Ok(dictionary)
-            }
+            Ok(dictionary) => Ok(dictionary.finish()),
             Err(err) => {
                 Self::set_last_error(&format!("Failed to read CBOR file: {}", err));
                 Err(Box::new(err))
@@ -99,9 +127,77 @@ impl DictionaryMaxlength {
         }
     }
 
-    /// Loads dictionary from plaintext `.txt` dictionary files.
+    /// Loads all dictionaries from plaintext `.txt` lexicon files in the `dicts/` directory.
     ///
-    /// This method is used primarily for development and regeneration.
+    /// This method reads the OpenCC-compatible source dictionaries from disk and builds
+    /// a full [`DictionaryMaxlength`] with populated [`DictMaxLen`] instances for each table.
+    ///
+    /// # Expected directory structure
+    ///
+    /// The base directory is `"dicts"` (relative to the process working directory).
+    /// It must contain the standard OpenCC text dictionary files:
+    ///
+    /// ```bash
+    /// dicts/
+    /// ├── STCharacters.txt
+    /// ├── STPhrases.txt
+    /// ├── TSCharacters.txt
+    /// ├── TSPhrases.txt
+    /// ├── TWPhrases.txt
+    /// ├── TWPhrasesRev.txt
+    /// ├── TWVariants.txt
+    /// ├── TWVariantsRev.txt
+    /// ├── TWVariantsRevPhrases.txt
+    /// ├── HKVariants.txt
+    /// ├── HKVariantsRev.txt
+    /// ├── HKVariantsRevPhrases.txt
+    /// ├── JPShinjitaiCharacters.txt
+    /// ├── JPShinjitaiPhrases.txt
+    /// ├── JPVariants.txt
+    /// ├── JPVariantsRev.txt
+    /// ├── STPunctuations.txt
+    /// └── TSPunctuations.txt
+    /// ```
+    ///
+    /// # File format
+    ///
+    /// Each `.txt` file contains tab-separated key-value pairs:
+    /// ```bash
+    /// # This is a comment
+    /// 你好\t您好
+    /// 世界\t世間
+    /// ```
+    ///
+    /// - Lines starting with `#` are ignored.
+    /// - Empty lines are ignored.
+    /// - Leading/trailing carriage returns (`\r`) are stripped automatically.
+    /// - A UTF-8 BOM (`\u{FEFF}`) is stripped if present in the first data line.
+    /// - The **first whitespace-separated token** after the TAB is taken as the value;
+    ///   the rest of the line (if any) is ignored.
+    ///
+    /// # Behavior
+    ///
+    /// - Builds each [`DictMaxLen`] using [`DictMaxLen::build_from_pairs`], which
+    ///   also populates starter indexes.
+    /// - Returns an error if any data line is missing a TAB separator.
+    /// - Returns an error if a file cannot be read.
+    ///
+    /// # Usage
+    /// ```
+    /// use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
+    ///
+    /// let dicts = DictionaryMaxlength::from_dicts().unwrap();
+    /// assert!(dicts.st_characters.is_populated());
+    /// assert!(dicts.ts_phrases.is_populated());
+    /// ```
+    ///
+    /// # Errors
+    /// - [`DictionaryError::IoError`] if a dictionary file cannot be read.
+    /// - [`DictionaryError::ParseError`] if a data line is malformed (missing TAB).
+    ///
+    /// # See also
+    /// - [`populate_all`](#method.populate_all) — rebuilds starter indexes after bulk edits.
+    /// - [`finish`](#method.finish) — chaining version of `populate_all` after deserialization.
     pub fn from_dicts() -> Result<Self, DictionaryError> {
         let base_dir = "dicts";
 
@@ -128,7 +224,6 @@ impl DictionaryMaxlength {
         .into_iter()
         .collect();
 
-        // Updated: build DictMaxLen directly
         fn load_dict(base_dir: &str, filename: &str) -> Result<DictMaxLen, DictionaryError> {
             let path = Path::new(base_dir).join(filename);
             let path_str = path.to_string_lossy();
@@ -140,14 +235,12 @@ impl DictionaryMaxlength {
             let mut saw_data_line = false;
 
             for (lineno, raw_line) in content.lines().enumerate() {
-                // `lines()` already strips trailing '\r' if present (CRLF safe)
-                let mut line = raw_line.trim_end(); // keep left whitespace if needed in keys; trim right
+                let mut line = raw_line.trim_end();
 
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
 
-                // Strip UTF-8 BOM only on the first non-empty, non-comment line
                 if !saw_data_line {
                     if let Some(rest) = line.strip_prefix('\u{FEFF}') {
                         line = rest;
@@ -163,9 +256,7 @@ impl DictionaryMaxlength {
                     )));
                 };
 
-                // OpenCC semantics: keep only the first whitespace-separated target
                 let first_value = v.split_whitespace().next().unwrap_or("");
-
                 pairs.push((k.to_owned(), first_value.to_owned()));
             }
 
@@ -193,8 +284,31 @@ impl DictionaryMaxlength {
             ts_punctuations: load_dict(base_dir, dict_files["ts_punctuations"])?,
         })
     }
-
-    /// Populate starter indexes for all inner DictMaxLen tables (BMP masks + per-starter caps).
+    /// Populates starter indexes for all inner [`DictMaxLen`] tables in this structure.
+    ///
+    /// This calls [`DictMaxLen::populate_starter_indexes`] on each dictionary field,
+    /// rebuilding both the **BMP length masks** (`first_len_mask64`) and the **per-starter
+    /// maximum length arrays** (`first_char_max_len`).
+    ///
+    /// This method should be run after any bulk changes to dictionary contents,
+    /// especially after deserialization or manual editing of `map`/`starter_cap`.
+    ///
+    /// # Behavior
+    /// - Only affects runtime accelerator fields; does not modify `map`, `max_len`, or `starter_cap`.
+    /// - Skips non-BMP starter characters in each dictionary for efficiency.
+    ///
+    /// # When to use
+    /// - Immediately after loading from disk or a serialized format.
+    /// - After programmatically inserting or removing multiple entries from any dictionary.
+    ///
+    /// # Example
+    /// ```
+    /// use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
+    /// # let mut dicts = DictionaryMaxlength::default(); // assume default exists
+    /// dicts.populate_all();
+    /// assert!(dicts.st_characters.is_populated());
+    /// assert!(dicts.ts_characters.is_populated());
+    /// ```
     pub fn populate_all(&mut self) {
         self.st_characters.populate_starter_indexes();
         self.st_phrases.populate_starter_indexes();
@@ -216,13 +330,49 @@ impl DictionaryMaxlength {
         self.ts_punctuations.populate_starter_indexes();
     }
 
-    /// Convenient finisher to chain after deserialization/loading.
+    /// Convenience finisher for use after deserialization or bulk loading.
+    ///
+    /// This method calls [`populate_all`](#method.populate_all) and returns `self`,
+    /// allowing you to chain it directly after a constructor or deserializer.
+    ///
+    /// # Example
+    /// ```
+    /// use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
+    /// use serde_json;
+    ///
+    /// // Build a minimal, valid structure covering all fields.
+    /// let json = serde_json::json!({
+    ///   "st_characters": { "map": { "你": "您" }, "max_len": 1, "starter_cap": { "你": 1 } },
+    ///   "st_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "ts_characters": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "ts_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "tw_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "tw_phrases_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "tw_variants": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "tw_variants_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "tw_variants_rev_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "hk_variants": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "hk_variants_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "hk_variants_rev_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "jps_characters": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "jps_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "jp_variants": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "jp_variants_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "st_punctuations": { "map": {}, "max_len": 0, "starter_cap": {} },
+    ///   "ts_punctuations": { "map": {}, "max_len": 0, "starter_cap": {} }
+    /// });
+    ///
+    /// let dicts = serde_json::from_value::<DictionaryMaxlength>(json)
+    ///     .unwrap()
+    ///     .finish();
+    ///
+    /// assert!(dicts.st_characters.is_populated());
+    /// ```
     #[inline]
     pub fn finish(mut self) -> Self {
         self.populate_all();
         self
     }
-
     #[cfg(debug_assertions)]
     pub fn debug_assert_populated(&self) {
         let all = [
@@ -253,7 +403,7 @@ impl DictionaryMaxlength {
         }
     }
 
-    // Saves all dictionaries to plaintext `.txt` files in the specified directory.
+    /// Saves all dictionaries to plaintext `.txt` files in the specified directory.
     pub fn to_dicts(&self, base_dir: &str) -> Result<(), Box<dyn Error>> {
         let dict_map: HashMap<&str, &FxHashMap<Box<[char]>, Box<str>>> = [
             ("STCharacters.txt", &self.st_characters.map),
@@ -321,10 +471,7 @@ impl DictionaryMaxlength {
     pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
         match fs::read(&path) {
             Ok(cbor_data) => match from_slice::<DictionaryMaxlength>(&cbor_data) {
-                Ok(mut dictionary) => {
-                    dictionary.populate_all();
-                    Ok(dictionary)
-                }
+                Ok(dictionary) => Ok(dictionary.finish()),
                 Err(err) => {
                     Self::set_last_error(&format!("Failed to deserialize CBOR: {}", err));
                     Err(Box::new(err))
@@ -378,260 +525,9 @@ impl DictionaryMaxlength {
     }
 }
 
-// -------------------------------------------------------------
-
-#[derive(Debug)]
-pub struct DictMaxLen {
-    pub map: FxHashMap<Box<[char]>, Box<str>>, // zero-alloc get(&[char])
-    pub max_len: usize,                        // global max in chars
-    pub starter_cap: FxHashMap<char, u8>,      // persisted max per starter (chars)
-
-    // runtime-only accelerators
-    pub first_len_mask64: Vec<u64>,   // start empty
-    pub first_char_max_len: Vec<u16>, // start empty// 65536 entries; max length in chars
-}
-
-impl DictMaxLen {
-    pub fn build_from_pairs<I>(pairs: I) -> Self
-    where
-        I: IntoIterator<Item = (String, String)>,
-    {
-        let mut map = FxHashMap::default();
-        let mut starter_cap: FxHashMap<char, u8> = FxHashMap::default();
-        let mut global_max = 1usize;
-
-        for (k, v) in pairs {
-            let chars: Box<[char]> = k.chars().collect::<Vec<_>>().into_boxed_slice();
-            let len = chars.len();
-            if let Some(&c0) = chars.first() {
-                starter_cap
-                    .entry(c0)
-                    .and_modify(|m| *m = (*m).max(len as u8))
-                    .or_insert(len as u8);
-            }
-            global_max = global_max.max(len);
-            map.insert(chars, v.into_boxed_str());
-        }
-
-        let mut dict = Self {
-            map,
-            max_len: global_max,
-            starter_cap,
-            first_len_mask64: Vec::new(),   // not built yet
-            first_char_max_len: Vec::new(), // not built yet
-        };
-
-        // populate starter indexes immediately
-        dict.populate_starter_indexes();
-
-        dict
-    }
-
-    /// Ensure the starter index buffers exist with the expected sizes.
-    pub fn ensure_starter_indexes(&mut self) {
-        const N: usize = 0x10000; // BMP size
-
-        if self.first_len_mask64.len() != N {
-            self.first_len_mask64.clear();
-            self.first_len_mask64.resize(N, 0u64);
-        }
-        if self.first_char_max_len.len() != N {
-            self.first_char_max_len.clear();
-            self.first_char_max_len.resize(N, 0u16);
-        }
-    }
-
-    /// (Re)build the BMP starter indexes from `self.map`, using existing `starter_cap` for per-starter max.
-    /// - `first_len_mask64[c]`: bit 0 => len==1, ..., bit 63 => len>=64
-    /// - `first_char_max_len[c]`: max phrase length for starter `c` (from `starter_cap`)
-    pub fn populate_starter_indexes(&mut self) {
-        // const N: usize = 0x10000; // BMP size
-        const CAP_BIT: usize = 63; // len >= 64
-
-        // Make sure arrays exist with correct size
-        self.ensure_starter_indexes();
-
-        // Clear arrays (we do a full rebuild)
-        for v in &mut self.first_len_mask64 {
-            *v = 0;
-        }
-        for v in &mut self.first_char_max_len {
-            *v = 0;
-        }
-
-        // 1) Build length mask from dictionary keys (BMP starters only)
-        for k in self.map.keys() {
-            if k.is_empty() {
-                continue;
-            }
-            let c0 = k[0];
-            let u = c0 as u32;
-            if u > 0xFFFF {
-                // ignore non-BMP for now (rare as per your note)
-                continue;
-            }
-
-            let len = k.len();
-            let bit = if len >= 64 { CAP_BIT } else { len - 1 };
-            let idx = u as usize;
-            self.first_len_mask64[idx] |= 1u64 << bit;
-        }
-
-        // 2) Seed per-starter max from existing starter_cap (no recompute)
-        for (&c, &cap_u8) in &self.starter_cap {
-            let u = c as u32;
-            if u <= 0xFFFF {
-                self.first_char_max_len[u as usize] = cap_u8 as u16;
-            }
-        }
-
-        // NOTE: self.max_len is left as-is (fixed as requested).
-    }
-
-    #[inline]
-    pub fn is_populated(&self) -> bool {
-        self.first_len_mask64.len() == 0x10000 && self.first_char_max_len.len() == 0x10000
-    }
-}
-
-impl Serialize for DictMaxLen {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // wrap &self.map so we can serialize it as a nested JSON object
-        struct MapObj<'a>(&'a FxHashMap<Box<[char]>, Box<str>>);
-        impl<'a> Serialize for MapObj<'a> {
-            fn serialize<S2>(&self, serializer: S2) -> Result<S2::Ok, S2::Error>
-            where
-                S2: Serializer,
-            {
-                let mut inner = serializer.serialize_map(Some(self.0.len()))?;
-                for (k, v) in self.0.iter() {
-                    let ks: String = k.iter().collect();
-                    inner.serialize_entry(&ks, &**v)?;
-                }
-                inner.end()
-            }
-        }
-
-        // wrap &self.starter_cap similarly (avoids allocating a temporary map)
-        struct CapObj<'a>(&'a FxHashMap<char, u8>);
-        impl<'a> Serialize for CapObj<'a> {
-            fn serialize<S2>(&self, serializer: S2) -> Result<S2::Ok, S2::Error>
-            where
-                S2: Serializer,
-            {
-                let mut inner = serializer.serialize_map(Some(self.0.len()))?;
-                for (c, len) in self.0.iter() {
-                    inner.serialize_entry(&c.to_string(), len)?;
-                }
-                inner.end()
-            }
-        }
-
-        // top-level object with 3 fields
-        let mut top = serializer.serialize_map(Some(3))?;
-        top.serialize_entry("map", &MapObj(&self.map))?;
-        top.serialize_entry("max_len", &self.max_len)?;
-        top.serialize_entry("starter_cap", &CapObj(&self.starter_cap))?;
-        top.end()
-    }
-}
-// Accept both an object {"map": {...}} and legacy array-of-pairs {"map":[["k","v"],...]}
-impl<'de> Deserialize<'de> for DictMaxLen {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Accept both object and pairs for "map"
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum MapRepr {
-            Object(FxHashMap<String, String>),
-            Pairs(Vec<(String, String)>),
-        }
-
-        #[derive(Deserialize)]
-        struct Helper {
-            map: MapRepr,
-            #[serde(default)]
-            max_len: usize,
-            #[serde(default)]
-            starter_cap: FxHashMap<String, u8>, // keys are 1-char strings
-        }
-
-        let h = Helper::deserialize(deserializer)?;
-
-        // Rebuild map: String -> Box<[char]>, String -> Box<str>
-        let mut map: FxHashMap<Box<[char]>, Box<str>> = FxHashMap::default();
-        match h.map {
-            MapRepr::Object(obj) => {
-                for (k, v) in obj {
-                    map.insert(
-                        k.chars().collect::<Vec<_>>().into_boxed_slice(),
-                        v.into_boxed_str(),
-                    );
-                }
-            }
-            MapRepr::Pairs(pairs) => {
-                for (k, v) in pairs {
-                    map.insert(
-                        k.chars().collect::<Vec<_>>().into_boxed_slice(),
-                        v.into_boxed_str(),
-                    );
-                }
-            }
-        }
-
-        // Rebuild starter_cap: String (must be single char) -> char
-        let mut starter_cap: FxHashMap<char, u8> = FxHashMap::default();
-        for (k, len) in h.starter_cap {
-            let mut it = k.chars();
-            let c = it
-                .next()
-                .ok_or_else(|| de::Error::custom("starter_cap key empty"))?;
-            if it.next().is_some() {
-                return Err(de::Error::custom(
-                    "starter_cap key must be a single character",
-                ));
-            }
-            starter_cap.insert(c, len);
-        }
-
-        // Use provided max_len or recompute from keys (in Rust char units)
-        let max_len = if h.max_len == 0 {
-            map.keys().map(|k| k.len()).max().unwrap_or(0)
-        } else {
-            h.max_len
-        };
-
-        Ok(DictMaxLen {
-            map,
-            max_len,
-            starter_cap,
-            first_len_mask64: Vec::new(),
-            first_char_max_len: Vec::new(),
-        })
-    }
-}
-impl Default for DictMaxLen {
-    fn default() -> Self {
-        Self {
-            map: FxHashMap::default(),
-            max_len: 0,
-            starter_cap: FxHashMap::default(),
-            first_len_mask64: Vec::new(),
-            first_char_max_len: Vec::new(),
-        }
-    }
-}
-
-// --------------------------------------------------------------
-
 impl Default for DictionaryMaxlength {
     /// Creates an empty `DictionaryMaxlength` with all dictionaries initialized
-    /// to empty `FxHashMap`s and their max word lengths set to `0`.
+    /// to `DictMaxLen::default()`.
     ///
     /// This is primarily used as a fallback when dictionary loading fails, or
     /// for testing and placeholder scenarios where real dictionary data is not needed.
@@ -710,6 +606,7 @@ impl From<serde_cbor::Error> for DictionaryError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dictionary_lib::dict_max_len::DictMaxLen;
 
     #[test]
     #[ignore]
