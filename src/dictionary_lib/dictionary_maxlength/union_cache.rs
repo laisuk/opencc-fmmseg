@@ -74,17 +74,14 @@ impl DictionaryMaxlength {
     ) -> Arc<StarterUnion> {
         slot.get_or_init(|| {
             if punct {
-                let dicts = [
-                    &self.st_phrases,
-                    &self.st_characters,
-                    &self.st_punctuations,
-                ];
+                let dicts = [&self.st_phrases, &self.st_characters, &self.st_punctuations];
                 Arc::new(StarterUnion::build(&dicts))
             } else {
                 let dicts = [&self.st_phrases, &self.st_characters];
                 Arc::new(StarterUnion::build(&dicts))
             }
-        }).clone()
+        })
+        .clone()
     }
 
     #[inline]
@@ -95,17 +92,14 @@ impl DictionaryMaxlength {
     ) -> Arc<StarterUnion> {
         slot.get_or_init(|| {
             if punct {
-                let dicts = [
-                    &self.ts_phrases,
-                    &self.ts_characters,
-                    &self.ts_punctuations,
-                ];
+                let dicts = [&self.ts_phrases, &self.ts_characters, &self.ts_punctuations];
                 Arc::new(StarterUnion::build(&dicts))
             } else {
                 let dicts = [&self.ts_phrases, &self.ts_characters];
                 Arc::new(StarterUnion::build(&dicts))
             }
-        }).clone()
+        })
+        .clone()
     }
 
     // ----- your union_for, now deduped -----
@@ -115,85 +109,105 @@ impl DictionaryMaxlength {
         match key {
             // S2T / T2S
             UnionKey::S2T { punct } => {
-                let slot = if punct { &self.unions.s2t_punct } else { &self.unions.s2t };
+                let slot = if punct {
+                    &self.unions.s2t_punct
+                } else {
+                    &self.unions.s2t
+                };
                 self.st_union_for_slot(punct, slot)
             }
             UnionKey::T2S { punct } => {
-                let slot = if punct { &self.unions.t2s_punct } else { &self.unions.t2s };
+                let slot = if punct {
+                    &self.unions.t2s_punct
+                } else {
+                    &self.unions.t2s
+                };
                 self.ts_union_for_slot(punct, slot)
             }
 
             // S2Tw R1: same dict set as S2T R1 (± punct), different cache slot
             UnionKey::S2TwR1 { punct } => {
-                let slot = if punct { &self.unions.s2tw_r1_punct } else { &self.unions.s2tw_r1 };
+                let slot = if punct {
+                    &self.unions.s2tw_r1_punct
+                } else {
+                    &self.unions.s2tw_r1
+                };
                 self.st_union_for_slot(punct, slot)
             }
 
             // …the rest unchanged…
-            UnionKey::S2TwR2 => {
-                self.unions.s2tw_r2.get_or_init(|| {
-                    Arc::new(StarterUnion::build(&[&self.tw_variants]))
-                }).clone()
-            }
-            UnionKey::TwPhrasesOnly => {
-                self.unions.tw_phrases_only.get_or_init(|| {
-                    Arc::new(StarterUnion::build(&[&self.tw_phrases]))
-                }).clone()
-            }
-            UnionKey::TwVariantsOnly => {
-                self.unions.tw_variants_only.get_or_init(|| {
-                    Arc::new(StarterUnion::build(&[&self.tw_variants]))
-                }).clone()
-            }
-            UnionKey::TwPhrasesRevOnly => {
-                self.unions.tw_phrases_rev_only.get_or_init(|| {
-                    Arc::new(StarterUnion::build(&[&self.tw_phrases_rev]))
-                }).clone()
-            }
-            UnionKey::TwRevPair => {
-                self.unions.tw_rev_pair.get_or_init(|| {
+            UnionKey::S2TwR2 => self
+                .unions
+                .s2tw_r2
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.tw_variants])))
+                .clone(),
+            UnionKey::TwPhrasesOnly => self
+                .unions
+                .tw_phrases_only
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.tw_phrases])))
+                .clone(),
+            UnionKey::TwVariantsOnly => self
+                .unions
+                .tw_variants_only
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.tw_variants])))
+                .clone(),
+            UnionKey::TwPhrasesRevOnly => self
+                .unions
+                .tw_phrases_rev_only
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.tw_phrases_rev])))
+                .clone(),
+            UnionKey::TwRevPair => self
+                .unions
+                .tw_rev_pair
+                .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.tw_variants_rev_phrases,
                         &self.tw_variants_rev,
                     ]))
-                }).clone()
-            }
-            UnionKey::Tw2SpR1TwRevTriple => {
-                self.unions.tw2sp_r1_tw_rev_triple.get_or_init(|| {
+                })
+                .clone(),
+            UnionKey::Tw2SpR1TwRevTriple => self
+                .unions
+                .tw2sp_r1_tw_rev_triple
+                .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.tw_phrases_rev,
                         &self.tw_variants_rev_phrases,
                         &self.tw_variants_rev,
                     ]))
-                }).clone()
-            }
-            UnionKey::HkVariantsOnly => {
-                self.unions.hk_variants_only.get_or_init(|| {
-                    Arc::new(StarterUnion::build(&[&self.hk_variants]))
-                }).clone()
-            }
-            UnionKey::HkRevPair => {
-                self.unions.hk_rev_pair.get_or_init(|| {
+                })
+                .clone(),
+            UnionKey::HkVariantsOnly => self
+                .unions
+                .hk_variants_only
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.hk_variants])))
+                .clone(),
+            UnionKey::HkRevPair => self
+                .unions
+                .hk_rev_pair
+                .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.hk_variants_rev_phrases,
                         &self.hk_variants_rev,
                     ]))
-                }).clone()
-            }
-            UnionKey::JpVariantsOnly => {
-                self.unions.jp_variants_only.get_or_init(|| {
-                    Arc::new(StarterUnion::build(&[&self.jp_variants]))
-                }).clone()
-            }
-            UnionKey::JpRevTriple => {
-                self.unions.jp_rev_triple.get_or_init(|| {
+                })
+                .clone(),
+            UnionKey::JpVariantsOnly => self
+                .unions
+                .jp_variants_only
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.jp_variants])))
+                .clone(),
+            UnionKey::JpRevTriple => self
+                .unions
+                .jp_rev_triple
+                .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.jps_phrases,
                         &self.jps_characters,
                         &self.jp_variants_rev,
                     ]))
-                }).clone()
-            }
+                })
+                .clone(),
         }
     }
 
