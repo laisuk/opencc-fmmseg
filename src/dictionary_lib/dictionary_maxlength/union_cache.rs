@@ -15,9 +15,7 @@ pub(super) struct Unions {
     t2s: OnceLock<Arc<StarterUnion>>,
     t2s_punct: OnceLock<Arc<StarterUnion>>,
 
-    // S2Tw: R1 (+ punct) and R2
-    s2tw_r1: OnceLock<Arc<StarterUnion>>,
-    s2tw_r1_punct: OnceLock<Arc<StarterUnion>>,
+    // S2Tw: R1 (S2T + punct) and R2
     s2tw_r2: OnceLock<Arc<StarterUnion>>, // TW variants
 
     // TW-only helpers
@@ -44,7 +42,6 @@ pub(crate) enum UnionKey {
     T2S { punct: bool },
 
     // S2Tw
-    S2TwR1 { punct: bool },
     S2TwR2,
 
     // TW helpers
@@ -123,16 +120,6 @@ impl DictionaryMaxlength {
                     &self.unions.t2s
                 };
                 self.ts_union_for_slot(punct, slot)
-            }
-
-            // S2Tw R1: same dict set as S2T R1 (± punct), different cache slot
-            UnionKey::S2TwR1 { punct } => {
-                let slot = if punct {
-                    &self.unions.s2tw_r1_punct
-                } else {
-                    &self.unions.s2tw_r1
-                };
-                self.st_union_for_slot(punct, slot)
             }
 
             // …the rest unchanged…
