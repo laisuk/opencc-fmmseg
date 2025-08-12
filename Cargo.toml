@@ -10,6 +10,7 @@ members = [
 name = "opencc-fmmseg"
 version = "0.8.0"
 edition = "2021"
+rust-version = "1.75"
 autobenches = false # Disable auto-bench
 authors = ["Laisuk Lai <laisuk@example.com>"]
 description = "High-performance OpenCC-based Chinese conversion using FMM (Forward Maximum Matching) segmentation."

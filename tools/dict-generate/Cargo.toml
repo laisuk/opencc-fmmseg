@@ -2,6 +2,7 @@
 name = "dict-generate"
 version = "0.8.0"
 edition = "2021"
+rust-version = "1.75"
 
 [dependencies]
 opencc-fmmseg = {path = "../.."}

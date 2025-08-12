@@ -20,10 +20,12 @@ use rayon::prelude::*;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::iter::Iterator;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
+use crate::dictionary_lib::dictionary_maxlength::UnionKey;
+use crate::dictionary_lib::StarterUnion;
 use dictionary_lib::dict_max_len::DictMaxLen;
 use dictionary_lib::DictionaryMaxlength;
 
@@ -371,11 +373,50 @@ impl OpenCC {
     /// # Notes
     /// - If the set or contents of `dictionaries` changes, rebuild the union (this function does it for you).
     /// - This is an internal bridge used by higher-level routines (e.g., `DictRefs::apply_segment_replace`).
-    fn segment_replace(
+    // fn segment_replace(
+    //     &self,
+    //     text: &str,
+    //     dictionaries: &[&DictMaxLen],
+    //     max_word_length: usize,
+    // ) -> String {
+    //     let chars: Vec<char> = if self.is_parallel {
+    //         text.par_chars().collect()
+    //     } else {
+    //         text.chars().collect()
+    //     };
+    //
+    //     let ranges = self.get_chars_range(&chars, false);
+    //
+    //     // Build once per call for this dict set
+    //     let union = StarterUnion::build(dictionaries);
+    //
+    //     if self.is_parallel {
+    //         ranges
+    //             .into_par_iter()
+    //             .with_min_len(8)
+    //             .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
+    //             .reduce(String::new, |mut a, b| {
+    //                 a.push_str(&b);
+    //                 a
+    //             })
+    //     } else {
+    //         ranges
+    //             .into_iter()
+    //             .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
+    //             .fold(String::new(), |mut acc, s| {
+    //                 acc.push_str(&s);
+    //                 acc
+    //             })
+    //     }
+    // }
+
+    #[inline]
+    fn segment_replace_with_union(
         &self,
         text: &str,
         dictionaries: &[&DictMaxLen],
         max_word_length: usize,
+        union: &StarterUnion,
     ) -> String {
         let chars: Vec<char> = if self.is_parallel {
             text.par_chars().collect()
@@ -385,14 +426,11 @@ impl OpenCC {
 
         let ranges = self.get_chars_range(&chars, false);
 
-        // Build once per call for this dict set
-        let union = StarterUnion::build(dictionaries);
-
         if self.is_parallel {
             ranges
                 .into_par_iter()
                 .with_min_len(8)
-                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
+                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, union))
                 .reduce(String::new, |mut a, b| {
                     a.push_str(&b);
                     a
@@ -400,7 +438,7 @@ impl OpenCC {
         } else {
             ranges
                 .into_iter()
-                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
+                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, union))
                 .fold(String::new(), |mut acc, s| {
                     acc.push_str(&s);
                     acc
@@ -646,9 +684,16 @@ impl OpenCC {
             round_1.push(&self.dictionary.st_punctuations);
         }
 
-        DictRefs::new(&round_1).apply_segment_replace(input, |input, refs, max_len| {
-            self.segment_replace(input, refs, max_len)
-        })
+        let union = self
+            .dictionary
+            .union_for(UnionKey::S2T { punct: punctuation });
+
+        DictRefs::new(&round_1, union).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        )
     }
 
     /// Performs Traditional-to-Simplified Chinese conversion.
@@ -660,9 +705,16 @@ impl OpenCC {
             round_1.push(&self.dictionary.ts_punctuations);
         }
 
-        DictRefs::new(&round_1).apply_segment_replace(input, |input, refs, max_len| {
-            self.segment_replace(input, refs, max_len)
-        })
+        let union = self
+            .dictionary
+            .union_for(UnionKey::T2S { punct: punctuation });
+
+        DictRefs::new(&round_1, union).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        )
     }
 
     /// Performs Simplified-to-Taiwanese conversion.
@@ -674,10 +726,15 @@ impl OpenCC {
             round_1.push(&self.dictionary.st_punctuations);
         }
 
-        DictRefs::new(&round_1)
-            .with_round_2(&[&self.dictionary.tw_variants])
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
+        let u1 = self
+            .dictionary
+            .union_for(UnionKey::S2TwR1 { punct: punctuation });
+        let u2 = self.dictionary.union_for(UnionKey::S2TwR2);
+
+        DictRefs::new(&round_1, u1)
+            .with_round_2(&[&self.dictionary.tw_variants], u2)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
             })
     }
 
@@ -690,13 +747,21 @@ impl OpenCC {
             round_2.push(&self.dictionary.ts_punctuations);
         }
 
-        DictRefs::new(&[
-            &self.dictionary.tw_variants_rev_phrases,
-            &self.dictionary.tw_variants_rev,
-        ])
-        .with_round_2(&round_2)
-        .apply_segment_replace(input, |input, refs, max_len| {
-            self.segment_replace(input, refs, max_len)
+        let u1 = self.dictionary.union_for(UnionKey::TwRevPair);
+        let u2 = self
+            .dictionary
+            .union_for(UnionKey::T2S { punct: punctuation });
+
+        DictRefs::new(
+            &[
+                &self.dictionary.tw_variants_rev_phrases,
+                &self.dictionary.tw_variants_rev,
+            ],
+            u1,
+        )
+        .with_round_2(&round_2, u2)
+        .apply_segment_replace(input, |input, refs, max_len, union| {
+            self.segment_replace_with_union(input, refs, max_len, union)
         })
     }
 
@@ -709,14 +774,23 @@ impl OpenCC {
         if punctuation {
             round_1.push(&self.dictionary.st_punctuations);
         }
+
+        let u1 = self
+            .dictionary
+            .union_for(UnionKey::S2TwR1 { punct: punctuation });
+
         let round_2 = [&self.dictionary.tw_phrases];
+        let u2 = self.dictionary.union_for(UnionKey::TwPhrasesOnly);
+
         let round_3 = [&self.dictionary.tw_variants];
+        let u3 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
+
         // Use the DictRefs struct to handle 3 rounds
-        DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .with_round_3(&round_3)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
+        DictRefs::new(&round_1, u1)
+            .with_round_2(&round_2, u2)
+            .with_round_3(&round_3, u3)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
             })
     }
 
@@ -727,17 +801,21 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
+        let u1 = self.dictionary.union_for(UnionKey::Tw2SpR1TwRevTriple);
         let mut round_2: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
             round_2.push(&self.dictionary.ts_punctuations);
         }
+        let u2 = self
+            .dictionary
+            .union_for(UnionKey::T2S { punct: punctuation });
 
-        DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
+        DictRefs::new(&round_1, u1)
+            .with_round_2(&round_2, u2)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
             })
     }
 
@@ -749,11 +827,15 @@ impl OpenCC {
         if punctuation {
             round_1.push(&self.dictionary.st_punctuations);
         }
+        let u1 = self
+            .dictionary
+            .union_for(UnionKey::S2T { punct: punctuation });
         let round_2 = [&self.dictionary.hk_variants];
-        DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
+        let u2 = self.dictionary.union_for(UnionKey::HkVariantsOnly);
+        DictRefs::new(&round_1, u1)
+            .with_round_2(&round_2, u2)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
             })
     }
 
@@ -763,26 +845,33 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
+        let u1 = self.dictionary.union_for(UnionKey::HkRevPair);
         let mut round_2: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
 
         if punctuation {
             round_2.push(&self.dictionary.ts_punctuations);
         }
-        DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
+        let u2 = self
+            .dictionary
+            .union_for(UnionKey::T2S { punct: punctuation });
+        DictRefs::new(&round_1, u1)
+            .with_round_2(&round_2, u2)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
             })
     }
 
     /// Performs traditional to traditional Taiwan
     pub fn t2tw(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_variants];
-        let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
-            });
+        let u1 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
+        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        );
 
         output
     }
@@ -790,11 +879,13 @@ impl OpenCC {
     /// Performs traditional to traditional Taiwan with idioms
     pub fn t2twp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_phrases];
+        let u1 = self.dictionary.union_for(UnionKey::TwPhrasesOnly);
         let round_2 = [&self.dictionary.tw_variants];
-        let output = DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
+        let u2 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
+        let output = DictRefs::new(&round_1, u1)
+            .with_round_2(&round_2, u2)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
             });
 
         output
@@ -806,10 +897,14 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
-            });
+        let u1 = self.dictionary.union_for(UnionKey::TwRevPair);
+
+        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        );
 
         output
     }
@@ -820,11 +915,15 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
+        let u1 = self.dictionary.union_for(UnionKey::TwRevPair);
+
         let round_2 = [&self.dictionary.tw_phrases_rev];
-        let output = DictRefs::new(&round_1)
-            .with_round_2(&round_2)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
+        let u2 = self.dictionary.union_for(UnionKey::TwPhrasesRevOnly);
+
+        let output = DictRefs::new(&round_1, u1)
+            .with_round_2(&round_2, u2)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
             });
 
         output
@@ -833,10 +932,13 @@ impl OpenCC {
     /// Perform traditional to traditional Hong Kong
     pub fn t2hk(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.hk_variants];
-        let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
-            });
+        let u1 = self.dictionary.union_for(UnionKey::HkVariantsOnly);
+        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        );
 
         output
     }
@@ -847,10 +949,13 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
-            });
+        let u1 = self.dictionary.union_for(UnionKey::HkRevPair);
+        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        );
 
         output
     }
@@ -858,10 +963,13 @@ impl OpenCC {
     /// Performs Japanese Kyujitai to Shinjitai
     pub fn t2jp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.jp_variants];
-        let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
-            });
+        let u1 = self.dictionary.union_for(UnionKey::JpVariantsOnly);
+        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        );
 
         output
     }
@@ -873,10 +981,13 @@ impl OpenCC {
             &self.dictionary.jps_characters,
             &self.dictionary.jp_variants_rev,
         ];
-        let output = DictRefs::new(&round_1)
-            .apply_segment_replace(input, |input, refs, max_len| {
-                self.segment_replace(input, refs, max_len)
-            });
+        let u1 = self.dictionary.union_for(UnionKey::JpRevTriple);
+        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
+            input,
+            |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            },
+        );
 
         output
     }
@@ -1133,209 +1244,174 @@ impl OpenCC {
     }
 }
 
-// New backing type for a round: slice of &DictMaxLen plus its computed max_len
-type DictRound<'a> = (&'a [&'a DictMaxLen], usize);
+/// One conversion round: a set of dictionaries + its computed `max_len` + the
+/// prebuilt [`StarterUnion`] used to prune viable match lengths.
+///
+/// # Fields
+/// - [`dicts`]: the dictionaries to probe (probe order = precedence).
+/// - [`max_len`]: the maximum phrase length across `dicts` (in `char`s).
+/// - [`union`]: a union of starter masks/caps built **from these `dicts`**.
+///   Typically, cached (e.g., via `OnceLock`) and shared across threads with `Arc`.
+///
+/// # Invariants
+/// - `max_len` is `dicts.iter().map(|d| d.max_len).max().unwrap_or(1)`.
+/// - `union` must reflect exactly the dictionaries in `dicts`.
+///   If the dictionaries change, rebuild the union.
+pub struct DictRound<'a> {
+    pub dicts: &'a [&'a DictMaxLen],
+    pub max_len: usize,
+    pub union: Arc<StarterUnion>,
+}
 
+/// Internal helper that computes a [`DictRound`] from a slice of dictionaries
+/// and its corresponding [`StarterUnion`].
+///
+/// `max_len` is computed as the maximum `d.max_len` among `dicts` (or `1` if empty).
+#[inline]
+fn compute_round<'a>(dicts: &'a [&'a DictMaxLen], union: Arc<StarterUnion>) -> DictRound<'a> {
+    let max_len = dicts.iter().map(|d| d.max_len).max().unwrap_or(1);
+    DictRound {
+        dicts,
+        max_len,
+        union,
+    }
+}
+
+/// Holds up to three conversion rounds. Each round carries its own
+/// dictionaries, `max_len`, and prebuilt [`StarterUnion`].
+///
+/// This struct is a small orchestrator: you assemble rounds (R1 is required,
+/// R2/R3 are optional), then call [`apply_segment_replace`] with your engine’s
+/// segment/replace closure (e.g., a wrapper around `convert_by_union`).
+///
+/// # Example
+/// Minimal example that builds two tiny dictionaries, a shared union,
+/// and runs a no-op conversion closure (for illustration only).
+///
+/// ```
+/// use std::sync::Arc;
+/// use opencc_fmmseg::dictionary_lib::{DictMaxLen, StarterUnion};
+/// use opencc_fmmseg::DictRefs; // adjust path if needed
+///
+/// // Tiny dicts (one-char mappings)
+/// let d1 = DictMaxLen::build_from_pairs(vec![("你".into(), "您".into())]);
+/// let d2 = DictMaxLen::build_from_pairs(vec![("世".into(), "世".into())]);
+/// let dicts: Vec<&DictMaxLen> = vec![&d1, &d2];
+///
+/// // Union built from exactly these dicts
+/// let union = Arc::new(StarterUnion::build(&dicts));
+///
+/// // One round; closure here just echoes input
+/// let refs = DictRefs::new(&dicts, union);
+/// let out = refs.apply_segment_replace("你好，世界", |input, _dicts, _max, _union| {
+///     input.to_string()
+/// });
+/// assert_eq!(out, "你好，世界");
+/// ```
+///
+/// For a full conversion, your closure would call your engine’s
+/// `segment_replace_with_union(input, dicts, max_len, union)`.
 pub struct DictRefs<'a> {
     round_1: DictRound<'a>,
     round_2: Option<DictRound<'a>>,
     round_3: Option<DictRound<'a>>,
 }
 
-#[inline]
-fn compute_round<'a>(dicts: &'a [&'a DictMaxLen]) -> DictRound<'a> {
-    let max_len = dicts.iter().map(|d| d.max_len).max().unwrap_or(1);
-    (dicts, max_len)
-}
-
 impl<'a> DictRefs<'a> {
-    /// Build with required round 1 (slice of &DictMaxLen). max_len is computed.
-    pub fn new(round_1_dicts: &'a [&'a DictMaxLen]) -> Self {
+    /// Creates a [`DictRefs`] with **required** round 1.
+    ///
+    /// `max_len` is computed automatically; `union` should be prebuilt from
+    /// exactly `round_1_dicts` (and is typically cached and reused).
+    ///
+    /// # Example
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use opencc_fmmseg::dictionary_lib::{DictMaxLen, StarterUnion};
+    /// # use opencc_fmmseg::DictRefs;
+    /// let d = DictMaxLen::build_from_pairs(vec![("你".into(), "您".into())]);
+    /// let dicts: Vec<&DictMaxLen> = vec![&d];
+    /// let union = Arc::new(StarterUnion::build(&dicts));
+    /// let _refs = DictRefs::new(&dicts, union);
+    /// ```
+    pub fn new(round_1_dicts: &'a [&'a DictMaxLen], round_1_union: Arc<StarterUnion>) -> Self {
         Self {
-            round_1: compute_round(round_1_dicts),
+            round_1: compute_round(round_1_dicts, round_1_union),
             round_2: None,
             round_3: None,
         }
     }
 
-    /// Add optional round 2.
-    pub fn with_round_2(mut self, round_2_dicts: &'a [&'a DictMaxLen]) -> Self {
-        self.round_2 = Some(compute_round(round_2_dicts));
+    /// Adds **optional** round 2.
+    ///
+    /// `round_2_union` should be built from `round_2_dicts`.
+    pub fn with_round_2(
+        mut self,
+        round_2_dicts: &'a [&'a DictMaxLen],
+        round_2_union: Arc<StarterUnion>,
+    ) -> Self {
+        self.round_2 = Some(compute_round(round_2_dicts, round_2_union));
         self
     }
 
-    /// Add optional round 3.
-    pub fn with_round_3(mut self, round_3_dicts: &'a [&'a DictMaxLen]) -> Self {
-        self.round_3 = Some(compute_round(round_3_dicts));
+    /// Adds **optional** round 3.
+    ///
+    /// `round_3_union` should be built from `round_3_dicts`.
+    pub fn with_round_3(
+        mut self,
+        round_3_dicts: &'a [&'a DictMaxLen],
+        round_3_union: Arc<StarterUnion>,
+    ) -> Self {
+        self.round_3 = Some(compute_round(round_3_dicts, round_3_union));
         self
     }
 
-    /// Apply up to three rounds using a caller-provided segment/replace closure.
+    /// Applies up to three rounds using a caller-provided segment/replace closure.
     ///
-    /// The closure gets:
-    /// - `&str` input
-    /// - `&[&DictMaxLen]` dicts for the round
-    /// - `usize` max_len (in chars) computed for that round
+    /// The closure receives:
+    /// - `&str` — the input for that round (segment or whole string),
+    /// - `&[&DictMaxLen]` — the dictionaries to consult for that round,
+    /// - `usize` — `max_len` (in characters) for that round,
+    /// - `&StarterUnion` — the union to prune viable lengths for that round.
     ///
-    /// It returns the transformed `String` for that round.
-    pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
-    where
-        F: Fn(&str, &[&DictMaxLen], usize) -> String,
-    {
-        let mut output = segment_replace(input, self.round_1.0, self.round_1.1);
-        if let Some((refs, max)) = &self.round_2 {
-            output = segment_replace(&output, refs, *max);
-        }
-        if let Some((refs, max)) = &self.round_3 {
-            output = segment_replace(&output, refs, *max);
-        }
-        output
-    }
-}
-
-// ----------------------------------------------
-
-/// Union view of starter-length metadata across multiple [`DictMaxLen`] tables.
-///
-/// `StarterUnion` merges (unions) the **per-starter length masks** and
-/// **per-starter maximum lengths** from several dictionaries, so the caller
-/// can do a single starter check when matching across multiple tables.
-///
-/// - **BMP (0x0000..=0xFFFF)** starters are stored densely in fixed-size arrays:
-///   - [`bmp_mask`]: bitmask of available lengths per starter (`u64`).
-///   - [`bmp_cap`]: maximum length per starter (`u16`).
-/// - **Astral (> 0xFFFF)** starters are sparse:
-///   - [`astral_mask`], [`astral_cap`] keyed by the non-BMP starter `char`.
-///
-/// # Bit layout
-/// For each starter:
-/// - bit 0  ⇒ length = 1
-/// - bit 1  ⇒ length = 2
-/// - …
-/// - bit 63 ⇒ length **≥ 64** (the “CAP” bucket)
-///
-/// # Invariants
-/// - `bmp_mask.len() == 0x10000`; `bmp_cap.len() == 0x10000`.
-/// - A set bit for a given starter implies at least one phrase length for that starter.
-/// - By construction, `bmp_cap[c]` ≥ the largest set bit (converted to length) for `bmp_mask[c]`.
-///
-/// # Typical use
-/// Build once after you’ve constructed your per-locale/per-variant dictionaries,
-/// then use the union’s mask/cap to drive fast longest-match scans.
-pub struct StarterUnion {
-    /// Dense BMP length bitmasks, indexed by `starter as usize`.
-    pub bmp_mask: Vec<u64>, // 0x10000
-
-    /// Dense BMP per-starter maximum length (in characters), indexed by `starter as usize`.
-    pub bmp_cap: Vec<u16>, // 0x10000
-
-    /// Sparse length bitmasks for astral starters (`starter > 0xFFFF`).
-    pub astral_mask: FxHashMap<char, u64>,
-
-    /// Sparse per-starter maximum length (in characters) for astral starters.
-    pub astral_cap: FxHashMap<char, u16>,
-}
-
-impl StarterUnion {
-    /// Builds a union of starter metadata from multiple [`DictMaxLen`] tables.
-    ///
-    /// For each input dictionary:
-    /// - **BMP** starters: bitwise-ORs the length masks into [`bmp_mask`], and takes
-    ///   the element-wise maximum into [`bmp_cap`].
-    /// - **Astral** starters: updates [`astral_mask`] and [`astral_cap`] in a sparse map.
-    ///
-    /// # Requirements
-    /// Each `DictMaxLen` should have populated starter indexes
-    /// (i.e., `populate_starter_indexes()` has been called, which is already done by
-    /// [`DictMaxLen::build_from_pairs`]).
-    ///
-    /// # Complexity
-    /// Let *D* be the number of dictionaries. The BMP union is `O(D · 65_536)`.
-    /// Astral merging is proportional to the number of **distinct** astral starters.
+    /// It must return the transformed `String` for that round.
     ///
     /// # Example
     /// ```
-    /// use opencc_fmmseg::dictionary_lib::{DictMaxLen};
-    /// use opencc_fmmseg::StarterUnion;
+    /// # use std::sync::Arc;
+    /// # use opencc_fmmseg::dictionary_lib::{DictMaxLen, StarterUnion};
+    /// # use opencc_fmmseg::DictRefs;
+    /// let d = DictMaxLen::build_from_pairs(vec![("你".into(), "您".into())]);
+    /// let dicts: Vec<&DictMaxLen> = vec![&d];
+    /// let union = Arc::new(StarterUnion::build(&dicts));
     ///
-    /// // d1: has "你好" and one non-BMP char key "𢫊"
-    /// let d1 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你好".to_string(), "您好".to_string()),
-    ///     ("𢫊".to_string(), "替".to_string()),
-    /// ]);
-    ///
-    /// // d2: has single-char "你" and "世界"
-    /// let d2 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你".to_string(), "您".to_string()),
-    ///     ("世界".to_string(), "世間".to_string()),
-    /// ]);
-    ///
-    /// let u = StarterUnion::build(&[&d1, &d2]);
-    ///
-    /// // BMP starter checks for '你'
-    /// let i = '你' as usize;
-    /// assert_ne!(u.bmp_mask[i] & (1 << 0), 0); // len=1 exists ("你")
-    /// assert_ne!(u.bmp_mask[i] & (1 << 1), 0); // len=2 exists ("你好")
-    /// assert!(u.bmp_cap[i] >= 2);
-    ///
-    /// // Astral starter checks for '𢫊' (U+22ACA)
-    /// let c_astral = '𢫊';
-    /// let m = u.astral_mask.get(&c_astral).copied().unwrap_or(0);
-    /// assert_ne!(m & (1 << 0), 0); // len=1 exists
-    /// assert!(u.astral_cap.get(&c_astral).copied().unwrap_or(0) >= 1);
+    /// let refs = DictRefs::new(&dicts, union);
+    /// let converted = refs.apply_segment_replace("你", |input, _dicts, _max_len, _union| {
+    ///     // In production, call your engine here:
+    ///     // opencc.segment_replace_with_union(input, dicts, max_len, union)
+    ///     input.to_string()
+    /// });
+    /// assert_eq!(converted, "你");
     /// ```
-    pub fn build(dicts: &[&DictMaxLen]) -> Self {
-        const N: usize = 0x10000;
-        let mut bmp_mask = vec![0u64; N];
-        let mut bmp_cap = vec![0u16; N];
-        let mut astral_mask = FxHashMap::default();
-        let mut astral_cap = FxHashMap::default();
+    pub fn apply_segment_replace<F>(&self, input: &str, segment_replace: F) -> String
+    where
+        F: Fn(&str, &[&DictMaxLen], usize, &StarterUnion) -> String,
+    {
+        let mut out = segment_replace(
+            input,
+            self.round_1.dicts,
+            self.round_1.max_len,
+            &self.round_1.union,
+        );
 
-        for d in dicts {
-            // BMP union
-            for i in 0..N {
-                let m = d.first_len_mask64[i];
-                if m != 0 {
-                    bmp_mask[i] |= m;
-                    let c = d.first_char_max_len[i];
-                    if c > bmp_cap[i] {
-                        bmp_cap[i] = c;
-                    }
-                }
-            }
-
-            // Astral sparse union
-            for key in d.map.keys() {
-                if key.is_empty() {
-                    continue;
-                }
-                let c0 = key[0];
-                if (c0 as u32) <= 0xFFFF {
-                    continue;
-                }
-                let len = key.len();
-                let bit = if len >= 64 { 63 } else { len - 1 };
-                *astral_mask.entry(c0).or_default() |= 1u64 << bit;
-                astral_cap
-                    .entry(c0)
-                    .and_modify(|m| {
-                        if *m < len as u16 {
-                            *m = len as u16
-                        }
-                    })
-                    .or_insert(len as u16);
-            }
+        if let Some(r2) = &self.round_2 {
+            out = segment_replace(&out, r2.dicts, r2.max_len, &r2.union);
         }
-
-        Self {
-            bmp_mask,
-            bmp_cap,
-            astral_mask,
-            astral_cap,
+        if let Some(r3) = &self.round_3 {
+            out = segment_replace(&out, r3.dicts, r3.max_len, &r3.union);
         }
+        out
     }
 }
-// -------------------------------------------------
 
 /// Finds a valid UTF-8 boundary within the given string, limited by a maximum byte count.
 ///

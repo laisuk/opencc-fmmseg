@@ -21,6 +21,9 @@ use std::sync::Mutex;
 use std::{fs, io};
 use zstd::{decode_all, Decoder, Encoder};
 
+mod union_cache;
+pub(crate) use union_cache::UnionKey; // so callers can say `UnionKey::S2T { punct: .. }`
+
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
@@ -49,6 +52,10 @@ pub struct DictionaryMaxlength {
     pub jp_variants_rev: DictMaxLen,
     pub st_punctuations: DictMaxLen,
     pub ts_punctuations: DictMaxLen,
+
+    #[serde(skip)]
+    #[serde(default)]
+    unions: union_cache::Unions,
 }
 
 impl DictionaryMaxlength {
@@ -282,6 +289,8 @@ impl DictionaryMaxlength {
             jp_variants_rev: load_dict(base_dir, dict_files["jp_variants_rev"])?,
             st_punctuations: load_dict(base_dir, dict_files["st_punctuations"])?,
             ts_punctuations: load_dict(base_dir, dict_files["ts_punctuations"])?,
+            // runtime-only cache (serde-skipped)
+            unions: Default::default(),
         })
     }
     /// Populates starter indexes for all inner [`DictMaxLen`] tables in this structure.
@@ -554,6 +563,8 @@ impl Default for DictionaryMaxlength {
             jp_variants_rev: DictMaxLen::default(),
             st_punctuations: DictMaxLen::default(),
             ts_punctuations: DictMaxLen::default(),
+            // runtime-only cache (serde-skipped)
+            unions: Default::default(),
         };
 
         dicts.finish()
@@ -779,6 +790,8 @@ mod tests {
             jp_variants_rev: DictMaxLen::default(),
             st_punctuations: DictMaxLen::default(),
             ts_punctuations: DictMaxLen::default(),
+            // runtime-only cache (serde-skipped)
+            unions: Default::default(),
         };
 
         dicts.to_dicts(output_dir)?;
@@ -800,4 +813,6 @@ mod tests {
 
         Ok(())
     }
+
+
 }
