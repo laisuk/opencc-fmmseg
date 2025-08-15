@@ -732,10 +732,11 @@ impl OpenCC {
         let u1 = self
             .dictionary
             .union_for(UnionKey::S2T { punct: punctuation });
-        let u2 = self.dictionary.union_for(UnionKey::S2TwR2);
+        let round_2 = [&self.dictionary.tw_variants];
+        let u2 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
 
         DictRefs::new(&round_1, u1)
-            .with_round_2(&[&self.dictionary.tw_variants], u2)
+            .with_round_2(&round_2, u2)
             .apply_segment_replace(input, |input, refs, max_len, union| {
                 self.segment_replace_with_union(input, refs, max_len, union)
             })

@@ -530,7 +530,7 @@ impl DictionaryMaxlength {
             Decoder::new(reader).map_err(|e| DictionaryError::IoError(e.to_string()))?;
         let dictionary: DictionaryMaxlength =
             from_reader(&mut decoder).map_err(|e| DictionaryError::ParseError(e.to_string()))?;
-        Ok(dictionary)
+        Ok(dictionary.finish())
     }
 }
 
@@ -813,6 +813,4 @@ mod tests {
 
         Ok(())
     }
-
-
 }

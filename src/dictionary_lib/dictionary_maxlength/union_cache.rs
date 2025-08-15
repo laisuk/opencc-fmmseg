@@ -15,9 +15,6 @@ pub(super) struct Unions {
     t2s: OnceLock<Arc<StarterUnion>>,
     t2s_punct: OnceLock<Arc<StarterUnion>>,
 
-    // S2Tw: R1 (S2T + punct) and R2
-    s2tw_r2: OnceLock<Arc<StarterUnion>>, // TW variants
-
     // TW-only helpers
     tw_phrases_only: OnceLock<Arc<StarterUnion>>,
     tw_variants_only: OnceLock<Arc<StarterUnion>>,
@@ -41,9 +38,6 @@ pub(crate) enum UnionKey {
     S2T { punct: bool },
     T2S { punct: bool },
 
-    // S2Tw
-    S2TwR2,
-
     // TW helpers
     TwPhrasesOnly,
     TwVariantsOnly,
@@ -62,45 +56,6 @@ pub(crate) enum UnionKey {
 
 impl DictionaryMaxlength {
     /// Returns a cached `StarterUnion` for the given logical conversion set.
-    // ----- small helpers to kill duplication -----
-    #[inline]
-    fn st_union_for_slot(
-        &self,
-        punct: bool,
-        slot: &OnceLock<Arc<StarterUnion>>,
-    ) -> Arc<StarterUnion> {
-        slot.get_or_init(|| {
-            if punct {
-                let dicts = [&self.st_phrases, &self.st_characters, &self.st_punctuations];
-                Arc::new(StarterUnion::build(&dicts))
-            } else {
-                let dicts = [&self.st_phrases, &self.st_characters];
-                Arc::new(StarterUnion::build(&dicts))
-            }
-        })
-        .clone()
-    }
-
-    #[inline]
-    fn ts_union_for_slot(
-        &self,
-        punct: bool,
-        slot: &OnceLock<Arc<StarterUnion>>,
-    ) -> Arc<StarterUnion> {
-        slot.get_or_init(|| {
-            if punct {
-                let dicts = [&self.ts_phrases, &self.ts_characters, &self.ts_punctuations];
-                Arc::new(StarterUnion::build(&dicts))
-            } else {
-                let dicts = [&self.ts_phrases, &self.ts_characters];
-                Arc::new(StarterUnion::build(&dicts))
-            }
-        })
-        .clone()
-    }
-
-    // ----- your union_for, now deduped -----
-
     #[inline]
     pub(crate) fn union_for(&self, key: UnionKey) -> Arc<StarterUnion> {
         match key {
@@ -111,7 +66,16 @@ impl DictionaryMaxlength {
                 } else {
                     &self.unions.s2t
                 };
-                self.st_union_for_slot(punct, slot)
+                slot.get_or_init(|| {
+                    if punct {
+                        let dicts = [&self.st_phrases, &self.st_characters, &self.st_punctuations];
+                        Arc::new(StarterUnion::build(&dicts))
+                    } else {
+                        let dicts = [&self.st_phrases, &self.st_characters];
+                        Arc::new(StarterUnion::build(&dicts))
+                    }
+                })
+                .clone()
             }
             UnionKey::T2S { punct } => {
                 let slot = if punct {
@@ -119,15 +83,17 @@ impl DictionaryMaxlength {
                 } else {
                     &self.unions.t2s
                 };
-                self.ts_union_for_slot(punct, slot)
+                slot.get_or_init(|| {
+                    if punct {
+                        let dicts = [&self.ts_phrases, &self.ts_characters, &self.ts_punctuations];
+                        Arc::new(StarterUnion::build(&dicts))
+                    } else {
+                        let dicts = [&self.ts_phrases, &self.ts_characters];
+                        Arc::new(StarterUnion::build(&dicts))
+                    }
+                })
+                .clone()
             }
-
-            // …the rest unchanged…
-            UnionKey::S2TwR2 => self
-                .unions
-                .s2tw_r2
-                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.tw_variants])))
-                .clone(),
             UnionKey::TwPhrasesOnly => self
                 .unions
                 .tw_phrases_only
