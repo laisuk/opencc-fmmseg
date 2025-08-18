@@ -208,6 +208,13 @@ impl DictionaryMaxlength {
     pub fn from_dicts() -> Result<Self, DictionaryError> {
         let base_dir = "dicts";
 
+        // upfront check for base_dir existence
+        if !Path::new(base_dir).exists() {
+            let msg = format!("Base directory not found: {}", base_dir);
+            Self::set_last_error(&msg);
+            return Err(DictionaryError::IoError(msg));
+        }
+
         let dict_files: HashMap<&str, &str> = [
             ("st_characters", "STCharacters.txt"),
             ("st_phrases", "STPhrases.txt"),
@@ -293,6 +300,7 @@ impl DictionaryMaxlength {
             unions: Default::default(),
         })
     }
+
     /// Populates starter indexes for all inner [`DictMaxLen`] tables in this structure.
     ///
     /// This calls [`DictMaxLen::populate_starter_indexes`] on each dictionary field,
