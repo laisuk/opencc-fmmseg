@@ -11,7 +11,7 @@
 It combines [OpenCC](https://github.com/BYVoid/OpenCC)'s lexicons with an
 optimized [Forward Maximum Matching (FMM)](https://en.wikipedia.org/wiki/Maximum_matching) algorithm, suitable for:
 
-- Traditional ↔ Simplified conversion
+- Traditional ↔ Simplified Chinese text conversion
 - Lexicon-based segmentation
 - CLI tools and system integration via C/C++ or Python bindings
 
@@ -79,9 +79,9 @@ target/release/
 ```
 
 ```bash
-opencc-rs          # CLI text converter
+opencc-rs          # CLI plain text and Office document text converter
 opencc-clip        # Convert from clipboard, auto detect config
-dict-generate      # Generate dictionary CBOR files
+dict-generate      # Generate dictionary ZSTD, CBOR or JSON files
 ```
 
 ## Usage
@@ -134,7 +134,7 @@ Options:
 - Supported OpenDocument formats: `.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods`, `.odp`, `.epub`
 
 ```bash
-./opencc-rs office -c s2t --format docx -i doc_simplified.docx -o doc_traditional.docx
+./opencc-rs office -c s2t --punct --format docx -i doc_simplified.docx -o doc_traditional.docx
 ```
 
 - Supported conversions:
@@ -159,7 +159,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.7.0"
+opencc-fmmseg = "0.8.0"  # or latest version
 ```
 
 Then use it in your code:
@@ -176,7 +176,7 @@ fn main() {
 ```
 
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.7.0/opencc_fmmseg/)
+> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.8.0/opencc_fmmseg/)
 
 ---
 
@@ -186,9 +186,9 @@ You can also use `opencc-fmmseg` via a C API for integration with C/C++ projects
 
 The zip includes:
 
-- libopencc_fmmseg_capi.{so,dylib,dll}
-- C API: opencc_fmmseg_capi.h
-- Header-only C++ helper: OpenccFmmsegHelper.hpp
+- {lib}`opencc_fmmseg_capi.`{so,dylib,dll}
+- C API: `opencc_fmmseg_capi.h`
+- Header-only C++ helper: `OpenccFmmsegHelper.hpp`
 
 You can link against the shared library and call the segmentation/convert functions from any C or C++ project.
 
@@ -269,8 +269,8 @@ Last Error: No error
 
 - `src/lib.rs` – Main library with segmentation logic.
 - `capi/opencc-fmmseg-capi` C API source and demo.
-- `tools/opencc-rs/src/main.rs` – CLI tool (`opencc-cs`) implementation.
-- `dicts/` – OpenCC text lexicons which converted into CBOR format.
+- `tools/opencc-rs/src/main.rs` – CLI tool (`opencc-rs`) implementation.
+- `dicts/` – OpenCC text lexicons which converted into Zstd compressed CBOR format.
 
 ## 🛠 Built With
 
