@@ -121,7 +121,7 @@ pub struct OpenCC {
 /// - If `cap_here > 64`, the CAP binary bit just signals that there exists a length ≥ 64; the function
 ///   will explicitly try `cap_here..=64` regardless of which exact ≥64 lengths are present in `mask`.
 /// - This helper is typically fed by `first_len_mask64[c0]` and a per-starter `cap_here`.
-#[inline]
+#[inline(always)]
 fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool) {
     const CAP_BIT: usize = 63;
     if cap_here == 0 {
@@ -376,43 +376,6 @@ impl OpenCC {
     /// # Notes
     /// - If the set or contents of `dictionaries` changes, rebuild the union (this function does it for you).
     /// - This is an internal bridge used by higher-level routines (e.g., `DictRefs::apply_segment_replace`).
-    // fn segment_replace(
-    //     &self,
-    //     text: &str,
-    //     dictionaries: &[&DictMaxLen],
-    //     max_word_length: usize,
-    // ) -> String {
-    //     let chars: Vec<char> = if self.is_parallel {
-    //         text.par_chars().collect()
-    //     } else {
-    //         text.chars().collect()
-    //     };
-    //
-    //     let ranges = self.get_chars_range(&chars, false);
-    //
-    //     // Build once per call for this dict set
-    //     let union = StarterUnion::build(dictionaries);
-    //
-    //     if self.is_parallel {
-    //         ranges
-    //             .into_par_iter()
-    //             .with_min_len(8)
-    //             .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
-    //             .reduce(String::new, |mut a, b| {
-    //                 a.push_str(&b);
-    //                 a
-    //             })
-    //     } else {
-    //         ranges
-    //             .into_iter()
-    //             .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, &union))
-    //             .fold(String::new(), |mut acc, s| {
-    //                 acc.push_str(&s);
-    //                 acc
-    //             })
-    //     }
-    // }
-
     #[inline]
     fn segment_replace_with_union(
         &self,
@@ -439,13 +402,17 @@ impl OpenCC {
                     a
                 })
         } else {
-            ranges
-                .into_iter()
-                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, union))
-                .fold(String::new(), |mut acc, s| {
-                    acc.push_str(&s);
-                    acc
-                })
+            // Serial path: avoid growth copies
+            let mut out = String::with_capacity(text.len());
+            for r in ranges {
+                out.push_str(&self.convert_by_union(
+                    &chars[r],
+                    dictionaries,
+                    max_word_length,
+                    union,
+                ));
+            }
+            out
         }
     }
 
@@ -524,6 +491,7 @@ impl OpenCC {
     /// - Slices are only taken within `start_pos..start_pos+length` after ensuring
     ///   `length ≤ remaining`.
     /// - The union’s CAP bit (≥64) is respected via `for_each_len_dec`.
+    #[inline(always)]
     pub fn convert_by_union(
         &self,
         text_chars: &[char],
