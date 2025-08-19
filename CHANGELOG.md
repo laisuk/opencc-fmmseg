@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.1] - 2025-08-19
+
+### Fixed
+
+- Lock rayon at 1.10.0, rayon-core at 1.12.1 for rustc 1.75.0 compatible.
+
+---
+
 ## [0.8.0] - 2025-08-19
 
 ### Added
