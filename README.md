@@ -296,6 +296,12 @@ Results from **v0.8.0**:
 | 100,000    |      1.664 ms |      1.397 ms |
 | 1,000,000  |     16.034 ms |     13.466 ms |
 
+📊 **Throughput Interpretation**
+- ~62–77 **million characters per second**
+- ≈ **100 full-length novels (500k chars each) per second**
+- ≈ **1 GB of UTF-8 text** processed in under **10 seconds**
+
+At this scale, performance is so high that **I/O (disk or network)**, not the converter, becomes the bottleneck.
 
 ![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_080.png)
 
@@ -303,12 +309,6 @@ Results from **v0.8.0**:
 
 ![Safe & Parallel](https://img.shields.io/badge/Safe%20%26%20Parallel-Yes-ff69b4)
 
-### 📊 Observations
-
-- **Linear scalability**: The performance scales almost linearly with input size.
-- `s2t` and `t2s` have **comparable performance**, with minor variation due to lexicon size and match depth.
-- At **1 million characters**, both conversions take around **16–17 ms**, yielding throughput of **~60 million chars/sec
-  **.
 
 ---
 
