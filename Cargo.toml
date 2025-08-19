@@ -23,6 +23,7 @@ keywords = ["opencc", "chinese", "segmentation", "fmm", "conversion"]
 categories = ["text-processing", "localization", "command-line-utilities", "parser-implementations"]
 exclude = [
     "/.github",
+    "/.gitignore",
     "/tools/",
     "/capi/",
     "/target/",
