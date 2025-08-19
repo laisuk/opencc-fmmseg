@@ -73,6 +73,7 @@ jobs:
           echo "- Use the TXT files in dicts/ as input to the 'dict-generate' tool." >> dist/README.txt
 
       - name: Package Structured Artifacts
+        shell: bash
         run: |
           if [ "${{ matrix.archive_ext }}" = "tar.gz" ]; then
             tar -czf ${{ matrix.artifact_name }}.tar.gz -C dist .
