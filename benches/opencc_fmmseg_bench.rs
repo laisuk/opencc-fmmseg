@@ -1,33 +1,58 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use opencc_fmmseg::OpenCC;
-use std::time::Duration;
 use once_cell::sync::Lazy;
+use opencc_fmmseg::OpenCC;
+use std::fs;
+use std::time::Duration;
 
-// Base text of length ~80
-static BASE_SIMP: &str = "蟹者之王，应该是大闸蟹。市面上能买到的螃蟹，我都试过，也有些不卖的，全部加起来，一比较，就知道没有一种蟹比大闸蟹更香了。\n";
-static BASE_TRAD: &str = "蟹者之王，應該是大閘蟹。市面上能買到的螃蟹，我都試過，也有些不賣的，全部加起來，一比較，就知道沒有一種蟹比大閘蟹更香了。\n";
+// Read whole files once and leak into 'static so our slices can be &'static str.
+static SIMP_TEXT: Lazy<&'static str> = Lazy::new(|| {
+    let s = fs::read_to_string("benches/ChangFeng_Simp.txt")
+        .expect("Failed to read benches/ChangFeng_Simp.txt");
+    Box::leak(s.into_boxed_str())
+});
+
+static TRAD_TEXT: Lazy<&'static str> = Lazy::new(|| {
+    let s = fs::read_to_string("benches/ChangFeng_Trad.txt")
+        .expect("Failed to read benches/ChangFeng_Trad.txt");
+    Box::leak(s.into_boxed_str())
+});
 
 // Shared OpenCC instance
 static OPENCC: Lazy<OpenCC> = Lazy::new(OpenCC::new);
 
-// Generate input strings once
-static INPUTS_SIMP: Lazy<Vec<(&'static str, String)>> = Lazy::new(|| {
+// Return a char-accurate prefix as &str without allocating.
+// If n >= len(s in chars), just return the whole string.
+#[inline]
+fn char_prefix(s: &'static str, n: usize) -> &'static str {
+    // Fast path: if already short enough, return s
+    // (computing chars().count() would walk the string; instead, try nth first)
+    if let Some((idx, _)) = s.char_indices().nth(n) {
+        &s[..idx]
+    } else {
+        s
+    }
+}
+
+// Generate input slices once (no copies).
+static INPUTS_SIMP: Lazy<Vec<(&'static str, &'static str)>> = Lazy::new(|| {
+    let s = *SIMP_TEXT;
     vec![
-        ("s2t_100", BASE_SIMP.repeat(2)),
-        ("s2t_1k", BASE_SIMP.repeat(13)),
-        ("s2t_10k", BASE_SIMP.repeat(125)),
-        ("s2t_100k", BASE_SIMP.repeat(1_250)),
-        ("s2t_1m", BASE_SIMP.repeat(12_500)),
+        ("s2t_100",   char_prefix(s, 100)),
+        ("s2t_1k",    char_prefix(s, 1_000)),
+        ("s2t_10k",   char_prefix(s, 10_000)),
+        ("s2t_100k",  char_prefix(s, 100_000)),
+        ("s2t_1m",    char_prefix(s, 1_000_000)),
     ]
 });
 
-static INPUTS_TRAD: Lazy<Vec<(&'static str, String)>> = Lazy::new(|| {
+static INPUTS_TRAD: Lazy<Vec<(&'static str, &'static str)>> = Lazy::new(|| {
+    let s = *TRAD_TEXT;
     vec![
-        ("t2s_100", BASE_TRAD.repeat(2)),
-        ("t2s_1k", BASE_TRAD.repeat(13)),
-        ("t2s_10k", BASE_TRAD.repeat(125)),
-        ("t2s_100k", BASE_TRAD.repeat(1_250)),
-        ("t2s_1m", BASE_TRAD.repeat(12_500)),
+        ("t2s_100",   char_prefix(s, 100)),
+        ("t2s_1k",    char_prefix(s, 1_000)),
+        ("t2s_10k",   char_prefix(s, 10_000)),
+        ("t2s_100k",  char_prefix(s, 100_000)),
+        ("t2s_1m",    char_prefix(s, 1_000_000)),
     ]
 });
 

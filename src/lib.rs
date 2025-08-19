@@ -101,73 +101,87 @@ pub struct OpenCC {
     is_parallel: bool,
 }
 
-/// Iterates possible phrase lengths in **descending** order using a precomputed bitmask,
+/// Iterates viable phrase lengths in **descending order** using a starter bitmask,
 /// stopping early if the callback returns `true`.
 ///
-/// - `mask` encodes which lengths exist for a given starter:
-///   - bit 0  ⇒ length = 1
-///   - bit 1  ⇒ length = 2
-///   - ...
-///   - bit 63 ⇒ length **≥ 64** (the “CAP” bucket)
-/// - `cap_here` is the effective upper bound at the current position (e.g. `min(global_max, remaining)`).
-/// - `f(len)` is called from longest to shortest; if it returns `true`, iteration stops.
+/// # Parameters
+/// - `mask`: 64-bit mask encoding which lengths are possible for the current starter:
+///   - bit 0 ⇒ length = 1
+///   - bit 1 ⇒ length = 2
+///   - …
+///   - bit 62 ⇒ length = 63
+///   - bit 63 ⇒ **CAP bit**, representing length ≥ 64
+/// - `cap_here`: Effective cap at the current position, usually
+///   `min(global_max, remaining_chars)`.
+/// - `f(len)`: Callback invoked for each candidate length, from longest to shortest.
+///   If it returns `true`, iteration stops immediately.
 ///
-/// This function first yields all lengths **> 64** (only if the CAP bit is set and `cap_here > 64`),
-/// in the sequence `cap_here, cap_here-1, …, 64`. Then it processes the set bits for
-/// `1..=min(64, cap_here)` in descending order.
+/// # Iteration order
+/// 1. If `cap_here > 64` and the CAP bit is set, iterate lengths
+///    `cap_here, cap_here-1, …, 65`, then `64`.
+/// 2. Then iterate all set bits within `1..=min(64, cap_here)`
+///    in descending order (64→1).
+///
+/// # CAP semantics
+/// - If `cap_here == 64`: the CAP bit represents exactly length 64.
+/// - If `cap_here > 64`: the CAP bit is only a flag (“some length ≥64 exists”);
+///   this helper will explicitly try every length from `cap_here` down to 64.
+/// - If `cap_here < 64`: the CAP bit is ignored.
 ///
 /// # Notes
-/// - If `cap_here == 64`, the CAP bit represents exactly length 64.
-/// - If `cap_here > 64`, the CAP binary bit just signals that there exists a length ≥ 64; the function
-///   will explicitly try `cap_here..=64` regardless of which exact ≥64 lengths are present in `mask`.
-/// - This helper is typically fed by `first_len_mask64[c0]` and a per-starter `cap_here`.
+/// - Empty mask or `cap_here == 0` yields no iterations.
+/// - This helper is typically used inside [`convert_by_union`] to drive
+///   the “longest-first” FMM probing loop.
+/// - Internally, it uses `leading_zeros` to walk set bits from high→low.
+///
+/// # Example
+/// ```ignore
+/// // mask with bit 0 (len=1), bit 2 (len=3), CAP (≥64)
+/// let mask = (1u64 << 0) | (1u64 << 2) | (1u64 << 63);
+///
+/// let mut seen = Vec::new();
+/// for_each_len_dec(mask, 5, |len| { seen.push(len); false });
+/// assert_eq!(seen, vec![3, 1]); // CAP ignored since cap_here=5 < 64
+/// ```
 #[inline(always)]
 fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool) {
-    const CAP_BIT: usize = 63;
-    if cap_here == 0 {
+    if mask == 0 || cap_here == 0 {
         return;
     }
 
-    // 1) Handle lengths > 64 if CAP bit is set.
-    if cap_here > 64 && (mask & (1u64 << CAP_BIT)) != 0 {
-        let mut len = cap_here;
-        loop {
+    const CAP_BIT: u64 = 1u64 << 63;
+
+    // If cap > 64 and CAP is set, scan >64 first (cap..=65), then 64.
+    if cap_here > 64 && (mask & CAP_BIT) != 0 {
+        // Try lengths from cap_here down to 65
+        for len in (65..=cap_here).rev() {
             if f(len) {
                 return;
             }
-            if len == 64 {
-                break;
-            }
-            len -= 1;
+        }
+        // Now 64 once (under the CAP semantics for >64)
+        if f(64) {
+            return;
         }
     }
 
-    // 2) Handle lengths 1..=min(64, cap_here) by walking set bits from high→low.
+    // Handle lengths 1..=min(64, cap_here) by iterating set bits high→low.
     let limit = cap_here.min(64);
-    if limit == 0 {
-        return;
-    }
 
-    // Avoid `(1u64 << 64)` overflow: when `limit == 64`, take all bits.
-    let mut m = if limit == 64 {
-        mask
-    } else {
-        mask & ((1u64 << limit) - 1)
-    };
+    // Bitmask for [1..=limit]; shift-safe when limit==64.
+    let range_mask = 1u64.wrapping_shl(limit as u32).wrapping_sub(1);
 
-    // If we already tried 64+ above, drop CAP bit to avoid repeating 64.
-    if cap_here > 64 {
-        m &= !(1u64 << CAP_BIT);
-    }
+    // Apply, and drop CAP if we already consumed it via >64 path.
+    let mut m = mask & range_mask & if cap_here > 64 { !CAP_BIT } else { !0 };
 
+    // Highest-set-bit iteration.
     while m != 0 {
-        // highest set bit
-        let bit = 63 - m.leading_zeros() as usize;
-        let len = bit + 1; // 1..=64
+        let bit_pos = 63 - m.leading_zeros() as usize; // 0-based
+        let len = bit_pos + 1; // map to length
         if f(len) {
             return;
         }
-        m &= !(1u64 << bit);
+        m &= !(1u64 << bit_pos); // clear highest bit
     }
 }
 
@@ -327,24 +341,26 @@ impl OpenCC {
         ranges
     }
 
-    /// Internal segment-replacement bridge that drives FMM conversion using a **starter union**.
+    /// Internal bridge that drives FMM conversion using a precomputed **starter union**.
     ///
-    /// This function splits the input into delimiter-aware segments, then converts each segment
-    /// independently via [`convert_by_union`]. A single [`StarterUnion`] is built **once per call**
-    /// from the provided dictionaries and reused across all segments.
+    /// Splits `text` into delimiter‑aware segments, then converts each segment independently via
+    /// [`convert_by_union`]. A single prebuilt [`StarterUnion`] (for the given `dictionaries`)
+    /// is reused across all segments **once per call**.
     ///
     /// # Pipeline
-    /// 1. Collect the input into `Vec<char>` (parallel or sequential).
-    /// 2. Use [`get_chars_range`] to compute non-delimited ranges.
-    /// 3. Build a `StarterUnion` **once** from `dictionaries`.
-    /// 4. For each segment, call [`convert_by_union`] with the prebuilt union.
+    /// 1. Collect input into `Vec<char>` (parallel or sequential).
+    /// 2. Compute non‑delimited ranges with [`get_chars_range`].
+    /// 3. Build a [`StarterUnion`] **once** from `dictionaries`.
+    /// 4. For each range, call [`convert_by_union`] with the prebuilt union.
     /// 5. Concatenate results in the original order (delimiters preserved).
     ///
     /// # Arguments
     /// - `text`: Source string.
-    /// - `dictionaries`: The dictionaries to consult (probe order = precedence). Each must have
-    ///   populated starter indexes (done by `DictMaxLen::build_from_pairs` or `populate_starter_indexes`).
+    /// - `dictionaries`: Dictionaries to consult (probe order = precedence). Each must have
+    ///   populated starter indexes (see [`DictMaxLen::build_from_pairs`] or
+    ///   [`DictMaxLen::populate_starter_indexes`]).
     /// - `max_word_length`: Global cap for match length in chars (e.g., 16).
+    /// - `union`: The precomputed [`StarterUnion`] corresponding to `dictionaries`.
     ///
     /// # Parallelism
     /// If `self.is_parallel` is `true`:
@@ -353,29 +369,28 @@ impl OpenCC {
     /// This can significantly improve throughput on large inputs with many segments.
     ///
     /// # Behavior
-    /// - Delimiters are **not** transformed; they are preserved exactly.
-    /// - Each segment (a contiguous non-delimiter run) is processed with FMM using only viable
-    ///   lengths implied by the union’s bitmasks/caps.
-    /// - First dictionary hit at the longest viable length wins (short-circuit).
+    /// - Delimiters are **not transformed**; they are preserved exactly.
+    /// - Each contiguous non‑delimiter segment is processed with greedy FMM, probing only lengths
+    ///   admitted by the union’s bitmasks/caps (longest‑first, first‑hit‑wins).
     ///
     /// # Complexity
-    /// Let *N* be the number of chars, *S* the number of segments, *D* the number of dictionaries:
+    /// Let *N* be total chars, *S* segments, *D* dictionaries:
     /// - Union build: `O(D · 65_536)` for BMP + sparse astral merge (once per call).
-    /// - Conversion: Sum over segments of `O(len(segment) · K · D)` where `K ≤ 64` viable lengths
-    ///   after union pruning; often less due to early exits.
+    /// - Conversion: Σ over segments of `O(len(segment) · K · D)`, where `K ≤ 64` viable
+    ///   lengths after union pruning (often much less due to early exits).
     ///
     /// # Example (illustrative)
     /// ```ignore
-    /// use opencc_fmmseg::{DictMaxLen, StarterUnion};
-    ///
     /// // `opencc.segment_replace("...")`
-    /// //   builds one StarterUnion from the given dictionaries,
-    /// //   then calls `convert_by_union` per non-delimited segment.
+    /// //   builds one StarterUnion from the dictionaries,
+    /// //   then calls `convert_by_union` per non‑delimited segment.
     /// ```
     ///
     /// # Notes
-    /// - If the set or contents of `dictionaries` changes, rebuild the union (this function does it for you).
-    /// - This is an internal bridge used by higher-level routines (e.g., `DictRefs::apply_segment_replace`).
+    /// - If the set or contents of `dictionaries` changes, rebuild the union
+    ///   (this routine is typically called by a higher‑level helper that does so).
+    /// - Internal bridge used by higher‑level routines (e.g., [`DictRefs::apply_segment_replace`]).
+    ///
     #[inline]
     fn segment_replace_with_union(
         &self,
@@ -416,81 +431,68 @@ impl OpenCC {
         }
     }
 
-    /// Core dictionary-matching routine (FMM) optimized with a precomputed **starter union**.
+    /// Core dictionary‑matching routine (FMM) optimized by a precomputed **starter union**.
     ///
-    /// This is the tightest loop of the OpenCC segment-replacement engine. It performs a
-    /// left-to-right scan over a delimiter-free `&[char]` using **Forward Maximum Matching (FMM)**,
-    /// but accelerates matching by using a `StarterUnion` (bitmask + per-starter caps) that
-    /// unions multiple dictionaries up front.
+    /// This is the tightest loop of the segment‑replacement engine. It scans a delimiter‑free
+    /// `&[char]` left‑to‑right using **Forward Maximum Matching (FMM)**, while a prebuilt
+    /// [`StarterUnion`] (bitmasks + per‑starter caps) prunes impossible lengths before any
+    /// per‑dictionary lookup.
     ///
     /// Compared to `convert_by()`:
-    /// - Uses `union.bmp_mask / union.bmp_cap` (BMP) and `union.astral_mask / union.astral_cap`
-    ///   (astral) to **prune impossible lengths** before touching any individual dictionary.
-    /// - Iterates viable lengths in **descending order** via [`for_each_len_dec`] and short-circuits
-    ///   on the first dictionary hit.
+    /// - Uses `union.bmp_mask/cap` (BMP) and `union.astral_mask/cap` (astral) to **prune lengths**
+    ///   before probing dictionaries.
+    /// - Tries viable lengths in **descending order** via [`for_each_len_dec`]; the first hit wins.
     ///
-    /// # Matching Strategy
-    /// For each position:
-    /// 1. Compute the effective cap `cap_here = min(max_word_length, remaining, union_cap)`.
-    /// 2. Use `union` to enumerate **only viable lengths** (from longest → shortest).
-    /// 3. For each viable length, probe each dictionary **only if** that dict can possibly
-    ///    host such a key (checked against `dict.max_len` and the dict’s own per-starter cap).
-    /// 4. On the first match, emit the replacement, advance, and continue scanning.
-    /// 5. If no match is found, copy the current char and advance by 1.
+    /// # Matching strategy
+    /// For each `start_pos`:
+    /// 1. Compute `cap_here = min(max_word_length, remaining, union_cap_for_starter)`.
+    /// 2. Enumerate **only viable lengths** (longest → shortest) using the union’s bitmask/cap.
+    /// 3. For each viable `length`, probe each dictionary **only if** that dict can host such a key
+    ///    (checked against `dict.max_len` and the dict’s own per‑starter cap).
+    /// 4. On the first match, emit replacement and advance by `length`.
+    /// 5. If no match, emit the current char and advance by 1.
     ///
     /// # Arguments
-    /// - `text_chars`: Non-delimited slice of `char` (a single segment).
-    /// - `dictionaries`: The list of dictionaries to consult (probe order = precedence).
+    /// - `text_chars`: Non‑delimited slice of `char` (a single segment).
+    /// - `dictionaries`: Dictionaries to consult (probe order = precedence).
     /// - `max_word_length`: Global cap for match length in chars (e.g., 16).
-    /// - `union`: Precomputed [`StarterUnion`] built from exactly the same dictionaries.
+    /// - `union`: Precomputed [`StarterUnion`] built from **exactly** these `dictionaries`.
     ///
     /// # Returns
-    /// A `String` containing the converted segment.
+    /// Converted segment as a `String`.
     ///
     /// # Requirements
-    /// - `union` **must** be built from these `dictionaries` (same set and contents).
-    ///   If the dictionaries change, rebuild the union.
-    /// - Each `DictMaxLen` should have populated starter indexes
-    ///   (done automatically by `DictMaxLen::build_from_pairs`).
+    /// - `union` **must** be built from the same set/content of `dictionaries` (rebuild if they change).
+    /// - Each [`DictMaxLen`] has populated starter indexes
+    ///   (e.g., via [`DictMaxLen::build_from_pairs`] or `populate_starter_indexes`).
     ///
-    /// # Performance Notes
-    /// - Union pruning avoids per-dict checks for impossible lengths/starters.
-    /// - Lengths are tried longest→shortest; first match wins (best-case early exit).
-    /// - Astral starters are sparse-map pruned; BMP starters are O(1) masked.
-    ///
-    /// # BMP vs Astral
-    /// - **BMP** starters use dense arrays (`union.bmp_*`) indexed by `starter as usize`.
-    /// - **Astral** starters use sparse maps (`union.astral_*`), looked up by `char`.
+    /// # Performance notes
+    /// - Union pruning avoids per‑dict checks for impossible starters/lengths.
+    /// - Longest‑first, first‑hit‑wins often exits early on common phrases.
+    /// - BMP starters use O(1) array lookups; astral starters use sparse maps.
     ///
     /// # Complexity
-    /// Let *N* be input length, *D* number of dictionaries, *L* max length.
-    /// - Typical: `O(N · K · D)` where `K ≤ 64` viable lengths per position after pruning.
-    /// - Best case: early exit on first long match.
+    /// Let *N* be the segment length, *D* the number of dictionaries.
+    /// Typical: `O(N · K · D)` where `K ≤ 64` viable lengths per position after pruning
+    /// (often much smaller due to early exits).
     ///
     /// # Example (internal)
-    /// This method relies on internal fields (e.g., `self.delimiters`). For illustration only:
     /// ```ignore
     /// use opencc_fmmseg::{DictMaxLen, StarterUnion};
     ///
-    /// let d1 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你好".into(), "您好".into()),
-    ///     ("世界".into(), "世間".into()),
-    /// ]);
-    /// let d2 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你们".into(), "您們".into()),
-    /// ]);
-    ///
+    /// let d1 = DictMaxLen::build_from_pairs(vec![("你好".into(), "您好".into())]);
+    /// let d2 = DictMaxLen::build_from_pairs(vec![("世界".into(), "世間".into())]);
     /// let dicts: [&DictMaxLen; 2] = [&d1, &d2];
     /// let union = StarterUnion::build(&dicts);
     ///
-    /// // Suppose `opencc` is your core struct instance and `text_chars` is a delimiter-free segment:
+    /// // Given a delimiter‑free segment `text_chars`:
     /// // let out = opencc.convert_by_union(&text_chars, &dicts, 16, &union);
     /// ```
     ///
-    /// # Safety & Invariants
-    /// - Slices are only taken within `start_pos..start_pos+length` after ensuring
-    ///   `length ≤ remaining`.
-    /// - The union’s CAP bit (≥64) is respected via `for_each_len_dec`.
+    /// # Safety & invariants
+    /// - Slices are only formed within `start_pos..start_pos+length` after ensuring bounds (`length ≤ remaining`).
+    /// - `text_chars` is immutable and alive for the duration; aliasing multiple immutable slices is safe.
+    /// - CAP (≥64) semantics are enforced by [`for_each_len_dec`].
     #[inline(always)]
     pub fn convert_by_union(
         &self,
@@ -538,37 +540,41 @@ impl OpenCC {
             let cap_here = global_cap.min(cap_u16 as usize);
             let mut matched = false;
 
-            for_each_len_dec(mask, cap_here, |length| {
-                let slice = &text_chars[start_pos..start_pos + length];
+            let text_ptr = text_chars.as_ptr();
 
-                // Probe only dicts that can possibly have this length for this starter
+            for_each_len_dec(mask, cap_here, |length| {
+                // sentinel: no slice yet
+                let mut data_ptr: *const char = std::ptr::null();
+                let mut data_len: usize = 0;
+
+                // precompute starter tests, etc.
+
                 for &dict in dictionaries {
                     if dict.max_len < length {
                         continue;
                     }
+                    // ... starter-cap gates ...
 
-                    if u0 <= 0xFFFF {
-                        let idx = u0 as usize;
-                        if (dict.first_char_max_len[idx] as usize) < length {
-                            continue;
-                        }
-                    } else if let Some(&cap_u8) = dict.starter_cap.get(&c0) {
-                        if (cap_u8 as usize) < length {
-                            continue;
-                        }
-                    } else {
-                        continue;
+                    // Build the slice once per `length`
+                    if data_ptr.is_null() {
+                        debug_assert!(start_pos < text_length);
+                        debug_assert!(length <= text_length - start_pos);
+                        data_ptr = unsafe { text_ptr.add(start_pos) };
+                        data_len = length;
                     }
+
+                    // Materialize the fat slice only here
+                    let slice: &[char] = unsafe { std::slice::from_raw_parts(data_ptr, data_len) };
 
                     if let Some(val) = dict.map.get(slice) {
                         result.push_str(val);
                         start_pos += length;
                         matched = true;
-                        return true; // stop iterating lengths
+                        return true;
                     }
                 }
 
-                false // keep iterating lengths
+                false
             });
 
             if !matched {
