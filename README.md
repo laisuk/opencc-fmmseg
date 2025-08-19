@@ -297,7 +297,7 @@ Results from **v0.8.0**:
 | 1,000,000  |     16.034 ms |     13.466 ms |
 
 
-![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark.png)
+![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_080.png)
 
 ### 🏅 Highlights
 
