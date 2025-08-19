@@ -15,14 +15,17 @@ jobs:
             artifact_name: opencc-fmmseg-${{ github.ref_name }}-linux
             bin_ext: ''
             dll_name: libopencc_fmmseg_capi.so
+            archive_ext: tar.gz
           - os: macos-latest
             artifact_name: opencc-fmmseg-${{ github.ref_name }}-macos
             bin_ext: ''
             dll_name: libopencc_fmmseg_capi.dylib
+            archive_ext: tar.gz
           - os: windows-latest
             artifact_name: opencc-fmmseg-${{ github.ref_name }}-windows
             bin_ext: '.exe'
             dll_name: opencc_fmmseg_capi.dll
+            archive_ext: zip
 
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +55,6 @@ jobs:
           cp dicts/*.txt dist/bin/dicts/
         shell: bash
 
-      # Create version.txt and README.txt
       - name: Write README.txt and version.txt
         run: |
           echo "Version: ${{ github.ref_name }}" > dist/version.txt
@@ -70,14 +72,19 @@ jobs:
           echo "- Include the headers in your C/C++ project for FFI integration." >> dist/README.txt
           echo "- Use the TXT files in dicts/ as input to the 'dict-generate' tool." >> dist/README.txt
 
-      - name: Zip Structured Artifacts
-        run: 7z a ${{ matrix.artifact_name }}.zip ./dist/*
+      - name: Package Structured Artifacts
+        run: |
+          if [ "${{ matrix.archive_ext }}" = "tar.gz" ]; then
+            tar -czf ${{ matrix.artifact_name }}.tar.gz -C dist .
+          else
+            7z a ${{ matrix.artifact_name }}.zip ./dist/*
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_name }}.zip
+          path: ${{ matrix.artifact_name }}.${{ matrix.archive_ext }}
 
   release:
     name: Release Artifacts
@@ -95,6 +102,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.zip
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
