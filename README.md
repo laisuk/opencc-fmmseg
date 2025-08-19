@@ -283,16 +283,19 @@ Last Error: No error
 
 ## 🚀 Benchmark Results: `opencc-fmmseg` Conversion Speed
 
-Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on repeated 80-character sentences with
+Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on 12,000-character text with
 punctuation disabled (`punctuation = false`).
+
+Results from **v0.8.0**:
 
 | Input Size | s2t Mean Time | t2s Mean Time |
 |------------|--------------:|--------------:|
-| 100        |      45.68 µs |      43.54 µs |
-| 1,000      |     131.35 µs |     131.65 µs |
-| 10,000     |     411.68 µs |     412.80 µs |
-| 100,000    |      2.091 ms |      1.930 ms |
-| 1,000,000  |      16.62 ms |      17.11 ms |
+| 100        |      46.47 µs |      50.40 µs |
+| 1,000      |     134.18 µs |     135.72 µs |
+| 10,000     |     393.05 µs |     375.40 µs |
+| 100,000    |      1.664 ms |      1.397 ms |
+| 1,000,000  |     16.034 ms |     13.466 ms |
+
 
 ![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark.png)
 
