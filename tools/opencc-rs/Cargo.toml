@@ -1,6 +1,6 @@
 [package]
 name = "opencc-rs"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2021"
 rust-version = "1.75"
 
@@ -13,5 +13,5 @@ encoding_rs = "0.8.35"
 encoding_rs_io = "0.1.7"
 regex = "1.11.1"
 zip = "=3.0.0" # Lock version 3.0.0 for rustc 1.75.0
-tempfile = "3.20.0"
+tempfile = "3.21.0"
 walkdir = "2.5.0"
