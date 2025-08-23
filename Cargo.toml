@@ -41,18 +41,16 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# Rayon 1.11+ needs newer Rust; keep within 1.10.*
+rayon = ">=1.10, <1.11"
+
 regex = "1.11.1"
-serde_json = "1.0.143"
 serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
 serde_cbor = "0.11.2"
-# use Rayon 1.10.0 for rustc 1.75.0 
-# cargo update rayon@1.11.0 --precise 1.10.0
-# cargo add rayon-core@=1.12.1
-rayon = "=1.10.0"
 zstd = "0.13.3"
 rustc-hash = "2.1.1"
 once_cell = "1.21.3"
-#rayon-core = "=1.12.1"
 
 # Disable dev- and [bench] for Windows 7 (rustc 1.75.0)
 #  [dev-dependencies]
