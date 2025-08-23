@@ -8,6 +8,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.8.1] - 2025-08-21
 
+### Changed
+
+-- opencc-clip CLI now use clap format as command arguments.
+
 ### Fixed
 
 - Lock rayon at 1.10.0, rayon-core at 1.12.1 for rustc 1.75.0 compatible.

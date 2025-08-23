@@ -1,11 +1,13 @@
 extern crate copypasta;
 
-use std::collections::HashSet;
-use std::env;
-
+use clap::{Arg, ArgAction, Command};
 use copypasta::{ClipboardContext, ClipboardProvider};
-use once_cell::sync::Lazy;
 use opencc_fmmseg::{find_max_utf8_length, OpenCC};
+
+const CONFIG_LIST: [&str; 17] = [
+    "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
+    "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t", "auto",
+];
 
 #[derive(Debug, PartialEq)]
 enum ConversionType {
@@ -52,7 +54,6 @@ impl ConversionType {
             _ => Self::None,
         }
     }
-
     fn as_str(&self) -> &'static str {
         match self {
             Self::S2T => "s2t",
@@ -76,19 +77,9 @@ impl ConversionType {
         }
     }
     fn is_japanese(&self) -> bool {
-        self == &Self::T2JP || self == &Self::JP2T
+        matches!(self, Self::T2JP | Self::JP2T)
     }
 }
-
-pub static CONFIG_LIST: Lazy<HashSet<&'static str>> = Lazy::new(|| {
-    [
-        "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
-        "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
-    ]
-    .iter()
-    .cloned()
-    .collect()
-});
 
 fn main() {
     const RED: &str = "\x1B[1;31m";
@@ -97,29 +88,37 @@ fn main() {
     const BLUE: &str = "\x1B[1;34m";
     const RESET: &str = "\x1B[0m";
 
-    let args: Vec<String> = env::args().collect();
-    let mut conversion_type = ConversionType::Auto;
-    let mut use_punctuation = false;
+    let matches = Command::new("opencc-clip")
+        .about("Clipboard Simplified ⇄ Traditional Chinese converter using opencc-fmmseg")
+        .arg(
+            Arg::new("config")
+                .short('c')
+                .long("config")
+                .value_parser(CONFIG_LIST) // now includes "auto"
+                .default_value("auto")
+                .help("Conversion configuration (default: auto)"),
+        )
+        .arg(
+            Arg::new("punct")
+                .short('p')
+                .long("punct")
+                .action(ArgAction::SetTrue)
+                .help("Enable punctuation conversion"),
+        )
+        .after_help(
+            "Examples:
+  opencc-clip                 # auto, punctuation OFF
+  opencc-clip -c s2t          # force s2t
+  opencc-clip -c s2t --punct  # force s2t, punctuation ON
+  opencc-clip -p              # auto with punctuation ON",
+        )
+        .get_matches();
 
-    if args.len() > 1 {
-        let config_arg = args[1].to_lowercase();
-        if config_arg == "help" {
-            eprintln!(
-                "Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai"
-            );
-            eprintln!("Usage: opencc-clip [s2t|t2s|s2tw|tw2s|s2twp|tw2sp|s2hk|hk2s|t2tw|tw2t|t2twp|tw2t|tw2tp|t2hk|hk2t|jp2t|t2jp|auto|help] [punct]\n");
-            return;
-        }
+    let cfg_str = matches.get_one::<String>("config").unwrap().as_str();
+    let mut conversion_type = ConversionType::from_str(cfg_str);
+    let use_punctuation = matches.get_flag("punct");
 
-        if CONFIG_LIST.contains(config_arg.as_str()) {
-            conversion_type = ConversionType::from_str(&config_arg);
-        }
-
-        if args.last().unwrap().to_lowercase() == "punct" {
-            use_punctuation = true;
-        }
-    }
-    // Create a new clipboard context
+    // Clipboard context
     let mut ctx: ClipboardContext = match ClipboardContext::new() {
         Ok(context) => context,
         Err(err) => {
@@ -128,17 +127,15 @@ fn main() {
         }
     };
 
-    // Attempt to read text from the clipboard
     match ctx.get_contents() {
         Ok(contents) => {
             let opencc = OpenCC::new();
-            // opencc.set_parallel(false);
             let input_code = opencc.zho_check(&contents);
 
-            if conversion_type == ConversionType::Auto {
+            if matches!(conversion_type, ConversionType::Auto) {
                 conversion_type = match input_code {
-                    1 => ConversionType::T2S,
-                    2 => ConversionType::S2T,
+                    1 => ConversionType::T2S, // Traditional → Simplified
+                    2 => ConversionType::S2T, // Simplified → Traditional
                     _ => ConversionType::None,
                 };
             }
@@ -175,13 +172,14 @@ fn main() {
             };
 
             eprintln!(
-                "Opencc-Clip-fmmseg Zho Converter version 1.0.0 Copyright (c) 2024 Bryan Lai"
+                "opencc-clip Simplified/Traditional Chinese Text Converter © 2025 laisuk Lai"
             );
             eprintln!(
-                "Config: {}{}, {}",
+                "Config: {}{}, punct: {}{}",
                 BLUE,
                 conversion_type.as_str(),
-                use_punctuation
+                use_punctuation,
+                RESET
             );
             eprintln!(
                 "{}Clipboard Input ({}):\n{}{}{}\n",
@@ -205,7 +203,6 @@ fn main() {
             }
         }
         Err(err) => {
-            // If an error occurs, print the error message
             eprintln!("{}No text in clipboard: {}{}", RED, err, RESET)
         }
     }
@@ -217,7 +214,6 @@ pub fn format_thousand(n: usize) -> String {
     if offset == 0 {
         offset = 3;
     }
-
     while offset < result_str.len() {
         result_str.insert(offset, ',');
         offset += 4; // Including the added comma
