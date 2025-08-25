@@ -6,11 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.1] - 2025-08-21
+## [0.8.1] - 2025-08-25
 
 ### Changed
 
--- opencc-clip CLI now use clap format as command arguments.
+- opencc-clip CLI now use clap format as command arguments.
+- Retained legacy convert_by()
 
 ### Fixed
 

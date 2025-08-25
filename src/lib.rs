@@ -586,6 +586,91 @@ impl OpenCC {
         result
     }
 
+    /// Converts text using the given dictionaries with **greedy maximum-match**,
+    /// without relying on a precomputed [`StarterUnion`].
+    ///
+    /// # Algorithm
+    ///
+    /// - At each position, tries the longest possible slice (up to `max_word_length`).
+    /// - Scans dictionaries in order; if a match is found, emits the mapped value
+    ///   and advances by that length.
+    /// - If no dictionary matches, emits the current character as-is and advances by 1.
+    ///
+    /// # Performance
+    ///
+    /// - Simpler but slower than [`convert_by_union`], since every length from
+    ///   `max_word_length..=1` must be checked at runtime.
+    /// - Useful when:
+    ///   - Only single-character dictionaries are applied (e.g. `st`, `ts`);
+    ///   - You don’t want to build a [`StarterUnion`] upfront.
+    ///
+    /// # Parameters
+    /// - `text_chars`: Input text, pre-split into `char`s.
+    /// - `dictionaries`: Slice of dictionary references (`DictMaxLen`).
+    /// - `max_word_length`: Maximum phrase length across the dictionaries.
+    ///
+    /// # Returns
+    /// A new [`String`] containing the converted text.
+    ///
+    /// # See also
+    /// - [`convert_by_union`]: Optimized version that uses a [`StarterUnion`] mask/cap table.
+    fn convert_by(
+        &self,
+        text_chars: &[char],
+        dictionaries: &[&DictMaxLen],
+        max_word_length: usize,
+    ) -> String {
+        if text_chars.is_empty() {
+            return String::new();
+        }
+
+        let text_length = text_chars.len();
+        if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
+            return text_chars[0].to_string();
+        }
+
+        let mut result = String::with_capacity(text_length * 4);
+        let mut start_pos = 0;
+
+        while start_pos < text_length {
+            let max_length = max_word_length.min(text_length - start_pos);
+            let mut best_match_length = 0usize;
+            let mut best_match: &str = "";
+
+            // greedy: try longest length first
+            for length in (1..=max_length).rev() {
+                let candidate = &text_chars[start_pos..start_pos + length];
+
+                for dictionary in dictionaries {
+                    if dictionary.max_len < length {
+                        continue;
+                    }
+                    if let Some(value) = dictionary.map.get(candidate) {
+                        best_match_length = length;
+                        best_match = value;
+                        break;
+                    }
+                }
+
+                if best_match_length > 0 {
+                    break;
+                }
+            }
+
+            if best_match_length == 0 {
+                // no dictionary hit: emit single char and move on
+                result.push(text_chars[start_pos]);
+                start_pos += 1;
+                continue;
+            }
+
+            result.push_str(best_match);
+            start_pos += best_match_length;
+        }
+
+        result
+    }
+
     /// Returns whether parallel segment conversion is currently enabled.
     ///
     /// When parallel mode is enabled, the converter will use Rayon to process
@@ -1077,8 +1162,7 @@ impl OpenCC {
         } else {
             input.chars().collect()
         };
-        let union = StarterUnion::build(&dict_refs);
-        self.convert_by_union(&chars, &dict_refs, 1, &union)
+        self.convert_by(&chars, &dict_refs, 1)
     }
 
     /// Internal: Applies a fast character-level Traditional-to-Simplified conversion.
@@ -1103,8 +1187,7 @@ impl OpenCC {
         } else {
             input.chars().collect()
         };
-        let union = StarterUnion::build(&dict_refs);
-        self.convert_by_union(&chars, &dict_refs, 1, &union)
+        self.convert_by(&chars, &dict_refs, 1)
     }
 
     /// Detects the likely Chinese script type of the input text.
