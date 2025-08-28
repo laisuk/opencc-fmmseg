@@ -37,11 +37,11 @@ fn main() {
 Grab the latest version for your platform from the [**Releases**](https://github.com/laisuk/opencc-fmmseg/releases)
 page:
 
-| Platform   | Download Link                                                                        |
-|------------|--------------------------------------------------------------------------------------|
-| 🪟 Windows | [opencc-fmmseg-windows.zip](https://github.com/laisuk/opencc-fmmseg/releases/latest) |
-| 🐧 Linux   | [opencc-fmmseg-linux.zip](https://github.com/laisuk/opencc-fmmseg/releases/latest)   |
-| 🍎 macOS   | [opencc-fmmseg-macos.zip](https://github.com/laisuk/opencc-fmmseg/releases/latest)   |
+| Platform   | Download Link                                                                                        |
+|------------|------------------------------------------------------------------------------------------------------|
+| 🪟 Windows | [opencc-fmmseg-{latest}-windows-x64.zip](https://github.com/laisuk/opencc-fmmseg/releases/latest)    |
+| 🐧 Linux   | [opencc-fmmseg-{latest}-linux-x64.tar.gz](https://github.com/laisuk/opencc-fmmseg/releases/latest)   |
+| 🍎 macOS   | [opencc-fmmseg-{latest}-macos-arm64.tar.gz](https://github.com/laisuk/opencc-fmmseg/releases/latest) |
 
 Each archive contains:
 
