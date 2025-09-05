@@ -6,6 +6,32 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.2-beta1] - 2025-09-06
+
+### Fixed
+
+- **EPUB**: Resolved `os error 267` (“The directory name is invalid”) on Windows by correctly handling ZIP **directory
+  entries** during extraction (create dirs, don’t `File::create` on them).
+- **PPTX**: Resolved `os error 5` (“Access is denied”) caused by overwriting while the input archive handle was still
+  open and/or destination was read-only:
+    - Unzip now happens in a **scoped block** so all input handles are dropped before writing output.
+    - Output writing uses **temp-file → rename** to the final path.
+    - Clears **read-only** attribute on existing outputs before removal.
+    - Prevents **input==output** collisions via canonical path check.
+
+### Changed
+
+- **EPUB packaging**: Ensure `mimetype` is written **first** and **Stored** (no compression), per spec.
+- **PPTX targeting**: Process **slides** and **notes slides** XML only; skip `.rels` and unrelated parts to avoid
+  unintended edits.
+- **Path safety & robustness**:
+    - Added zip-slip/root component checks on extraction.
+    - Only operate on **files** (skip directories and non-files) in walkers.
+    - More descriptive I/O errors include the failing **path**.
+- **Cleanup**: Removed sleeps and any debug code from the conversion path.
+
+---
+
 ## [0.8.1] - 2025-08-25
 
 ### Changed
