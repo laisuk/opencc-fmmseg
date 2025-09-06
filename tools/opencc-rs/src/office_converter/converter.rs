@@ -143,14 +143,19 @@ impl OfficeConverter {
         Self::extract_archive(input_path, temp_path)?;
 
         // Convert targeted XML/text files
-        Self::convert_xml_files(format, temp_path, helper, config, punctuation, keep_font)?;
+        let converted_count =
+            Self::convert_xml_files(format, temp_path, helper, config, punctuation, keep_font)?;
 
         // Repackage into output file
         Self::create_output_archive(format, temp_path, input_path, output_path)?;
 
         Ok(ConversionResult {
             success: true,
-            message: "✅ Conversion completed.".into(),
+            message: format!(
+                "✅ Conversion completed ({} fragments converted).",
+                converted_count
+            )
+            .into(),
         })
     }
 
@@ -206,8 +211,9 @@ impl OfficeConverter {
         config: &str,
         punctuation: bool,
         keep_font: bool,
-    ) -> io::Result<()> {
+    ) -> io::Result<usize> {
         let xml_paths = get_target_xml_paths(format, temp_path);
+        let mut converted_count = 0;
 
         for xml_file in xml_paths {
             if !xml_file.exists() || !xml_file.is_file() {
@@ -243,8 +249,9 @@ impl OfficeConverter {
                 writer.write_all(converted.as_bytes())?;
                 writer.flush()?;
             }
+            converted_count += 1;
         }
-        Ok(())
+        Ok(converted_count)
     }
 
     /// Create an output ZIP archive from a temp folder.

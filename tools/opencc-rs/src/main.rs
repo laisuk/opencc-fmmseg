@@ -174,6 +174,8 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
         }
     };
 
+    let helper = OpenCC::new();
+
     let final_output = match output_file {
         Some(path) => {
             if auto_ext
@@ -193,14 +195,22 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
                 .unwrap_or("converted");
             let ext = office_format.as_str();
             let parent = input_path.parent().unwrap_or_else(|| ".".as_ref());
+            // run conversion on the stem
+            let file_stem_converted = helper.convert(file_stem, config, punctuation);
+            // pick final stem depending on auto_ext
+            let final_stem = if auto_ext {
+                &format!("{file_stem_converted}_converted")
+            } else {
+                &format!("{file_stem}_converted")
+            };
+
             parent
-                .join(format!("{file_stem}_converted.{ext}"))
+                .join(format!("{final_stem}.{ext}"))
                 .to_string_lossy()
                 .to_string()
         }
     };
 
-    let helper = OpenCC::new();
     match OfficeConverter::convert(
         input_file,
         &final_output,
