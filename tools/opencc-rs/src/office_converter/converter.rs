@@ -1,3 +1,42 @@
+//! # OfficeConverter Module
+//!
+//! This module provides the [`OfficeConverter`] type, which performs **Chinese text
+//! conversion inside Office and EPUB documents** using the [`OpenCC`] engine.
+//!
+//! ## Supported Formats
+//! - `.docx` (Word)
+//! - `.xlsx` (Excel)
+//! - `.pptx` (PowerPoint, including slides & notes)
+//! - `.odt`, `.ods`, `.odp` (LibreOffice / OpenDocument)
+//! - `.epub` (E-books)
+//!
+//! ## Features
+//! - Extracts ZIP-based archives into a temp folder
+//! - Runs OpenCC conversion (`s2t`, `t2s`, etc.)
+//! - Optionally converts punctuation
+//! - Optionally preserves original fonts (masking and restoring)
+//! - Repackages into a valid archive
+//!   - EPUBs ensure `mimetype` is the first entry and stored uncompressed
+//!
+//! ## Example
+//! ```rust,no_run
+//! use opencc_fmmseg::OpenCC;
+//! use crate::converter::OfficeConverter;
+//!
+//! let opencc = OpenCC::new("s2t").unwrap();
+//! let result = OfficeConverter::convert(
+//!     "input.docx",
+//!     "output.docx",
+//!     "docx",
+//!     &opencc,
+//!     "s2t",
+//!     true,   // punctuation
+//!     true    // keep fonts
+//! ).unwrap();
+//!
+//! assert!(result.success);
+//! println!("{}", result.message);
+//! ```
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, BufReader, BufWriter, Read, Write};
@@ -67,6 +106,10 @@ impl FontPatterns {
 
 // Use thread_local for regex patterns to avoid recompilation
 thread_local! {
+    /// Thread-local storage for font regex patterns.
+    ///
+    /// Ensures regexes are compiled once per thread, avoiding
+    /// global lock contention and reallocation overhead.
     static FONT_PATTERNS: FontPatterns = FontPatterns::new();
 }
 
