@@ -197,12 +197,13 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
             let parent = input_path.parent().unwrap_or_else(|| ".".as_ref());
             // run conversion on the stem
             let file_stem_converted = helper.convert(file_stem, config, punctuation);
+            
             // pick final stem depending on auto_ext
             let final_stem = if auto_ext {
-                &format!("{file_stem_converted}_converted")
+                format!("{file_stem_converted}_converted")
             } else {
-                &format!("{file_stem}_converted")
-            };
+                format!("{file_stem}_converted")
+            };            
 
             parent
                 .join(format!("{final_stem}.{ext}"))
