@@ -29,6 +29,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - Only operate on **files** (skip directories and non-files) in walkers.
     - More descriptive I/O errors include the failing **path**.
 - **Cleanup**: Removed sleeps and any debug code from the conversion path.
+- Optimized `zho_check()` to check first 1,000 bytes of `input` string.
 
 ---
 
