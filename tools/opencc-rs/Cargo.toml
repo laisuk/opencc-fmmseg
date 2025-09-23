@@ -8,11 +8,11 @@ edition = "2021"
 
 [dependencies]
 opencc-fmmseg = {path = "../.."}
-clap = "4.5.47"
+clap = "4.5.48"
 encoding_rs = "0.8.35"
 encoding_rs_io = "0.1.7"
 regex = "1.11.2"
 # Keep zip MSRV-safe for 1.75 (3.x, not 4.x):
-zip = ">=3.0.0, <4.0.0"
+zip = ">=3.0, <4.0"
 tempfile = "3.22.0"
 walkdir = "2.5.0"
