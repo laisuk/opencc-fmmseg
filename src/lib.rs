@@ -521,7 +521,7 @@ impl OpenCC {
             let global_cap = max_word_length.min(rem);
 
             // Pull precomputed mask + cap
-            let (mask, cap_u16) = if u0 <= 0xFFFF {
+            let (mask, cap_u8) = if u0 <= 0xFFFF {
                 let idx = u0 as usize;
                 (union.bmp_mask[idx], union.bmp_cap[idx])
             } else {
@@ -531,13 +531,13 @@ impl OpenCC {
                 )
             };
 
-            if mask == 0 || cap_u16 == 0 {
+            if mask == 0 || cap_u8 == 0 {
                 result.push(c0);
                 start_pos += 1;
                 continue;
             }
 
-            let cap_here = global_cap.min(cap_u16 as usize);
+            let cap_here = global_cap.min(cap_u8 as usize);
             let mut matched = false;
 
             let text_ptr = text_chars.as_ptr();

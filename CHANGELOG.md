@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.2-beta1] - 2025-09-06
+## [0.8.2-beta1] - 2025-09-25
 
 ### Fixed
 
@@ -31,6 +31,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **Cleanup**: Removed sleeps and any debug code from the conversion path.
 - Optimized `zho_check()` to check first 1,000 bytes of `input` string.
 - Update dictionaries
+- Reduced runtime memory footprint by changing `first_char_max_len`, `bmp_cap`, and `astral_cap` value type from `u16` to `u8`.
+- Updated corresponding `Vec<u16>` containers to `Vec<u8>`.
+  - Safe since maximum dictionary lengths are always `< 255`.
 
 ---
 

@@ -124,7 +124,7 @@ pub struct DictMaxLen {
     ///
     /// Each entry stores the maximum phrase length (in characters) for the given
     /// starter character. Parallel to `first_len_mask64` but stored as `u16`.
-    pub first_char_max_len: Vec<u16>,
+    pub first_char_max_len: Vec<u8>,
 }
 
 impl DictMaxLen {
@@ -259,7 +259,7 @@ impl DictMaxLen {
         }
         if self.first_char_max_len.len() != N {
             self.first_char_max_len.clear();
-            self.first_char_max_len.resize(N, 0u16);
+            self.first_char_max_len.resize(N, 0u8);
         }
     }
 
@@ -353,7 +353,7 @@ impl DictMaxLen {
         for (&c, &cap_u8) in &self.starter_cap {
             let u = c as u32;
             if u <= 0xFFFF {
-                self.first_char_max_len[u as usize] = cap_u8 as u16;
+                self.first_char_max_len[u as usize] = cap_u8;
             }
         }
 

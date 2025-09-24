@@ -1,5 +1,5 @@
-use rustc_hash::FxHashMap;
 use crate::dictionary_lib::DictMaxLen;
+use rustc_hash::FxHashMap;
 
 /// Union view of starter-length metadata across multiple [`DictMaxLen`] tables.
 ///
@@ -34,13 +34,13 @@ pub struct StarterUnion {
     pub bmp_mask: Vec<u64>, // 0x10000
 
     /// Dense BMP per-starter maximum length (in characters), indexed by `starter as usize`.
-    pub bmp_cap: Vec<u16>, // 0x10000
+    pub bmp_cap: Vec<u8>, // 0x10000
 
     /// Sparse length bitmasks for astral starters (`starter > 0xFFFF`).
     pub astral_mask: FxHashMap<char, u64>,
 
     /// Sparse per-starter maximum length (in characters) for astral starters.
-    pub astral_cap: FxHashMap<char, u16>,
+    pub astral_cap: FxHashMap<char, u8>,
 }
 
 impl StarterUnion {
@@ -94,7 +94,7 @@ impl StarterUnion {
     pub fn build(dicts: &[&DictMaxLen]) -> Self {
         const N: usize = 0x10000;
         let mut bmp_mask = vec![0u64; N];
-        let mut bmp_cap = vec![0u16; N];
+        let mut bmp_cap = vec![0u8; N];
         let mut astral_mask = FxHashMap::default();
         let mut astral_cap = FxHashMap::default();
 
@@ -126,11 +126,11 @@ impl StarterUnion {
                 astral_cap
                     .entry(c0)
                     .and_modify(|m| {
-                        if *m < len as u16 {
-                            *m = len as u16
+                        if *m < len as u8 {
+                            *m = len as u8
                         }
                     })
-                    .or_insert(len as u16);
+                    .or_insert(len as u8);
             }
         }
 
