@@ -185,6 +185,46 @@ fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool
     }
 }
 
+/// Checks whether a given dictionary (`DictMaxLen`) allows a word of the specified
+/// `length` to start with the provided `starter` character.
+///
+/// This function uses fast lookups with per-starter metadata:
+///
+/// - For **BMP characters** (`u <= 0xFFFF`):
+///   - If dense arrays are available (`first_char_max_len` and `first_len_mask64`
+///     both cover the full BMP range):
+///     1. Checks the **length bitmask** (`first_len_mask64`) for the starter.
+///        - If the bitmask is nonzero, only returns `true` if the corresponding
+///          `bit` for the target `length` is set.
+///        - This is the most selective check and avoids extra work.
+///     2. Falls back to the **maximum length cap** (`first_char_max_len`) if the
+///        bitmask is zero.
+///   - If dense arrays are not populated, falls back to the sparse `starter_cap` map.
+/// - For **astral characters** (`u > 0xFFFF`), always falls back to `starter_cap`.
+///
+/// # Parameters
+/// - `dict`: The [`DictMaxLen`] dictionary reference.
+/// - `starter`: The candidate starting character.
+/// - `length`: The word length to validate.
+/// - `bit`: The bit index corresponding to `length` (usually `length - 1`).
+///
+/// # Returns
+/// - `true` if the dictionary contains at least one entry starting with `starter`
+///   of the specified `length`.
+/// - `false` otherwise.
+///
+/// # Safety
+/// - Uses unchecked indexing (`get_unchecked`) when dense arrays are available
+///   for maximum speed. Safe because arrays are guaranteed to have 0x10000 length
+///   when the dense path is active.
+///
+/// # Examples
+/// ```ignore
+/// let ok = starter_allows_dict(&dict, '中', 2, 1);
+/// if ok {
+///     // A 2-character phrase starting with '中' exists in the dictionary
+/// }
+/// ```
 #[inline(always)]
 fn starter_allows_dict(dict: &DictMaxLen, starter: char, length: usize, bit: usize) -> bool {
     let len_u8 = length as u8;
