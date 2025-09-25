@@ -586,6 +586,7 @@ impl OpenCC {
             return text_chars[0].to_string();
         }
 
+        let is_multy_dicts = dictionaries.len() > 1;
         // const CAP_BIT: usize = 63;
         let mut result = String::with_capacity(text_length * 4);
         let mut start_pos = 0;
@@ -622,7 +623,7 @@ impl OpenCC {
 
             for_each_len_dec(mask, cap_here, |length| {
                 // precompute once per length
-                let bit = if length >= 64 { 63 } else { length - 1 };
+                let cap_bit = if length >= 64 { 63 } else { length - 1 };
                 // sentinel: no slice yet
                 let mut data_ptr: *const char = std::ptr::null();
                 let mut data_len: usize = 0;
@@ -635,10 +636,11 @@ impl OpenCC {
                     }
                     // ... starter-cap gates ...
                     // 2) per-dict starter gate (uses your DictMaxLen fields):
-                    if !starter_allows_dict(dict, c0, length, bit) {
-                        continue;
+                    if is_multy_dicts {
+                        if !starter_allows_dict(dict, c0, length, cap_bit) {
+                            continue;
+                        }
                     }
-
                     // Build the slice once per `length`
                     if data_ptr.is_null() {
                         debug_assert!(start_pos < text_length);
