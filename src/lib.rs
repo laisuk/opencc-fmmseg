@@ -185,6 +185,42 @@ fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool
     }
 }
 
+#[inline(always)]
+fn starter_allows_dict(dict: &DictMaxLen, starter: char, length: usize, bit: usize) -> bool {
+    let len_u8 = length as u8;
+    let u = starter as u32;
+
+    if u <= 0xFFFF {
+        let i = u as usize;
+        // If dense arrays are not populated (lazy), fall back to sparse `starter_cap`
+        let have_dense =
+            dict.first_char_max_len.len() == 0x10000 && dict.first_len_mask64.len() == 0x10000;
+
+        if have_dense {
+            // 1) Per-starter length bitmask: most selective → check first if nonzero
+            let m = unsafe { *dict.first_len_mask64.get_unchecked(i) };
+            if m != 0 {
+                if ((m >> bit) & 1) == 0 {
+                    return false;
+                }
+                // Mask says this length exists; cap check is redundant
+                return true;
+            }
+            // 2) Cap check (dense array)
+            let cap = unsafe { *dict.first_char_max_len.get_unchecked(i) };
+            cap >= len_u8
+        } else {
+            // Fallback: sparse cap map (works for BMP & astral uniformly)
+            let cap = dict.starter_cap.get(&starter).copied().unwrap_or(0);
+            cap >= len_u8
+        }
+    } else {
+        // Astral: no dense arrays — use sparse cap
+        let cap = dict.starter_cap.get(&starter).copied().unwrap_or(0);
+        cap >= len_u8
+    }
+}
+
 impl OpenCC {
     /// Creates a new `OpenCC` instance using built-in dictionary constants.
     ///
@@ -541,8 +577,12 @@ impl OpenCC {
             let mut matched = false;
 
             let text_ptr = text_chars.as_ptr();
+            // starter is the first scalar at start_pos
+            // let starter = unsafe { *text_ptr.add(start_pos) };
 
             for_each_len_dec(mask, cap_here, |length| {
+                // precompute once per length
+                let bit = if length >= 64 { 63 } else { length - 1 };
                 // sentinel: no slice yet
                 let mut data_ptr: *const char = std::ptr::null();
                 let mut data_len: usize = 0;
@@ -554,6 +594,10 @@ impl OpenCC {
                         continue;
                     }
                     // ... starter-cap gates ...
+                    // 2) per-dict starter gate (uses your DictMaxLen fields):
+                    if !starter_allows_dict(dict, c0, length, bit) {
+                        continue;
+                    }
 
                     // Build the slice once per `length`
                     if data_ptr.is_null() {

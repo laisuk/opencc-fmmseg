@@ -11,28 +11,32 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - **EPUB**: Resolved `os error 267` (“The directory name is invalid”) on Windows by correctly handling ZIP **directory
-  entries** during extraction (create dirs, don’t `File::create` on them).
+  entries** during extraction (create directories instead of calling `File::create` on them).
 - **PPTX**: Resolved `os error 5` (“Access is denied”) caused by overwriting while the input archive handle was still
-  open and/or destination was read-only:
-    - Unzip now happens in a **scoped block** so all input handles are dropped before writing output.
-    - Output writing uses **temp-file → rename** to the final path.
-    - Clears **read-only** attribute on existing outputs before removal.
-    - Prevents **input==output** collisions via canonical path check.
+  open and/or the destination file was read-only:
+  - Unzip now occurs in a **scoped block** so all input handles are dropped before writing output.
+  - Output writing uses **temp-file → rename** strategy to the final path.
+  - Clears the **read-only** attribute on existing outputs before removal.
+  - Prevents **input==output** collisions via canonical path check.
 
 ### Changed
 
-- **EPUB packaging**: Ensure `mimetype` is written **first** and **Stored** (no compression), per spec.
-- **PPTX targeting**: Process **slides** and **notes slides** XML only; skip `.rels` and unrelated parts to avoid
+- **EPUB packaging**: Ensure `mimetype` is written **first** and **Stored** (no compression), per EPUB spec.
+- **PPTX targeting**: Process only **slides** and **notes slides** XML parts; skip `.rels` and unrelated files to avoid
   unintended edits.
 - **Path safety & robustness**:
-    - Added zip-slip/root component checks on extraction.
-    - Only operate on **files** (skip directories and non-files) in walkers.
-    - More descriptive I/O errors include the failing **path**.
-- **Cleanup**: Removed sleeps and any debug code from the conversion path.
-- Optimized `zho_check()` to check first 1,000 bytes of `input` string.
-- Update dictionaries
-- Reduced runtime memory footprint by changing `first_char_max_len`, `bmp_cap`, and `astral_cap` value type from `u16` to `u8`.
-- Updated corresponding `Vec<u16>` containers to `Vec<u8>`.
+  - Added zip-slip/root component checks on extraction.
+  - Walkers only operate on **files** (skip directories and non-file entries).
+  - More descriptive I/O errors now include the failing **path**.
+- **Cleanup**: Removed sleeps and all debug code from the conversion path.
+- **Dictionaries**: Updated word lists.
+
+### Performance
+
+- Optimized `zho_check()` to scan only the first **1,000 bytes** of the input string.
+- Reduced runtime memory footprint by:
+  - Changing `first_char_max_len`, `bmp_cap`, and `astral_cap` value types from `u16` to `u8`.
+  - Updating corresponding `Vec<u16>` containers to `Vec<u8>`.
   - Safe since maximum dictionary lengths are always `< 255`.
 
 ---
