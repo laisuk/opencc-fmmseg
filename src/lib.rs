@@ -88,7 +88,7 @@ impl DelimiterSet {
             let b = u & 63;
             return ((self.bmp_bits[i] >> b) & 1) == 1;
         }
-        // Astral punctuation is virtually nonexistent in your set; treat as non-delim
+        // Astral punctuation is virtually nonexistent in delimiters set; treat as non-delim
         false
     }
 }
@@ -435,9 +435,7 @@ impl OpenCC {
         for (i, ch) in chars.iter().enumerate() {
             if is_delimiter(*ch) {
                 if inclusive {
-                    if i + 1 > start {
-                        ranges.push(start..i + 1);
-                    }
+                    ranges.push(start..i + 1);
                 } else {
                     if i > start {
                         ranges.push(start..i);
