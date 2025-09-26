@@ -18,7 +18,7 @@
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use std::iter::Iterator;
 use std::sync::Mutex;
 
@@ -39,54 +39,99 @@ static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 static STRIP_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_著]").unwrap());
 
-/// Defines different delimiter modes for segmenting input text.
+/// Full delimiter set used for text segmentation, matching the C# implementation.
 ///
-/// - `Minimal`: Only line breaks (`\n`). Useful for structured formats like Markdown, chat logs, or CSV.
-/// - `Normal`: Common Chinese sentence delimiters plus `\n`. Ideal for general text, balances split quality and performance.
-/// - `Full`: A comprehensive set of Chinese/ASCII punctuation and whitespace. Suitable for high segmentation granularity.
-#[derive(Debug, Clone, Copy)]
-pub enum DelimiterMode {
-    Minimal,
-    Normal,
-    Full,
+/// This string literal contains all whitespace, ASCII punctuation, and common
+/// Chinese punctuation marks considered delimiters by the segmentation engine.
+/// It is used to build the [`DelimiterSet`] bitset at startup.
+pub const FULL_DELIMITERS: &str =
+    " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
+
+/// Compact, hot-path friendly delimiter set optimized for per-character membership tests.
+///
+/// # Design
+///
+/// * **ASCII fast path**: all code points `U+0000..=U+007F` are stored in a single
+///   [`u128`] mask. Testing membership is a single shift and bitwise AND.
+/// * **BMP fast path**: all code points `U+0000..=U+FFFF` are stored in a
+///   65,536-bit table (`[u64; 1024]`, ~8 KB). Each character maps to one bit,
+///   making lookup a constant-time O(1) operation with predictable branch-free code.
+/// * **Astral characters**: `U+10000..` are always reported as non-delimiters, since
+///   no delimiters exist in that range for this project.
+///
+/// This design avoids the hashing overhead of a `HashSet<char>` and is especially
+/// effective in hot loops that scan millions of characters.
+#[derive(Copy, Clone)]
+pub struct DelimiterSet {
+    ascii_mask: u128,      // bits 0..=127
+    bmp_bits: [u64; 1024], // 0x0000..=0xFFFF
 }
 
-/// Returns a [`FxHashSet<char>`] containing the delimiter characters for the given [`DelimiterMode`].
-///
-/// This is used during character-level segmentation in `get_chars_range()` to split text into logical units.
-///
-/// # Parameters
-///
-/// - `mode`: The delimiter mode to use (`Minimal`, `Normal`, or `Full`).
-///
-/// # Returns
-///
-/// A `FxHashSet<char>` containing all characters that should be treated as segment delimiters.
-///
-/// # Examples
-///
-/// ```
-/// let delimiters = opencc_fmmseg::get_delimiters(opencc_fmmseg::DelimiterMode::Normal);
-/// assert!(delimiters.contains(&'。'));
-/// ```
-pub fn get_delimiters(mode: DelimiterMode) -> FxHashSet<char> {
-    match mode {
-        DelimiterMode::Minimal => "\n",
-        DelimiterMode::Normal => "，。！？\n",
-        DelimiterMode::Full => " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：",
+impl DelimiterSet {
+    /// Tests whether the given [`char`] is a delimiter according to this set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opencc_fmmseg::is_delimiter;
+    /// assert!(is_delimiter('。'));
+    /// assert!(!is_delimiter('你'));
+    /// ```
+    #[inline]
+    pub fn contains(&self, c: char) -> bool {
+        let u = c as u32;
+        if u <= 0x7F {
+            return ((self.ascii_mask >> u) & 1) == 1;
+        }
+        if u <= 0xFFFF {
+            let i = (u >> 6) as usize;
+            let b = u & 63;
+            return ((self.bmp_bits[i] >> b) & 1) == 1;
+        }
+        // Astral punctuation is virtually nonexistent in your set; treat as non-delim
+        false
     }
-        .chars()
-        .collect()
 }
 
-/// Default set of delimiters used for text segmentation.
+/// Global static instance of the [`DelimiterSet`] built from [`FULL_DELIMITERS`].
 ///
-/// Initialized using [`DelimiterMode::Full`] for fine-grained splitting suitable for
-/// parallel processing with [`rayon`] when processing long or mixed-language input.
+/// Initialization happens once at runtime via [`Lazy`], and
+/// subsequent lookups are lock-free and O(1).
+pub static FULL_DELIMITER_SET: Lazy<DelimiterSet> = Lazy::new(|| {
+    let mut ascii: u128 = 0;
+    let mut bmp = [0u64; 1024];
+
+    for ch in FULL_DELIMITERS.chars() {
+        let u = ch as u32;
+        if u <= 0x7F {
+            ascii |= 1u128 << u;
+        }
+        if u <= 0xFFFF {
+            let i = (u >> 6) as usize;
+            let b = u & 63;
+            bmp[i] |= 1u64 << b;
+        }
+    }
+
+    DelimiterSet {
+        ascii_mask: ascii,
+        bmp_bits: bmp,
+    }
+});
+
+/// Convenience helper for hot paths: tests if a [`char`] is a delimiter using
+/// the global [`FULL_DELIMITER_SET`].
 ///
-/// This static value is used when no explicit mode is provided.
-pub static DELIMITERS_DEFAULT: Lazy<FxHashSet<char>> =
-    Lazy::new(|| get_delimiters(DelimiterMode::Full));
+/// This is equivalent to:
+/// ```
+/// # use opencc_fmmseg::{FULL_DELIMITER_SET, is_delimiter};
+/// let c = '！';
+/// assert_eq!(is_delimiter(c), FULL_DELIMITER_SET.contains(c));
+/// ```
+#[inline]
+pub fn is_delimiter(c: char) -> bool {
+    FULL_DELIMITER_SET.contains(c)
+}
 
 /// Central interface for performing OpenCC-based conversion with segmentation.
 ///
@@ -96,8 +141,7 @@ pub static DELIMITERS_DEFAULT: Lazy<FxHashSet<char>> =
 pub struct OpenCC {
     /// Dictionary storage with length metadata for maximum matching.
     dictionary: DictionaryMaxlength,
-    /// Delimiter characters that separate text into segments.
-    delimiters: FxHashSet<char>,
+    /// Flag indicator for parallelism
     is_parallel: bool,
 }
 
@@ -289,12 +333,10 @@ impl OpenCC {
             Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             DictionaryMaxlength::default()
         });
-        let delimiters = DELIMITERS_DEFAULT.clone();
         let is_parallel = true;
 
         OpenCC {
             dictionary,
-            delimiters,
             is_parallel,
         }
     }
@@ -322,12 +364,10 @@ impl OpenCC {
             Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             DictionaryMaxlength::default()
         });
-        let delimiters = DELIMITERS_DEFAULT.clone();
         let is_parallel = true;
 
         OpenCC {
             dictionary,
-            delimiters,
             is_parallel,
         }
     }
@@ -363,12 +403,10 @@ impl OpenCC {
                 Self::set_last_error(&format!("Failed to create dictionary: {}", err));
                 DictionaryMaxlength::default()
             });
-        let delimiters = DELIMITERS_DEFAULT.clone();
         let is_parallel = true;
 
         OpenCC {
             dictionary,
-            delimiters,
             is_parallel,
         }
     }
@@ -395,7 +433,7 @@ impl OpenCC {
         let mut start = 0;
 
         for (i, ch) in chars.iter().enumerate() {
-            if self.delimiters.contains(ch) {
+            if is_delimiter(*ch) {
                 if inclusive {
                     if i + 1 > start {
                         ranges.push(start..i + 1);
@@ -582,7 +620,7 @@ impl OpenCC {
         }
 
         let text_length = text_chars.len();
-        if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
+        if text_length == 1 && is_delimiter(text_chars[0]) {
             return text_chars[0].to_string();
         }
 
@@ -711,7 +749,7 @@ impl OpenCC {
         }
 
         let text_length = text_chars.len();
-        if text_length == 1 && self.delimiters.contains(&text_chars[0]) {
+        if text_length == 1 && is_delimiter(text_chars[0]) {
             return text_chars[0].to_string();
         }
 

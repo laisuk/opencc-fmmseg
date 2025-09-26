@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.2-beta1] - 2025-09-25
+## [0.8.2-beta1] - 2025-09-26
 
 ### Fixed
 
@@ -14,10 +14,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   entries** during extraction (create directories instead of calling `File::create` on them).
 - **PPTX**: Resolved `os error 5` (“Access is denied”) caused by overwriting while the input archive handle was still
   open and/or the destination file was read-only:
-  - Unzip now occurs in a **scoped block** so all input handles are dropped before writing output.
-  - Output writing uses **temp-file → rename** strategy to the final path.
-  - Clears the **read-only** attribute on existing outputs before removal.
-  - Prevents **input==output** collisions via canonical path check.
+    - Unzip now occurs in a **scoped block** so all input handles are dropped before writing output.
+    - Output writing uses **temp-file → rename** strategy to the final path.
+    - Clears the **read-only** attribute on existing outputs before removal.
+    - Prevents **input==output** collisions via canonical path check.
 
 ### Changed
 
@@ -25,19 +25,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **PPTX targeting**: Process only **slides** and **notes slides** XML parts; skip `.rels` and unrelated files to avoid
   unintended edits.
 - **Path safety & robustness**:
-  - Added zip-slip/root component checks on extraction.
-  - Walkers only operate on **files** (skip directories and non-file entries).
-  - More descriptive I/O errors now include the failing **path**.
+    - Added zip-slip/root component checks on extraction.
+    - Walkers only operate on **files** (skip directories and non-file entries).
+    - More descriptive I/O errors now include the failing **path**.
 - **Cleanup**: Removed sleeps and all debug code from the conversion path.
 - **Dictionaries**: Updated word lists.
+- **Delimiter handling**:
+    - Removed unused `Minimal` and `Normal` modes, leaving only `Full`.
+    - Dropped the private `delimiters` field in `OpenCC`; now uses the global static `FULL_DELIMITER_SET`.
 
 ### Performance
 
 - Optimized `zho_check()` to scan only the first **1,000 bytes** of the input string.
 - Reduced runtime memory footprint by:
-  - Changing `first_char_max_len`, `bmp_cap`, and `astral_cap` value types from `u16` to `u8`.
-  - Updating corresponding `Vec<u16>` containers to `Vec<u8>`.
-  - Safe since maximum dictionary lengths are always `< 255`.
+    - Changing `first_char_max_len`, `bmp_cap`, and `astral_cap` value types from `u16` to `u8`.
+    - Updating corresponding `Vec<u16>` containers to `Vec<u8>`.
+    - Safe since maximum dictionary lengths are always `< 255`.
 
 ---
 
