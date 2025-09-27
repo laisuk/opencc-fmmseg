@@ -14,5 +14,5 @@ encoding_rs_io = "0.1.7"
 regex = "1.11.2"
 # Keep zip MSRV-safe for 1.75 (3.x, not 4.x):
 zip = ">=3.0, <4.0"
-tempfile = "3.22.0"
+tempfile = "3.23.0"
 walkdir = "2.5.0"
