@@ -22,7 +22,8 @@ use std::{fs, io};
 use zstd::{decode_all, Decoder, Encoder};
 
 mod union_cache;
-pub(crate) use union_cache::UnionKey; // so callers can say `UnionKey::S2T { punct: .. }`
+pub(crate) use union_cache::UnionKey;
+// so callers can say `UnionKey::S2T { punct: .. }`
 
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -34,23 +35,41 @@ static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 /// or character to its target form and tracks the longest entry for lookup performance.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DictionaryMaxlength {
+    #[serde(default)]
     pub st_characters: DictMaxLen,
+    #[serde(default)]
     pub st_phrases: DictMaxLen,
+    #[serde(default)]
     pub ts_characters: DictMaxLen,
+    #[serde(default)]
     pub ts_phrases: DictMaxLen,
+    #[serde(default)]
     pub tw_phrases: DictMaxLen,
+    #[serde(default)]
     pub tw_phrases_rev: DictMaxLen,
+    #[serde(default)]
     pub tw_variants: DictMaxLen,
+    #[serde(default)]
     pub tw_variants_rev: DictMaxLen,
+    #[serde(default)]
     pub tw_variants_rev_phrases: DictMaxLen,
+    #[serde(default)]
     pub hk_variants: DictMaxLen,
+    #[serde(default)]
     pub hk_variants_rev: DictMaxLen,
+    #[serde(default)]
     pub hk_variants_rev_phrases: DictMaxLen,
+    #[serde(default)]
     pub jps_characters: DictMaxLen,
+    #[serde(default)]
     pub jps_phrases: DictMaxLen,
+    #[serde(default)]
     pub jp_variants: DictMaxLen,
+    #[serde(default)]
     pub jp_variants_rev: DictMaxLen,
+    #[serde(default)]
     pub st_punctuations: DictMaxLen,
+    #[serde(default)]
     pub ts_punctuations: DictMaxLen,
 
     #[serde(skip)]
