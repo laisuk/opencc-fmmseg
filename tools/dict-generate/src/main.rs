@@ -1,14 +1,13 @@
 mod json_io;
 
+use crate::json_io::DictionaryMaxlengthSerde;
 use clap::{Arg, Command};
+use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::Path;
-use std::{fs, io};
-
-use crate::json_io::DictionaryMaxlengthSerde;
-use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
 use std::time::Duration;
+use std::{fs, io};
 use ureq::Agent;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -16,6 +15,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     const RESET: &str = "\x1B[0m"; // Reset color
 
     let matches = Command::new("Dictionary Generator")
+        .about(format!(
+            "{BLUE}Dict Generator: Command Line Dictionary Generator{RESET}"
+        ))
         .arg(
             Arg::new("format")
                 .short('f')
@@ -37,9 +39,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .value_name("filename")
                 .help("Write generated dictionary to <filename>. If not specified, a default filename is used."),
         )
-        .about(format!(
-            "{BLUE}Dict Generator: Command Line Dictionary Generator{RESET}"
-        ))
         .get_matches();
 
     let dict_dir = Path::new("dicts");
