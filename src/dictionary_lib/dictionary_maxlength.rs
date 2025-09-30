@@ -87,7 +87,7 @@ impl DictionaryMaxlength {
             Box::new(err)
         })?)
         // Ok(Self::from_cbor().map_err(|err| {
-        //     Self::set_last_error(&format!("Failed to load dictionary from Zstd: {}", err));
+        //     Self::set_last_error(&format!("Failed to load dictionary from CBOR: {}", err));
         //     Box::new(err)
         // })?)
     }
@@ -493,39 +493,38 @@ impl DictionaryMaxlength {
     }
 
     /// Serializes the dictionary to a CBOR file.
-    pub fn serialize_to_cbor<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn Error>> {
-        match serde_cbor::to_vec(self) {
-            Ok(cbor_data) => {
-                if let Err(err) = fs::write(&path, cbor_data) {
-                    Self::set_last_error(&format!("Failed to write CBOR file: {}", err));
-                    return Err(Box::new(err));
-                }
-                Ok(())
-            }
-            Err(err) => {
-                Self::set_last_error(&format!("Failed to serialize to CBOR: {}", err));
-                Err(Box::new(err))
-            }
-        }
+    pub fn serialize_to_cbor<P: AsRef<Path>>(&self, path: P) -> Result<(), DictionaryError> {
+        let cbor_data = serde_cbor::to_vec(self).map_err(|err| {
+            let msg = format!("Failed to serialize to CBOR: {}", err);
+            Self::set_last_error(&msg);
+            DictionaryError::ParseError(msg)
+        })?;
+
+        fs::write(&path, cbor_data).map_err(|err| {
+            let msg = format!("Failed to write CBOR file: {}", err);
+            Self::set_last_error(&msg);
+            DictionaryError::IoError(msg)
+        })?;
+
+        Ok(())
     }
 
     /// Deserializes the dictionary from a CBOR file.
-    pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
-        match fs::read(&path) {
-            Ok(cbor_data) => match from_slice::<DictionaryMaxlength>(&cbor_data) {
-                Ok(dictionary) => Ok(dictionary.finish()),
-                Err(err) => {
-                    Self::set_last_error(&format!("Failed to deserialize CBOR: {}", err));
-                    Err(Box::new(err))
-                }
-            },
-            Err(err) => {
-                Self::set_last_error(&format!("Failed to read CBOR file: {}", err));
-                Err(Box::new(err))
-            }
-        }
-    }
+    pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, DictionaryError> {
+        let cbor_data = fs::read(&path).map_err(|err| {
+            let msg = format!("Failed to read CBOR file: {}", err);
+            Self::set_last_error(&msg);
+            DictionaryError::IoError(msg)
+        })?;
 
+        let dictionary: DictionaryMaxlength = from_slice(&cbor_data).map_err(|err| {
+            let msg = format!("Failed to deserialize CBOR: {}", err);
+            Self::set_last_error(&msg);
+            DictionaryError::ParseError(msg)
+        })?;
+
+        Ok(dictionary.finish())
+    }
     /// Records the last error message encountered during dictionary operations.
     pub fn set_last_error(err_msg: &str) {
         let mut last_error = LAST_ERROR.lock().unwrap();
