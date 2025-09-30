@@ -6,7 +6,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.2-beta1] - 2025-09-26
+## [0.8.2-beta1] - 2025-09-30
+
+## Added
+
+- **dict-generate JSON export**: Human-readable JSON via DTOs with String keys;  
+  supports `--pretty` (pretty) and `--compact` (default). Core schema remains CBOR/Zstd.
+  Why: JSON is for reference/debug only; the canonical on-disk format stays CBOR.
 
 ### Fixed
 
@@ -33,6 +39,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **Delimiter handling**:
     - Removed unused `Minimal` and `Normal` modes, leaving only `Full`.
     - Dropped the private `delimiters` field in `OpenCC`; now uses the global static `FULL_DELIMITER_SET`.
+- **Error handling (unified)**: `from_zstd()`, `from_cbor()`, `serialize_to_cbor()`, `deserialize_from_cbor()`, and `new()` now return `Result<_, DictionaryError>` for consistent typed errors.
+
+## Moved
+
+- `serde (JSON) overrides`: Removed from core `DictMaxLen`; JSON adaptation now lives only in the `dict-generate` CLI (DTO layer).
+  **Result**: Core CBOR/Zstd schema stays stable (snake_case), faster loads, less risk of format drift.
 
 ### Performance
 
