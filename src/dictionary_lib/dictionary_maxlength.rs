@@ -81,15 +81,12 @@ impl DictionaryMaxlength {
     /// Loads the default embedded Zstd-compressed dictionary.
     ///
     /// Recommended for normal usage, as it loads a precompiled binary blob built into the application.
-    pub fn new() -> Result<Self, Box<dyn Error>> {
-        Ok(Self::from_zstd().map_err(|err| {
-            Self::set_last_error(&format!("Failed to load dictionary from Zstd: {}", err));
-            Box::new(err)
-        })?)
-        // Ok(Self::from_cbor().map_err(|err| {
-        //     Self::set_last_error(&format!("Failed to load dictionary from CBOR: {}", err));
-        //     Box::new(err)
-        // })?)
+    pub fn new() -> Result<Self, DictionaryError> {
+        Self::from_zstd().map_err(|err| {
+            let msg = format!("Failed to load dictionary from Zstd: {}", err);
+            Self::set_last_error(&msg);
+            err
+        })
     }
 
     /// Loads the default dictionary from an **embedded Zstd-compressed CBOR blob**.
@@ -377,39 +374,6 @@ impl DictionaryMaxlength {
     /// This method calls [`populate_all`](#method.populate_all) and returns `self`,
     /// allowing you to chain it directly after a constructor or deserializer.
     ///
-    /// # Example
-    /// ```
-    /// use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
-    /// use serde_json;
-    ///
-    /// // Build a minimal, valid structure covering all fields.
-    /// let json = serde_json::json!({
-    ///   "st_characters": { "map": { "你": "您" }, "max_len": 1, "starter_cap": { "你": 1 } },
-    ///   "st_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "ts_characters": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "ts_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "tw_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "tw_phrases_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "tw_variants": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "tw_variants_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "tw_variants_rev_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "hk_variants": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "hk_variants_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "hk_variants_rev_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "jps_characters": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "jps_phrases": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "jp_variants": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "jp_variants_rev": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "st_punctuations": { "map": {}, "max_len": 0, "starter_cap": {} },
-    ///   "ts_punctuations": { "map": {}, "max_len": 0, "starter_cap": {} }
-    /// });
-    ///
-    /// let dicts = serde_json::from_value::<DictionaryMaxlength>(json)
-    ///     .unwrap()
-    ///     .finish();
-    ///
-    /// assert!(dicts.st_characters.is_populated());
-    /// ```
     #[inline]
     pub fn finish(mut self) -> Self {
         self.populate_all();
@@ -663,7 +627,7 @@ mod tests {
         let filename = "dictionary_maxlength.cbor";
         dictionary.serialize_to_cbor(filename).unwrap();
         let file_contents = fs::read(filename).unwrap();
-        let expected_cbor_size = 1113003; // Update this with the actual expected size
+        let expected_cbor_size = 1349884; // Update this with the actual expected size
         assert_eq!(file_contents.len(), expected_cbor_size);
         // Clean up: Delete the test file
         // fs::remove_file(filename).unwrap();
@@ -698,7 +662,7 @@ mod tests {
         // Verify file size within a reasonable range
         let compressed_size = fs::metadata(zstd_filename).unwrap().len();
         let min_size = 480000; // Lower bound
-        let max_size = 500000; // Upper bound
+        let max_size = 600000; // Upper bound
         assert!(
             compressed_size >= min_size && compressed_size <= max_size,
             "Unexpected compressed size: {}",

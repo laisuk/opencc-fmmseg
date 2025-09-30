@@ -384,6 +384,8 @@ version = "0.8.2"
 dependencies = [
  "clap",
  "opencc-fmmseg",
+ "rustc-hash",
+ "serde",
  "serde_cbor",
  "serde_json",
  "ureq",

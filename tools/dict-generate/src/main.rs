@@ -1,12 +1,15 @@
+mod json_io;
+
 use clap::{Arg, Command};
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::Path;
 use std::{fs, io};
 
+use crate::json_io::DictionaryMaxlengthSerde;
+use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
 use std::time::Duration;
 use ureq::Agent;
-use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     const BLUE: &str = "\x1B[1;34m"; // Bold Blue
@@ -20,6 +23,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .value_name("format")
                 .default_value("zstd")
                 .help("Dictionary format: [zstd|cbor|json]"),
+        )
+        .arg(
+            Arg::new("pretty")
+                .long("pretty")
+                .action(clap::ArgAction::SetTrue)
+                .help("Pretty-print JSON when --format json")
         )
         .arg(
             Arg::new("output")
@@ -52,6 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let dict_format = matches.get_one::<String>("format").map(String::as_str);
+    let pretty_json = matches.get_flag("pretty"); // default compact if false
 
     let default_output = match dict_format {
         Some("zstd") => "dictionary_maxlength.zstd",
@@ -79,9 +89,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("json") => {
             let dictionary = DictionaryMaxlength::from_dicts()?;
-            let file = File::create(output_file)?;
-            serde_json::to_writer_pretty(file, &dictionary)?;
-            eprintln!("{BLUE}Dictionary saved in JSON format at: {output_file}{RESET}");
+            // IMPORTANT: use DTO for JSON so keys are Strings
+            write_reference_json(&dictionary, output_file, /* pretty = */ pretty_json)?;
+            let style = if pretty_json { "pretty" } else { "compact" };
+            eprintln!("{BLUE}Dictionary saved in JSON ({style}) at: {output_file}{RESET}");
         }
         other => {
             let format_str = other.unwrap_or("unknown");
@@ -91,7 +102,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+pub fn write_reference_json(
+    dicts: &DictionaryMaxlength,
+    path: impl AsRef<Path>,
+    pretty: bool,
+) -> io::Result<()> {
+    let dto: DictionaryMaxlengthSerde = dicts.into();
+    let file = File::create(path)?;
+    let mut w = BufWriter::new(file);
+    if pretty {
+        serde_json::to_writer_pretty(&mut w, &dto).map_err(to_io)?;
+    } else {
+        serde_json::to_writer(&mut w, &dto).map_err(to_io)?;
+        // newline for POSIX-y tools
+        w.write_all(b"\n")?;
+    }
+    w.flush()
+}
 
+// Small adapter so we can stay in io::Result
+fn to_io<E: std::error::Error + Send + Sync + 'static>(e: E) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, e)
+}
 /// Download missing dict files from GitHub repo
 fn fetch_dicts_from_github(dict_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let dict_files = [
