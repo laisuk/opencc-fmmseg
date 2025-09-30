@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **dict-generate JSON export**: Human-readable JSON via DTOs with String keys;  
   supports `--pretty` (pretty) and `--compact` (default). Core schema remains CBOR/Zstd.
   Why: JSON is for reference/debug only; the canonical on-disk format stays CBOR.
+- Added `min_len` field to `DictMaxLen`
 
 ### Fixed
 
