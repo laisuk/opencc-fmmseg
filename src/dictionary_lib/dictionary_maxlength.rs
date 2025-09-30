@@ -86,6 +86,10 @@ impl DictionaryMaxlength {
             Self::set_last_error(&format!("Failed to load dictionary from Zstd: {}", err));
             Box::new(err)
         })?)
+        // Ok(Self::from_cbor().map_err(|err| {
+        //     Self::set_last_error(&format!("Failed to load dictionary from Zstd: {}", err));
+        //     Box::new(err)
+        // })?)
     }
 
     /// Loads the default dictionary from an **embedded Zstd-compressed CBOR blob**.
@@ -142,15 +146,17 @@ impl DictionaryMaxlength {
     }
 
     /// Loads dictionary from an embedded CBOR file.
-    pub fn from_cbor() -> Result<Self, Box<dyn Error>> {
+    pub fn from_cbor() -> Result<Self, DictionaryError> {
         let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
-        match from_slice::<DictionaryMaxlength>(cbor_bytes) {
-            Ok(dictionary) => Ok(dictionary.finish()),
-            Err(err) => {
-                Self::set_last_error(&format!("Failed to read CBOR file: {}", err));
-                Err(Box::new(err))
-            }
-        }
+
+        let dictionary: DictionaryMaxlength = from_slice(cbor_bytes).map_err(|err| {
+            let msg = format!("Failed to parse CBOR: {}", err);
+            // Global last-error string:
+            Self::set_last_error(&msg);
+            DictionaryError::ParseError(msg)
+        })?;
+
+        Ok(dictionary.finish())
     }
 
     /// Loads all dictionaries from plaintext `.txt` lexicon files in the `dicts/` directory.
