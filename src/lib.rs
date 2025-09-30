@@ -1,3 +1,6 @@
+// Enable cfg badges on docs.rs (optional but nice)
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! High-performance Chinese text converter using OpenCC lexicons and FMM segmentation.
 //!
 //! This crate provides efficient segment-based conversion between Simplified and Traditional Chinese.
@@ -22,7 +25,9 @@ use rustc_hash::FxHashMap;
 use std::iter::Iterator;
 use std::sync::Mutex;
 
+/// Delimiters helper for splitting and matching delimiters.
 pub mod delimiter_set;
+/// Bridge helper for conversion plan and core converter functions.
 mod dict_refs;
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;

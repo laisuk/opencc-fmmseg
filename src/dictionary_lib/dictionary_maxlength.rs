@@ -627,10 +627,10 @@ mod tests {
         let filename = "dictionary_maxlength.cbor";
         dictionary.serialize_to_cbor(filename).unwrap();
         let file_contents = fs::read(filename).unwrap();
-        let expected_cbor_size = 1349884; // Update this with the actual expected size
+        let expected_cbor_size = 1350046; // Update this with the actual expected size
         assert_eq!(file_contents.len(), expected_cbor_size);
         // Clean up: Delete the test file
-        // fs::remove_file(filename).unwrap();
+        fs::remove_file(filename).unwrap();
     }
 
     #[test]

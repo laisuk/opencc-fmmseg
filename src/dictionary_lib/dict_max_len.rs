@@ -39,9 +39,43 @@
 //! - [`DictMaxLen::is_populated`] — check if dense arrays are allocated.
 
 use rustc_hash::FxHashMap;
-// use serde::ser::SerializeMap;
-// use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde::{Deserialize, Serialize};
+
+/// Print a developer note to **stderr** in *debug* builds; **no-op** in release.
+///
+/// This macro accepts the same syntax as [`eprintln!`], but it only emits output
+/// when `cfg(debug_assertions)` is enabled (i.e., debug/profile builds). In
+/// release builds it expands to an empty block, so it won’t surprise end users.
+///
+/// # Examples
+/// ```
+/// use opencc_fmmseg::debug_note; // bring the macro into scope
+///
+/// // Shown during development (debug builds), silent in release:
+/// debug_note!("duplicate key ignored (first-wins): key={}", "弁");
+/// ```
+///
+/// # Behavior
+/// - **Debug builds** (`cfg(debug_assertions)`): prints to stderr.
+/// - **Release builds**: no-op (generates no output).
+///
+/// # Use cases
+/// - Soft diagnostics while loading user-supplied dictionaries
+/// - One-off hints that shouldn’t fail or spam release users
+///
+/// # See also
+/// [`debug_assert!`], [`eprintln!`]
+#[macro_export]
+macro_rules! debug_note {
+    ($($arg:tt)*) => {
+        #[allow(unused)]
+        {
+            if cfg!(debug_assertions) {
+                eprintln!($($arg)*);
+            }
+        }
+    };
+}
 
 /// A dictionary with a tracked maximum phrase length and per-starter length caps,
 /// optimized for zero-allocation lookups and fast segmentation.
@@ -71,6 +105,7 @@ use serde::{Deserialize, Serialize};
 /// let mut dict = DictMaxLen {
 ///     map: FxHashMap::default(),
 ///     max_len: 0,
+///     min_len: 0,
 ///     starter_cap: FxHashMap::default(),
 ///     first_len_mask64: vec![0; 65536],
 ///     first_char_max_len: vec![0; 65536],
@@ -107,6 +142,12 @@ pub struct DictMaxLen {
     #[serde(default)]
     pub max_len: usize,
 
+    /// Global minimum key length in characters across the entire dictionary.
+    ///
+    /// Used to limit scanning during forward maximum matching (FMM) segmentation.
+    #[serde(default)]
+    pub min_len: usize,
+
     /// Per-starter maximum key length in characters.
     ///
     /// The key is the starting character of the phrase, and the value is the
@@ -140,35 +181,35 @@ impl DictMaxLen {
     /// constructs starter indexes (length masks and per-starter caps).
     ///
     /// This constructor:
-    /// - Converts each `key: String` to `Box<[char]>` (scalar-value chars),
-    /// - Tracks the **global** maximum key length in characters (`max_len`),
+    /// - Converts each `key: String` into `Box<[char]>` (Unicode scalar values),
+    /// - Tracks the **global** maximum and minimum key lengths in characters
+    ///   (`max_len`, `min_len`),
     /// - Tracks the **per-starter** maximum key length (`starter_cap`),
     /// - Eagerly calls [`populate_starter_indexes`](#method.populate_starter_indexes)
-    ///   to fill the runtime accelerators:
-    ///   [`first_len_mask64`] and [`first_char_max_len`].
+    ///   to fill runtime accelerators: [`first_len_mask64`] and [`first_char_max_len`].
     ///
     /// ### Duplicates
-    /// If the iterator yields duplicate keys, the **last** value wins (it
-    /// overwrites the previous entry in the map).
+    /// If the iterator yields duplicate **keys**, **first-wins**:
+    /// - If the existing value is **identical**, the duplicate is ignored silently.
+    /// - If the new value **differs**, the previous value is kept; in debug builds a
+    ///   friendly note is printed via `debug_note!`, but there is **no panic**.
     ///
     /// ### Empty keys
-    /// An empty `key` is allowed. It will be inserted into `map` but it does
-    /// **not** contribute to `starter_cap` or starter indexes.
+    /// An empty `key` is **allowed**. It will be inserted into `map` but does **not**
+    /// contribute to `starter_cap` or starter indexes.
     ///
     /// ### Unicode note
-    /// Keys are stored as `char` slices (`Box<[char]>`), i.e., Unicode scalar
-    /// values. If your data contains combining marks or requires grapheme
-    /// clustering, ensure your keys are normalized to the representation you
-    /// expect to match against.
+    /// Keys are stored as `char` slices (`Box<[char]>`). If your data contains
+    /// combining marks or requires grapheme clustering, normalize your input to the
+    /// representation you expect to match against (e.g., NFC) **before** calling this.
     ///
     /// ### Complexity
     /// Let *N* be the number of pairs and *L* the average key length (chars).
     /// - Build: `O(N·L)` to collect chars and insert into the map.
-    /// - Starter index population: linear in the number of distinct starters.
+    /// - Starter index population: linear in the number of distinct first characters.
     ///
     /// ### Example
     /// ```
-    /// use rustc_hash::FxHashMap;
     /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
     ///
     /// let pairs = vec![
@@ -178,11 +219,12 @@ impl DictMaxLen {
     ///
     /// let dict = DictMaxLen::build_from_pairs(pairs);
     ///
-    /// // Look at collected metadata
+    /// // Collected metadata
     /// assert!(dict.max_len >= 2);
+    /// assert!(dict.min_len >= 1);
     /// assert!(dict.starter_cap.get(&'你').copied().unwrap_or(0) >= 2);
     ///
-    /// // Zero-alloc style lookup (pseudo):
+    /// // Zero-alloc style lookup using a borrowed slice:
     /// // let input: &[char] = &['你', '好'];
     /// // if let Some(v) = dict.map.get(input) { /* ... */ }
     /// ```
@@ -190,33 +232,123 @@ impl DictMaxLen {
     where
         I: IntoIterator<Item = (String, String)>,
     {
-        let mut map = FxHashMap::default();
-        let mut starter_cap: FxHashMap<char, u8> = FxHashMap::default();
-        let mut global_max = 1usize;
+        use rustc_hash::FxHashMap;
+        use std::collections::hash_map::Entry;
 
-        for (k, v) in pairs {
+        // Reserve using the iterator's lower bound if available
+        let it = pairs.into_iter();
+        let (lower, _) = it.size_hint();
+
+        let mut map: FxHashMap<Box<[char]>, Box<str>> = FxHashMap::default();
+        if lower > 0 {
+            map.reserve(lower);
+        }
+
+        let mut starter_cap: FxHashMap<char, u8> = FxHashMap::default();
+        if lower > 0 {
+            starter_cap.reserve(lower.min(0x10000));
+        }
+
+        let mut global_max = 0usize;
+        let mut global_min = usize::MAX;
+
+        for (k, v) in it {
+            // Keys must not be empty (debug-only guard); empty keys are allowed but not indexed.
+            debug_assert!(!k.is_empty(), "Dictionary key must not be empty");
+
             let chars: Box<[char]> = k.chars().collect::<Vec<_>>().into_boxed_slice();
             let len = chars.len();
+
+            // Track per-starter cap
+            debug_assert!(
+                len <= u8::MAX as usize,
+                "Entry length {} exceeds u8::MAX (255) for key {:?}",
+                len,
+                k
+            );
+            let len_u8 = u8::try_from(len).unwrap_or(u8::MAX);
+
             if let Some(&c0) = chars.first() {
                 starter_cap
                     .entry(c0)
-                    .and_modify(|m| *m = (*m).max(len as u8))
-                    .or_insert(len as u8);
+                    .and_modify(|m| *m = (*m).max(len_u8))
+                    .or_insert(len_u8);
             }
+
             global_max = global_max.max(len);
-            map.insert(chars, v.into_boxed_str());
+            global_min = global_min.min(len);
+
+            // Build value once; only inserted if needed
+            let new_val: Box<str> = v.into_boxed_str();
+
+            // Duplicate handling: first-wins; identical dup = silent ignore; conflicting dup = keep first, optional debug note.
+            match map.entry(chars) {
+                Entry::Vacant(e) => {
+                    e.insert(new_val);
+                }
+                Entry::Occupied(e) => {
+                    let prev = e.get();
+                    if prev.as_ref() != new_val.as_ref() {
+                        // Friendly debug-only message; keeps FIRST value (first-wins).
+                        debug_note!(
+                        "duplicate key ignored (first-wins): key={:?}; kept={:?}, ignored={:?}",
+                        k, prev, new_val
+                    );
+                        // For last-wins instead: *e.into_mut() = new_val;
+                    }
+                    // identical duplicate -> silently ignored
+                }
+            }
         }
+
+        // If there were no pairs, both bounds are 0
+        let min_len = if global_min == usize::MAX { 0 } else { global_min };
+        let max_len = global_max;
+
+        debug_assert!(
+            (max_len == 0 && min_len == 0) || (min_len >= 1 && min_len <= max_len),
+            "min_len/max_len invariant violated: min_len={}, max_len={}",
+            min_len,
+            max_len
+        );
 
         let mut dict = Self {
             map,
-            max_len: global_max,
+            max_len,
+            min_len,
             starter_cap,
             first_len_mask64: Vec::new(),   // not built yet
             first_char_max_len: Vec::new(), // not built yet
         };
 
-        // Eagerly build runtime accelerators for fast segmentation.
+        // Build runtime accelerators for fast lookup.
         dict.populate_starter_indexes();
+
+        // Post-build sanity checks
+        debug_assert!(
+            dict.min_len <= dict.max_len,
+            "After populate: min_len > max_len ({} > {})",
+            dict.min_len,
+            dict.max_len
+        );
+
+        #[cfg(debug_assertions)]
+        {
+            // Each key length must be ≤ starter_cap for its first char
+            for (k_chars, _) in &dict.map {
+                if let Some(&c0) = k_chars.first() {
+                    let cap = dict.starter_cap.get(&c0).copied().unwrap_or(0);
+                    let ok = u8::try_from(k_chars.len()).map(|l| l <= cap).unwrap_or(false);
+                    debug_assert!(
+                        ok,
+                        "starter_cap too small: first {:?}, key_len={}, cap={}",
+                        c0,
+                        k_chars.len(),
+                        cap
+                    );
+                }
+            }
+        }
 
         dict
     }
@@ -249,6 +381,7 @@ impl DictMaxLen {
     /// let mut dict = DictMaxLen {
     ///     map: Default::default(),
     ///     max_len: 0,
+    ///     min_len: 0,
     ///     starter_cap: Default::default(),
     ///     first_len_mask64: Vec::new(),
     ///     first_char_max_len: Vec::new(),
@@ -386,6 +519,7 @@ impl DictMaxLen {
     /// let mut dict = DictMaxLen {
     ///     map: Default::default(),
     ///     max_len: 0,
+    ///     min_len: 0,
     ///     starter_cap: Default::default(),
     ///     first_len_mask64: Vec::new(),
     ///     first_char_max_len: Vec::new(),
@@ -419,6 +553,7 @@ impl Default for DictMaxLen {
     /// let dict = DictMaxLen {
     ///     map: FxHashMap::default(),
     ///     max_len: 0,
+    ///     min_len: 0,
     ///     starter_cap: FxHashMap::default(),
     ///     first_len_mask64: Vec::new(),
     ///     first_char_max_len: Vec::new(),
@@ -438,6 +573,7 @@ impl Default for DictMaxLen {
         Self {
             map: FxHashMap::default(),
             max_len: 0,
+            min_len: 0,
             starter_cap: FxHashMap::default(),
             first_len_mask64: Vec::new(),
             first_char_max_len: Vec::new(),

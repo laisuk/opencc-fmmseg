@@ -1,18 +1,19 @@
 // json_io.rs (CLI only)
-use serde::{Serialize, Deserialize};
-use std::collections::BTreeMap; // stable key order for diffs
-use opencc_fmmseg::dictionary_lib::{DictionaryMaxlength, DictMaxLen};
+use opencc_fmmseg::dictionary_lib::{DictMaxLen, DictionaryMaxlength};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+// stable key order for diffs
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DictMaxLenSerde {
     pub map: BTreeMap<String, String>,
     #[serde(default)]
     pub max_len: usize,
+    // reserve for future:
+    #[serde(default)]
+    pub min_len: usize,
     #[serde(default)]
     pub starter_cap: BTreeMap<String, u8>,
-    // reserve for future:
-    // #[serde(default)]
-    // pub min_len: usize,
 }
 
 impl DictMaxLenSerde {
@@ -23,6 +24,7 @@ impl DictMaxLenSerde {
         for (k, v) in self.map {
             let key: Box<[char]> = k.chars().collect::<Vec<_>>().into_boxed_slice();
             out.max_len = out.max_len.max(key.len());
+            out.min_len = out.min_len.min(key.len());
             out.map.insert(key, v.into_boxed_str());
         }
 
@@ -62,12 +64,12 @@ pub struct DictionaryMaxlengthSerde {
 
 impl From<&DictMaxLen> for DictMaxLenSerde {
     fn from(d: &DictMaxLen) -> Self {
-        let mut map = std::collections::BTreeMap::new();
+        let mut map = BTreeMap::new();
         for (k, v) in &d.map {
             map.insert(k.iter().collect::<String>(), v.to_string());
         }
 
-        let mut starter_cap = std::collections::BTreeMap::new();
+        let mut starter_cap = BTreeMap::new();
         for (ch, cap) in &d.starter_cap {
             starter_cap.insert(ch.to_string(), *cap);
         }
@@ -75,6 +77,7 @@ impl From<&DictMaxLen> for DictMaxLenSerde {
         Self {
             map,
             max_len: d.max_len,
+            min_len: d.min_len,
             starter_cap,
             // min_len: d.min_len, // once you add it
         }
@@ -105,4 +108,3 @@ impl From<&DictionaryMaxlength> for DictionaryMaxlengthSerde {
         }
     }
 }
-
