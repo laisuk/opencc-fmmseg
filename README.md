@@ -306,8 +306,8 @@ Results from **v0.8.0**:
 
 At this scale, performance is so high that **I/O (disk or network)**, not the converter, becomes the bottleneck.
 
-> **Notes**: Current version (`0.8.2`) with code optimizations increase the conversion speed further and reduced memory
-> allocation.
+> **Notes**: Version `0.8.2` introduces code optimizations that further improve conversion speed and reduce memory
+> allocations.
 
 ![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_080.png)
 
