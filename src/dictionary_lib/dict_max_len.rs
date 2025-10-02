@@ -232,7 +232,6 @@ impl DictMaxLen {
     where
         I: IntoIterator<Item = (String, String)>,
     {
-        use rustc_hash::FxHashMap;
         use std::collections::hash_map::Entry;
 
         // Reserve using the iterator's lower bound if available
