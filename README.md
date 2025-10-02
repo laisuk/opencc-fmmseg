@@ -322,6 +322,7 @@ At this scale, performance is so high that **I/O (disk or network)**, not the co
 - MIT License.
 - © Laisuk Lai.
 - See [LICENSE](./LICENSE) for details.
+- See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for bundled OpenCC lexicons (Apache License 2.0).
 
 ## 💬 Feedback / Contributions
 
