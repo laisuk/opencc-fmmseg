@@ -6,6 +6,39 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.2.1] - 2025-10-05
+
+### Fixed
+
+- ✅ Pin toolchain to **Rust 1.82.0** to avoid Windows AV false positives (e.g., ESET “ML/Augur trojan”) seen with newer
+  compilers.
+
+### Notes
+
+- No functional/code changes to the library or CLI — only the compiler version used for release artifacts.
+- Previous 1.90.0-built **.exe** files could be misclassified by some AV heuristics. Re-download this release if your AV
+  deleted earlier builds.
+- C API **.dll/.so/.dylib** were unaffected.
+
+### CI/CD
+
+- GitHub Actions workflow now uses `rustc 1.82.0` for all platforms.
+- Artifacts remain the same layout:  
+  `bin/` (CLI tools & dicts), `lib/` (C API), `include/` (headers).
+
+### Verification
+
+- **Windows (PowerShell):**
+  ```powershell
+  Get-FileHash .\opencc-rs.exe -Algorithm SHA256
+  ```
+- Linux/macOS:
+  ```bash
+  sha256sum ./opencc-rs        # or shasum -a 256 ./opencc-rs
+  ```
+
+---
+
 ## [0.8.2] - 2025-10-02
 
 ## Added
@@ -40,11 +73,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **Delimiter handling**:
     - Removed unused `Minimal` and `Normal` modes, leaving only `Full`.
     - Dropped the private `delimiters` field in `OpenCC`; now uses the global static `FULL_DELIMITER_SET`.
-- **Error handling (unified)**: `from_zstd()`, `from_cbor()`, `serialize_to_cbor()`, `deserialize_from_cbor()`, and `new()` now return `Result<_, DictionaryError>` for consistent typed errors.
+- **Error handling (unified)**: `from_zstd()`, `from_cbor()`, `serialize_to_cbor()`, `deserialize_from_cbor()`, and
+  `new()` now return `Result<_, DictionaryError>` for consistent typed errors.
 
 ## Moved
 
-- `serde (JSON) overrides`: Removed from core `DictMaxLen`; JSON adaptation now lives only in the `dict-generate` CLI (DTO layer).
+- `serde (JSON) overrides`: Removed from core `DictMaxLen`; JSON adaptation now lives only in the `dict-generate` CLI (
+  DTO layer).
   **Result**: Core CBOR/Zstd schema stays stable (snake_case), faster loads, less risk of format drift.
 
 ### Performance
