@@ -5,7 +5,7 @@ fn main() {
         use winres::WindowsResource;
 
         let mut res = WindowsResource::new();
-        res.set_icon("assets/icon.ico");
+        res.set_icon("assets/dictionary_icon.ico");
 
         // Cargo metadata
         let ver = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0.0".into());
@@ -23,9 +23,9 @@ fn main() {
         res.set("ProductName", "opencc-rs");
         res.set("CompanyName", &authors);
         res.set("LegalCopyright", "© Laisuk. MIT License");
-        res.set("OriginalFilename", "opencc-rs.exe");
+        res.set("OriginalFilename", "dict-generate.exe");
         res.set("InternalName", &name);
-        res.set("Comments", "Built with Rust and OpenCC-Fmmseg libraries.");
+        res.set("Comments", "Generate dictionary from OpenCC-Fmmseg");
         res.set("FileVersion", &ver_commas);
         res.set("ProductVersion", &ver_commas);
 
