@@ -12,7 +12,7 @@ fn main() {
         let name = env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "opencc-rs".into());
         let authors = env::var("CARGO_PKG_AUTHORS").unwrap_or_else(|_| "Laisuk".into());
         let desc = env::var("CARGO_PKG_DESCRIPTION").unwrap_or_else(|_| {
-            "OpenCC-Fmmseg CLI (Simplified/Traditional Chinese Converter)".into()
+            "Opencc-Fmmseg CLI (Simplified/Traditional Chinese Converter)".into()
         });
 
         // Version fields (Windows expects comma-separated numerics)
@@ -25,17 +25,9 @@ fn main() {
         res.set("LegalCopyright", "© Laisuk. MIT License");
         res.set("OriginalFilename", "opencc-rs.exe");
         res.set("InternalName", &name);
-        res.set("Comments", "Built with Rust and OpenCC-Fmmseg libraries.");
+        res.set("Comments", "Built with Rust and Opencc-Fmmseg libraries.");
         res.set("FileVersion", &ver_commas);
         res.set("ProductVersion", &ver_commas);
-
-        // Optional extra tags (some scanners treat these as "complete" PE info)
-        res.set(
-            "LegalTrademarks",
-            "OpenCC is a trademark of BYVoid and contributors.",
-        );
-        res.set("PrivateBuild", "Release build for GitHub distribution.");
-        res.set("SpecialBuild", "Optimized for C API performance (fat LTO).");
 
         // Compile the .res and link it
         res.compile().expect("Failed to embed Windows resources");

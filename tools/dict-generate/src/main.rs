@@ -4,11 +4,9 @@ use crate::json_io::DictionaryMaxlengthSerde;
 use clap::{Arg, Command};
 use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
 use std::fs::File;
-use std::io::{BufWriter, Read, Write};
+use std::io;
+use std::io::{BufWriter, Write};
 use std::path::Path;
-use std::time::Duration;
-use std::{fs, io};
-use ureq::Agent;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     const BLUE: &str = "\x1B[1;34m"; // Bold Blue
@@ -43,20 +41,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let dict_dir = Path::new("dicts");
     if !dict_dir.exists() {
-        eprint!("{BLUE}Local 'dicts/' not found. Proceed with downloading dictionaries from GitHub? (Y/n): {RESET}");
-        io::stdout().flush()?; // Ensure prompt is printed before read_line
-
-        let mut answer = String::new();
-        io::stdin().read_line(&mut answer)?;
-        let answer = answer.trim().to_lowercase();
-
-        if answer.is_empty() || answer == "y" || answer == "yes" {
-            eprintln!("{BLUE}Downloading from GitHub...{RESET}");
-            fetch_dicts_from_github(dict_dir)?;
-        } else {
-            eprintln!("{BLUE}Aborted by user. Exiting.{RESET}");
-            return Ok(()); // or `std::process::exit(0);` if you want a hard exit
-        }
+        eprintln!(
+            "{BLUE}Local 'dicts/' directory not found.{RESET}\n\
+         Please place Opencc-Fmmseg dictionary files (*.txt) under this folder."
+        );
+        return Ok(()); // Exit silently
     }
 
     let dict_format = matches.get_one::<String>("format").map(String::as_str);
@@ -122,56 +111,4 @@ pub fn write_reference_json(
 // Small adapter so we can stay in io::Result
 fn to_io<E: std::error::Error + Send + Sync + 'static>(e: E) -> io::Error {
     io::Error::new(io::ErrorKind::Other, e)
-}
-/// Download missing dict files from GitHub repo
-fn fetch_dicts_from_github(dict_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let dict_files = [
-        "STCharacters.txt",
-        "STPhrases.txt",
-        "TSCharacters.txt",
-        "TSPhrases.txt",
-        "TWPhrases.txt",
-        "TWPhrasesRev.txt",
-        "TWVariants.txt",
-        "TWVariantsRev.txt",
-        "TWVariantsRevPhrases.txt",
-        "HKVariants.txt",
-        "HKVariantsRev.txt",
-        "HKVariantsRevPhrases.txt",
-        "JPShinjitaiCharacters.txt",
-        "JPShinjitaiPhrases.txt",
-        "JPVariants.txt",
-        "JPVariantsRev.txt",
-        "STPunctuations.txt",
-        "TSPunctuations.txt",
-    ];
-
-    fs::create_dir_all(dict_dir)?;
-
-    let config = Agent::config_builder()
-        .timeout_global(Some(Duration::from_secs(10)))
-        .build();
-    let agent: Agent = config.into();
-
-    for filename in &dict_files {
-        let url = format!(
-            "https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/dicts/{}",
-            filename
-        );
-
-        let response = agent.get(&url).call()?;
-        let mut content = String::new();
-        response
-            .into_body()
-            .into_reader()
-            .read_to_string(&mut content)?;
-
-        let dest_path = dict_dir.join(filename);
-        let mut file = File::create(dest_path)?;
-        file.write_all(content.as_bytes())?;
-
-        eprintln!("Downloaded: {}", filename);
-    }
-
-    Ok(())
 }

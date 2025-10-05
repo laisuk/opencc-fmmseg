@@ -5,14 +5,14 @@ fn main() {
         use winres::WindowsResource;
 
         let mut res = WindowsResource::new();
-        res.set_icon("assets/dictionary_icon.ico");
+        res.set_icon("assets/icon.ico");
 
         // Cargo metadata
         let ver = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0.0".into());
         let name = env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "opencc-rs".into());
         let authors = env::var("CARGO_PKG_AUTHORS").unwrap_or_else(|_| "Laisuk".into());
         let desc = env::var("CARGO_PKG_DESCRIPTION").unwrap_or_else(|_| {
-            "OpenCC-Fmmseg CLI (Simplified/Traditional Chinese Converter)".into()
+            "Opencc-Fmmseg CLI (Simplified/Traditional Chinese Converter)".into()
         });
 
         // Version fields (Windows expects comma-separated numerics)
@@ -25,7 +25,7 @@ fn main() {
         res.set("LegalCopyright", "© Laisuk. MIT License");
         res.set("OriginalFilename", "dict-generate.exe");
         res.set("InternalName", &name);
-        res.set("Comments", "Generate dictionary from OpenCC-Fmmseg");
+        res.set("Comments", "Generate dictionary from Opencc-Fmmseg");
         res.set("FileVersion", &ver_commas);
         res.set("ProductVersion", &ver_commas);
 
@@ -34,8 +34,6 @@ fn main() {
             "LegalTrademarks",
             "OpenCC is a trademark of BYVoid and contributors.",
         );
-        res.set("PrivateBuild", "Release build for GitHub distribution.");
-        res.set("SpecialBuild", "Optimized for C API performance (fat LTO).");
 
         // Compile the .res and link it
         res.compile().expect("Failed to embed Windows resources");
