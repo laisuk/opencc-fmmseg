@@ -575,11 +575,11 @@ impl OpenCC {
                 // precompute starter tests, etc.
 
                 for &dict in dictionaries {
-                    if dict.max_len < length || dict.min_len > length {
+                    if !dict.has_key_len(length) {
                         continue;
                     }
                     // ... starter-cap gates ...
-                    // 2) per-dict starter gate (uses your DictMaxLen fields):
+                    // 2) per-dict starter gate (uses DictMaxLen fields):
                     if is_multy_dicts {
                         if !starter_allows_dict(dict, c0, length, cap_bit) {
                             continue;
@@ -672,7 +672,7 @@ impl OpenCC {
                 let candidate = &text_chars[start_pos..start_pos + length];
 
                 for dictionary in dictionaries {
-                    if dictionary.max_len < length || dictionary.min_len > length {
+                    if !dictionary.has_key_len(length) {
                         continue;
                     }
                     if let Some(value) = dictionary.map.get(candidate) {

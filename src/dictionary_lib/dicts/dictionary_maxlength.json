@@ -7967,7 +7967,8 @@
       "𰾄": 1,
       "𰾭": 1,
       "𱊜": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "st_phrases": {
     "map": {
@@ -60731,7 +60732,8 @@
       "龙": 6,
       "龚": 3,
       "龟": 2
-    }
+    },
+    "key_length_mask": 65534
   },
   "ts_characters": {
     "map": {
@@ -68967,7 +68969,8 @@
       "𪷓": 1,
       "𫒡": 1,
       "𫜦": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "ts_phrases": {
     "map": {
@@ -69429,7 +69432,8 @@
       "麼": 3,
       "黄": 3,
       "龍": 2
-    }
+    },
+    "key_length_mask": 8958
   },
   "tw_phrases": {
     "map": {
@@ -70276,7 +70280,8 @@
       "默": 3,
       "點": 2,
       "鼠": 2
-    }
+    },
+    "key_length_mask": 1023
   },
   "tw_phrases_rev": {
     "map": {
@@ -71088,7 +71093,8 @@
       "駭": 2,
       "高": 5,
       "點": 3
-    }
+    },
+    "key_length_mask": 1023
   },
   "tw_variants": {
     "map": {
@@ -71174,7 +71180,8 @@
       "鮎": 1,
       "麪": 1,
       "齶": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "tw_variants_rev": {
     "map": {
@@ -71260,7 +71267,8 @@
       "顎": 1,
       "鯰": 1,
       "麵": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "tw_variants_rev_phrases": {
     "map": {
@@ -71359,7 +71367,8 @@
       "開": 2,
       "閔": 2,
       "顯": 2
-    }
+    },
+    "key_length_mask": 14
   },
   "hk_variants": {
     "map": {
@@ -71493,7 +71502,8 @@
       "鍼": 1,
       "閱": 1,
       "鰮": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "hk_variants_rev": {
     "map": {
@@ -71641,7 +71651,8 @@
       "鋭": 1,
       "閲": 1,
       "鰛": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "hk_variants_rev_phrases": {
     "map": {
@@ -71901,7 +71912,8 @@
       "黃": 4,
       "齒": 2,
       "龍": 3
-    }
+    },
+    "key_length_mask": 30
   },
   "jps_characters": {
     "map": {
@@ -71923,7 +71935,8 @@
       "浜": 1,
       "糸": 1,
       "芸": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "jps_phrases": {
     "map": {
@@ -72266,7 +72279,8 @@
       "骨": 2,
       "高": 2,
       "鳥": 2
-    }
+    },
+    "key_length_mask": 14
   },
   "jp_variants": {
     "map": {
@@ -73012,7 +73026,8 @@
       "齡": 1,
       "龍": 1,
       "龜": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "jp_variants_rev": {
     "map": {
@@ -73758,7 +73773,8 @@
       "黙": 1,
       "鼈": 1,
       "齢": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "st_punctuations": {
     "map": {
@@ -73774,7 +73790,8 @@
       "’": 1,
       "“": 1,
       "”": 1
-    }
+    },
+    "key_length_mask": 1
   },
   "ts_punctuations": {
     "map": {
@@ -73790,6 +73807,7 @@
       "」": 1,
       "『": 1,
       "』": 1
-    }
+    },
+    "key_length_mask": 1
   }
 }

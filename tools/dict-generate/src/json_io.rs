@@ -1,19 +1,26 @@
 // json_io.rs (CLI only)
 use opencc_fmmseg::dictionary_lib::{DictMaxLen, DictionaryMaxlength};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-// stable key order for diffs
+use std::collections::BTreeMap; // stable key order for diffs
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DictMaxLenSerde {
     pub map: BTreeMap<String, String>,
+
     #[serde(default)]
     pub max_len: usize,
-    // reserve for future:
+
+    // present for completeness; old JSON may omit it
     #[serde(default)]
     pub min_len: usize,
+
+    // stable-ordered starter caps; keys are 1-char strings
     #[serde(default)]
     pub starter_cap: BTreeMap<String, u8>,
+
+    // NEW: bitmask of existing key lengths (1..=64 mapped to bits 0..=63)
+    #[serde(default)]
+    pub key_length_mask: u64,
 }
 
 impl DictMaxLenSerde {
@@ -21,20 +28,89 @@ impl DictMaxLenSerde {
     pub fn into_internal(self) -> DictMaxLen {
         let mut out = DictMaxLen::default();
 
+        // Build map, and compute min/max + key_length_mask on the fly
+        let mut min_seen = usize::MAX;
+        let mut max_seen = 0usize;
+        let mut mask: u64 = 0;
+
         for (k, v) in self.map {
             let key: Box<[char]> = k.chars().collect::<Vec<_>>().into_boxed_slice();
-            out.max_len = out.max_len.max(key.len());
-            out.min_len = out.min_len.min(key.len());
+            let len = key.len();
+
+            // update min/max
+            if len < min_seen {
+                min_seen = len;
+            }
+            if len > max_seen {
+                max_seen = len;
+            }
+
+            // update mask (only 1..=64 represented)
+            if (1..=64).contains(&len) {
+                mask |= 1u64 << (len - 1);
+            }
+
             out.map.insert(key, v.into_boxed_str());
         }
 
-        let mut starter_cap = rustc_hash::FxHashMap::default();
-        for (s, cap) in self.starter_cap {
-            if let Some(ch) = s.chars().next() {
-                starter_cap.insert(ch, cap);
+        // prefer values from JSON if present, fall back to recomputed
+        out.max_len = if self.max_len != 0 {
+            self.max_len
+        } else {
+            max_seen
+        };
+        out.min_len = if self.min_len != 0 {
+            self.min_len
+        } else if !out.map.is_empty() {
+            min_seen
+        } else {
+            0
+        };
+
+        // starter_cap: use provided (string->u8), else recompute from map
+        if self.starter_cap.is_empty() {
+            let mut caps = rustc_hash::FxHashMap::default();
+            caps.reserve(out.map.len().min(0x10000));
+            for (k_chars, _) in out.map.iter() {
+                if let Some(&c0) = k_chars.first() {
+                    let len_u8 = u8::try_from(k_chars.len()).unwrap_or(u8::MAX);
+                    use std::collections::hash_map::Entry;
+                    match caps.entry(c0) {
+                        Entry::Vacant(e) => {
+                            e.insert(len_u8);
+                        }
+                        Entry::Occupied(mut e) => {
+                            let cur = e.get_mut();
+                            if len_u8 > *cur {
+                                *cur = len_u8;
+                            }
+                        }
+                    }
+                }
             }
+            out.starter_cap = caps;
+        } else {
+            let mut caps = rustc_hash::FxHashMap::default();
+            caps.reserve(self.starter_cap.len());
+            for (s, cap) in self.starter_cap {
+                if let Some(ch) = s.chars().next() {
+                    caps.insert(ch, cap);
+                }
+            }
+            out.starter_cap = caps;
         }
-        out.starter_cap = starter_cap;
+
+        // key_length_mask: prefer provided nonzero mask, else use recomputed
+        out.key_length_mask = if self.key_length_mask != 0 {
+            self.key_length_mask
+        } else {
+            mask
+        };
+
+        // Rebuild runtime accelerators
+        out.first_len_mask64.clear();
+        out.first_char_max_len.clear();
+        out.populate_starter_indexes();
 
         out
     }
@@ -64,11 +140,13 @@ pub struct DictionaryMaxlengthSerde {
 
 impl From<&DictMaxLen> for DictMaxLenSerde {
     fn from(d: &DictMaxLen) -> Self {
+        // map → BTreeMap<String,String> for deterministic output
         let mut map = BTreeMap::new();
         for (k, v) in &d.map {
             map.insert(k.iter().collect::<String>(), v.to_string());
         }
 
+        // starter_cap → BTreeMap<String,u8> for deterministic output
         let mut starter_cap = BTreeMap::new();
         for (ch, cap) in &d.starter_cap {
             starter_cap.insert(ch.to_string(), *cap);
@@ -79,7 +157,7 @@ impl From<&DictMaxLen> for DictMaxLenSerde {
             max_len: d.max_len,
             min_len: d.min_len,
             starter_cap,
-            // min_len: d.min_len, // once you add it
+            key_length_mask: d.key_length_mask, // NEW
         }
     }
 }

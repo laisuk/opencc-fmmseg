@@ -107,6 +107,7 @@ macro_rules! debug_note {
 ///     max_len: 0,
 ///     min_len: 0,
 ///     starter_cap: FxHashMap::default(),
+///     key_length_mask: 0,
 ///     first_len_mask64: vec![0; 65536],
 ///     first_char_max_len: vec![0; 65536],
 /// };
@@ -155,6 +156,9 @@ pub struct DictMaxLen {
     /// This allows early exit during segmentation when no longer matches are possible.
     #[serde(default)]
     pub starter_cap: FxHashMap<char, u8>,
+
+    #[serde(default)]
+    pub key_length_mask: u64,
 
     /// Runtime-only: length bitmask for the first character (Unicode BMP).
     ///
@@ -251,6 +255,9 @@ impl DictMaxLen {
         let mut global_max = 0usize;
         let mut global_min = usize::MAX;
 
+        // NEW: accumulate bitmask of seen key lengths (1..=64)
+        let mut key_length_mask: u64 = 0;
+
         for (k, v) in it {
             // Keys must not be empty (debug-only guard); empty keys are allowed but not indexed.
             debug_assert!(!k.is_empty(), "Dictionary key must not be empty");
@@ -277,6 +284,12 @@ impl DictMaxLen {
             global_max = global_max.max(len);
             global_min = global_min.min(len);
 
+            // NEW: set length bit (1..=64 only)
+            // if (1..=64).contains(&len) {
+            //     key_length_mask |= 1u64 << (len - 1);
+            // }
+            Self::set_key_len_bit(&mut key_length_mask, len);
+
             // Build value once; only inserted if needed
             let new_val: Box<str> = v.into_boxed_str();
 
@@ -290,9 +303,11 @@ impl DictMaxLen {
                     if prev.as_ref() != new_val.as_ref() {
                         // Friendly debug-only message; keeps FIRST value (first-wins).
                         debug_note!(
-                        "duplicate key ignored (first-wins): key={:?}; kept={:?}, ignored={:?}",
-                        k, prev, new_val
-                    );
+                            "duplicate key ignored (first-wins): key={:?}; kept={:?}, ignored={:?}",
+                            k,
+                            prev,
+                            new_val
+                        );
                         // For last-wins instead: *e.into_mut() = new_val;
                     }
                     // identical duplicate -> silently ignored
@@ -301,7 +316,11 @@ impl DictMaxLen {
         }
 
         // If there were no pairs, both bounds are 0
-        let min_len = if global_min == usize::MAX { 0 } else { global_min };
+        let min_len = if global_min == usize::MAX {
+            0
+        } else {
+            global_min
+        };
         let max_len = global_max;
 
         debug_assert!(
@@ -316,6 +335,7 @@ impl DictMaxLen {
             max_len,
             min_len,
             starter_cap,
+            key_length_mask,
             first_len_mask64: Vec::new(),   // not built yet
             first_char_max_len: Vec::new(), // not built yet
         };
@@ -337,7 +357,9 @@ impl DictMaxLen {
             for (k_chars, _) in &dict.map {
                 if let Some(&c0) = k_chars.first() {
                     let cap = dict.starter_cap.get(&c0).copied().unwrap_or(0);
-                    let ok = u8::try_from(k_chars.len()).map(|l| l <= cap).unwrap_or(false);
+                    let ok = u8::try_from(k_chars.len())
+                        .map(|l| l <= cap)
+                        .unwrap_or(false);
                     debug_assert!(
                         ok,
                         "starter_cap too small: first {:?}, key_len={}, cap={}",
@@ -382,6 +404,7 @@ impl DictMaxLen {
     ///     max_len: 0,
     ///     min_len: 0,
     ///     starter_cap: Default::default(),
+    ///     key_length_mask: 0,
     ///     first_len_mask64: Vec::new(),
     ///     first_char_max_len: Vec::new(),
     /// };
@@ -520,6 +543,7 @@ impl DictMaxLen {
     ///     max_len: 0,
     ///     min_len: 0,
     ///     starter_cap: Default::default(),
+    ///     key_length_mask: 0,
     ///     first_len_mask64: Vec::new(),
     ///     first_char_max_len: Vec::new(),
     /// };
@@ -532,6 +556,42 @@ impl DictMaxLen {
     #[inline]
     pub fn is_populated(&self) -> bool {
         self.first_len_mask64.len() == 0x10000 && self.first_char_max_len.len() == 0x10000
+    }
+
+    // -------------- New: key_length_mask helpers ------------
+    #[inline]
+    fn set_key_len_bit(mask: &mut u64, len: usize) {
+        // 1..=64 are representable; longer keys are rare and ignored in the u64 mask
+        if (1..=64).contains(&len) {
+            *mask |= 1u64 << (len - 1);
+        }
+    }
+
+    #[inline]
+    pub fn has_key_len(&self, len: usize) -> bool {
+        if self.key_length_mask != 0 && (1..=64).contains(&len) {
+            ((self.key_length_mask >> (len - 1)) & 1) != 0
+        } else {
+            len >= self.min_len && len <= self.max_len
+        }
+    }
+
+    #[inline]
+    pub fn min_len_from_mask(&self) -> usize {
+        if self.key_length_mask == 0 {
+            0
+        } else {
+            self.key_length_mask.trailing_zeros() as usize + 1
+        }
+    }
+
+    #[inline]
+    pub fn max_len_from_mask(&self) -> usize {
+        if self.key_length_mask == 0 {
+            0
+        } else {
+            64 - self.key_length_mask.leading_zeros() as usize
+        }
     }
 }
 
@@ -554,6 +614,7 @@ impl Default for DictMaxLen {
     ///     max_len: 0,
     ///     min_len: 0,
     ///     starter_cap: FxHashMap::default(),
+    ///     key_length_mask: 0,
     ///     first_len_mask64: Vec::new(),
     ///     first_char_max_len: Vec::new(),
     /// };
@@ -574,6 +635,7 @@ impl Default for DictMaxLen {
             max_len: 0,
             min_len: 0,
             starter_cap: FxHashMap::default(),
+            key_length_mask: 0,
             first_len_mask64: Vec::new(),
             first_char_max_len: Vec::new(),
         }

@@ -10,7 +10,7 @@ mod tests {
         let bytes = fs::read(p)?;
         let decompressed = zstd::stream::decode_all(Cursor::new(bytes))?;
         let dicts: DictionaryMaxlength = serde_cbor::from_slice(&decompressed)?;
-        Ok(dicts)
+        Ok(dicts.finish())
     }
 
     // Minimal file-based saver: DictionaryMaxlength -> CBOR -> Zstd
