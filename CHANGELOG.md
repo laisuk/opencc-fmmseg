@@ -6,36 +6,59 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.2.1] - 2025-10-05
+## [0.8.3-pre] – 2025-10-15
 
-### Fixed
+### Added
 
-- ✅ Pin toolchain to **Rust 1.82.0** to avoid Windows AV false positives (e.g., ESET “ML/Augur trojan”) seen with newer
-  compilers.
+- **Global key-length mask**: `DictMaxLen::key_length_mask (u64)`  
+  Encodes presence of lengths `1..=64` (bit `n-1` → length `n`) for fast global gating (`has_key_len()`).
+- **Per-starter length mask**: `DictMaxLen::starter_len_mask (FxHashMap<char, u64>)`  
+  Exact per-starter length presence for BMP **and** astral chars. Dense BMP tables are rebuilt from this.
 
-### Notes
+### Changed
 
-- No functional/code changes to the library or CLI — only the compiler version used for release artifacts.
-- Previous 1.90.0-built **.exe** files could be misclassified by some AV heuristics. Re-download this release if your AV
-  deleted earlier builds.
-- C API **.dll/.so/.dylib** were unaffected.
+- **Mask-first gating** in `starter_allows_dict()`:
+    - For `1..=64`, test the bit in `first_len_mask64` (or sparse `starter_len_mask`).
+    - For `>64` (BMP), fall back to `first_char_max_len` (derived during build).
+- **populate_starter_indexes()** prefers `starter_len_mask` (single pass); falls back to scanning `map` if the mask is
+  empty.
+- **Docs.rs** updated across the module (examples, helpers, dense/sparse behavior).
+- **CBOR I/O** now uses `serde_cbor` (`from_slice` / `to_vec`). *No format change.*
 
-### CI/CD
+### Removed
 
-- GitHub Actions workflow now uses `rustc 1.82.0` for all platforms.
-- Artifacts remain the same layout:  
-  `bin/` (CLI tools & dicts), `lib/` (C API), `include/` (headers).
+- **`starter_cap`** from `DictMaxLen` and JSON/CBOR.  
+  Dense `first_char_max_len` is derived from masks at build/load time.  
+  Older serialized files containing `starter_cap` are accepted (unknown field is ignored).
+
+### CLI / JSON export
+
+- `dictionary_maxlength.json`:
+    - **Removed:** `starter_cap`
+    - **Includes:** `key_length_mask`, `starter_len_mask` (string keys → `u64` values)
+- CBOR/JSON inspector script updated to summarize the new masks.
+
+### Migration
+
+- Replace any `starter_cap` usage with:
+    - `dict.has_starter_len(c, len)` (exact check for `1..=64`), or
+    - `dict.first_char_max_len[u as usize] >= len` (dense BMP; also handles `>64`).
+- If you previously serialized `DictMaxLen` directly to JSON (failed due to `[char]` keys),
+  use the DTOs: `DictionaryMaxlengthSerde` / `DictMaxLenSerde`.
+- Update tests to assert **semantic invariants** (masks, counts, min/max) instead of exact file sizes.
+
+### MSRV / Tooling
+
+- **Rayon pins for MSRV 1.75**: `rayon = 1.10.x`, `rayon-core = 1.12.x`.
+- **Release toolchain** pinned to **Rust 1.82.0** (mitigates some Windows AV heuristics).
 
 ### Verification
 
-- **Windows (PowerShell):**
-  ```powershell
-  Get-FileHash .\opencc-rs.exe -Algorithm SHA256
-  ```
-- Linux/macOS:
-  ```bash
-  sha256sum ./opencc-rs        # or shasum -a 256 ./opencc-rs
-  ```
+- Round-trip CBOR test via `serde_cbor::from_slice` checks:
+  `max_len`, `key_length_mask`, and representative `map.len()` counts.
+
+> **Note:** If `DictMaxLen` is part of your public API, removal of `starter_cap` is a breaking change.
+> Consider bumping to `0.9.0` and listing it under **Breaking**.
 
 ---
 
