@@ -593,6 +593,91 @@ impl DictMaxLen {
             64 - self.key_length_mask.leading_zeros() as usize
         }
     }
+
+    // ----- New: Starter Gate -----
+
+    /// Checks whether this dictionary allows a word of the specified `length`
+    /// to start with the provided `starter` character.
+    ///
+    /// This method performs a fast per-starter lookup using precomputed metadata:
+    ///
+    /// - For **BMP characters** (`u <= 0xFFFF`):
+    ///   - If dense arrays are populated (`first_char_max_len` and `first_len_mask64`
+    ///     both cover the full BMP range):
+    ///     1. Checks the **length bitmask** (`first_len_mask64`) for the `starter`.
+    ///        - If the bitmask is non-zero, returns `true` only if the bit
+    ///          corresponding to `bit` (`length - 1`) is set.
+    ///        - This is the most selective and fastest path.
+    ///     2. Falls back to the **maximum-length cap** (`first_char_max_len`)
+    ///        if the bitmask entry is zero.
+    ///   - If dense arrays are not available, falls back to the sparse
+    ///     `starter_cap` map for the same logic.
+    /// - For **astral characters** (`u > 0xFFFF`), always falls back to the
+    ///   sparse `starter_cap` map since dense tables are BMP-only.
+    ///
+    /// This function is typically used after filtering with
+    /// [`DictMaxLen::has_key_len()`] to avoid redundant length range checks.
+    ///
+    /// # Parameters
+    /// - `starter`: The candidate starting character.
+    /// - `length`: The word length to validate.
+    /// - `bit`: The bit index corresponding to `length` (usually `length - 1`).
+    ///
+    /// # Returns
+    /// - `true` if the dictionary contains at least one entry that starts with
+    ///   `starter` and has the specified `length`.
+    /// - `false` otherwise.
+    ///
+    /// # Safety
+    /// Uses unchecked indexing (`get_unchecked`) when dense arrays are active
+    /// for maximum performance. This is safe because the dense arrays are
+    /// guaranteed to have a length of `0x10000` whenever this path is taken.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// // Checks whether a 2-character phrase starting with '中' exists.
+    /// let ok = dict.starter_allows_dict('中', 2, 1);
+    /// if ok {
+    ///     println!("A 2-character phrase starting with '中' exists.");
+    /// }
+    /// ```
+    #[inline(always)]
+    pub fn starter_allows_dict(&self, starter: char, length: usize, bit: usize) -> bool {
+        let len_u8 = length as u8;
+        let u = starter as u32;
+
+        if u <= 0xFFFF {
+            let i = u as usize;
+            // Dense tables are exactly 0x10000 long when populated.
+            let have_dense =
+                self.first_char_max_len.len() == 0x10000 && self.first_len_mask64.len() == 0x10000;
+
+            if have_dense {
+                // 1) Per-starter bitmask: most selective → check first.
+                // Safety: guarded by `have_dense` length check.
+                let m = unsafe { *self.first_len_mask64.get_unchecked(i) };
+                if m != 0 {
+                    // Bit 0..63 corresponds to length 1..64
+                    if ((m >> bit) & 1) == 0 {
+                        return false;
+                    }
+                    // Bit says this length exists; cap check not needed.
+                    return true;
+                }
+                // 2) Dense cap fallback
+                let cap = unsafe { *self.first_char_max_len.get_unchecked(i) };
+                cap >= len_u8
+            } else {
+                // Sparse cap (works for BMP & astral)
+                let cap = self.starter_cap.get(&starter).copied().unwrap_or(0);
+                cap >= len_u8
+            }
+        } else {
+            // Astral: no dense tables; use sparse cap
+            let cap = self.starter_cap.get(&starter).copied().unwrap_or(0);
+            cap >= len_u8
+        }
+    }
 }
 
 impl Default for DictMaxLen {
