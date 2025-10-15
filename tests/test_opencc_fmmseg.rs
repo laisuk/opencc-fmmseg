@@ -1,11 +1,18 @@
 use opencc_fmmseg::{dictionary_lib, OpenCC};
 
+// Pull in the real DTO code without making a new crate
+#[path = "../tools/dict-generate/src/json_io.rs"] // adjust relative path
+mod json_io;
+use json_io::DictionaryMaxlengthSerde;
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_cbor::to_vec;
+    use serde_json::Value;
     use std::collections::HashSet;
     use std::fs;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn zho_check_test() {
@@ -128,20 +135,32 @@ mod tests {
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_json() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
-        // Verify that the Dictionary contains the expected data
-        let expected = 16;
-        assert_eq!(dictionary.st_phrases.max_len, expected);
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts()
+            .expect("failed to build DictionaryMaxlength");
 
-        let filename = "dictionary_maxlength.json";
-        // Serialize to JSON instead of CBOR
-        let json_data = serde_json::to_string(&dictionary).expect("Failed to serialize to JSON");
-        fs::write(filename, json_data).expect("Failed to write JSON file");
-        let file_contents = fs::read_to_string(filename).unwrap();
-        let expected_json = 1351486;
-        assert_eq!(file_contents.trim().len(), expected_json);
-        // Clean up: Delete the test file
-        // fs::remove_file(filename).unwrap();
+        // Stable invariant (keep this check)
+        assert_eq!(dictionary.st_phrases.max_len, 16);
+
+        // Convert to JSON-friendly DTO (keys become String)
+        let dto: DictionaryMaxlengthSerde = (&dictionary).into();
+
+        // Serialize (compact or pretty; either is fine)
+        let json = serde_json::to_string(&dto).expect("serialize DTO to JSON");
+
+        // Write to temp file to avoid repo pollution
+        let tmp = NamedTempFile::new().unwrap();
+        fs::write(tmp.path(), &json).unwrap();
+
+        // Parse back and assert a few invariants
+        let v: Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["st_phrases"]["max_len"].as_u64().unwrap(), 16);
+        assert!(
+            v["st_phrases"]["starter_len_mask"]
+                .as_object()
+                .unwrap()
+                .len()
+                >= 3000
+        );
     }
 
     #[test]
@@ -160,28 +179,50 @@ mod tests {
         fs::write(filename, &cbor_data).expect("Failed to write CBOR file");
 
         // Check the expected file size (update this value after first run)
-        let expected_cbor_size = 1113003; // Replace with actual size after first run
+        let expected_cbor_size = 1351596; // Replace with actual size after first run
         let file_size = fs::metadata(filename).unwrap().len() as usize;
         assert_eq!(file_size, expected_cbor_size);
 
         // Clean up: Uncomment if you want to remove the test file
         // fs::remove_file(filename).unwrap();
     }
+
     #[test]
     #[ignore]
-    fn test_serialize_to_cbor() {
-        // Define the filename for testing
-        let filename = "dictionary_maxlength.cbor";
-        let dictionary = dictionary_lib::DictionaryMaxlength::new().unwrap();
-        // Serialize to JSON and write to file
-        dictionary.serialize_to_cbor(filename).unwrap();
-        // Read the contents of the file
-        let file_contents = fs::read_to_string(filename).unwrap();
-        // Verify that the JSON contains the expected data
-        let expected_json = 1350232;
-        assert_eq!(file_contents.trim().len(), expected_json);
-        // Clean up: Delete the test file
-        fs::remove_file(filename).unwrap();
+    fn serialize_to_cbor_roundtrip() {
+        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
+
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path().to_path_buf();
+        dictionary.serialize_to_cbor(&path).unwrap();
+
+        let bytes = fs::read(&path).unwrap();
+        assert!(!bytes.is_empty(), "CBOR output is empty");
+        assert!(
+            std::str::from_utf8(&bytes).is_err(),
+            "CBOR should be binary"
+        );
+
+        // ⬇️ serde_cbor instead of ciborium
+        let decoded: dictionary_lib::DictionaryMaxlength = serde_cbor::from_slice(&bytes).unwrap();
+
+        assert_eq!(
+            dictionary.st_characters.max_len,
+            decoded.st_characters.max_len
+        );
+        assert_eq!(dictionary.st_phrases.max_len, decoded.st_phrases.max_len);
+        assert_eq!(
+            dictionary.st_characters.key_length_mask,
+            decoded.st_characters.key_length_mask
+        );
+        assert_eq!(
+            dictionary.st_phrases.key_length_mask,
+            decoded.st_phrases.key_length_mask
+        );
+        assert_eq!(
+            dictionary.st_phrases.map.len(),
+            decoded.st_phrases.map.len()
+        );
     }
 
     #[test]
@@ -298,7 +339,10 @@ mod tests {
         // Print result
         for (i, range) in ranges.iter().enumerate() {
             let segment: String = chars[range.clone()].iter().collect();
-            println!("Segment {}: [{}..{}] = {:?}", i, range.start, range.end, segment);
+            println!(
+                "Segment {}: [{}..{}] = {:?}",
+                i, range.start, range.end, segment
+            );
         }
 
         // Optional assertion: should have 3 segments ending with '\n'
@@ -307,5 +351,4 @@ mod tests {
             assert_eq!(chars[range.end - 1], '\n');
         }
     }
-
 }

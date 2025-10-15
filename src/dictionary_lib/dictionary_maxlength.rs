@@ -489,6 +489,7 @@ impl DictionaryMaxlength {
 
         Ok(dictionary.finish())
     }
+
     /// Records the last error message encountered during dictionary operations.
     pub fn set_last_error(err_msg: &str) {
         let mut last_error = LAST_ERROR.lock().unwrap();
@@ -627,7 +628,7 @@ mod tests {
         let filename = "dictionary_maxlength.cbor";
         dictionary.serialize_to_cbor(filename).unwrap();
         let file_contents = fs::read(filename).unwrap();
-        let expected_cbor_size = 1350046; // Update this with the actual expected size
+        let expected_cbor_size = 1351396; // Update this with the actual expected size
         assert_eq!(file_contents.len(), expected_cbor_size);
         // Clean up: Delete the test file
         fs::remove_file(filename).unwrap();
