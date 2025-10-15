@@ -14,13 +14,14 @@ pub struct DictMaxLenSerde {
     #[serde(default)]
     pub min_len: usize,
 
-    // stable-ordered starter caps; keys are 1-char strings
-    #[serde(default)]
-    pub starter_cap: BTreeMap<String, u8>,
-
     // NEW: bitmask of existing key lengths (1..=64 mapped to bits 0..=63)
     #[serde(default)]
     pub key_length_mask: u64,
+
+    // NEW: sparse per-starter length mask (1..=64 → bits 0..=63)
+    // keys are 1-char strings for determinism in JSON
+    #[serde(default)]
+    pub starter_len_mask: BTreeMap<String, u64>,
 }
 
 impl DictMaxLenSerde {
@@ -37,7 +38,6 @@ impl DictMaxLenSerde {
             let key: Box<[char]> = k.chars().collect::<Vec<_>>().into_boxed_slice();
             let len = key.len();
 
-            // update min/max
             if len < min_seen {
                 min_seen = len;
             }
@@ -45,15 +45,16 @@ impl DictMaxLenSerde {
                 max_seen = len;
             }
 
-            // update mask (only 1..=64 represented)
-            if (1..=64).contains(&len) {
-                mask |= 1u64 << (len - 1);
+            // 1..=64 only
+            let b = len.wrapping_sub(1);
+            if b < 64 {
+                mask |= 1u64 << b;
             }
 
             out.map.insert(key, v.into_boxed_str());
         }
 
-        // prefer values from JSON if present, fall back to recomputed
+        // Prefer JSON-provided values; fallback to recomputed
         out.max_len = if self.max_len != 0 {
             self.max_len
         } else {
@@ -67,47 +68,46 @@ impl DictMaxLenSerde {
             0
         };
 
-        // starter_cap: use provided (string->u8), else recompute from map
-        if self.starter_cap.is_empty() {
-            let mut caps = rustc_hash::FxHashMap::default();
-            caps.reserve(out.map.len().min(0x10000));
-            for (k_chars, _) in out.map.iter() {
-                if let Some(&c0) = k_chars.first() {
-                    let len_u8 = u8::try_from(k_chars.len()).unwrap_or(u8::MAX);
-                    use std::collections::hash_map::Entry;
-                    match caps.entry(c0) {
-                        Entry::Vacant(e) => {
-                            e.insert(len_u8);
-                        }
-                        Entry::Occupied(mut e) => {
-                            let cur = e.get_mut();
-                            if len_u8 > *cur {
-                                *cur = len_u8;
-                            }
-                        }
-                    }
-                }
-            }
-            out.starter_cap = caps;
-        } else {
-            let mut caps = rustc_hash::FxHashMap::default();
-            caps.reserve(self.starter_cap.len());
-            for (s, cap) in self.starter_cap {
-                if let Some(ch) = s.chars().next() {
-                    caps.insert(ch, cap);
-                }
-            }
-            out.starter_cap = caps;
-        }
-
-        // key_length_mask: prefer provided nonzero mask, else use recomputed
+        // key_length_mask: prefer provided nonzero mask, else recomputed
         out.key_length_mask = if self.key_length_mask != 0 {
             self.key_length_mask
         } else {
             mask
         };
 
-        // Rebuild runtime accelerators
+        // NEW: starter_len_mask: use provided map if present; otherwise derive from out.map
+        if self.starter_len_mask.is_empty() {
+            let mut m = rustc_hash::FxHashMap::default();
+            // Heuristic: starters ≤ unique first chars in map, capped at BMP
+            // (reserve is optional; remove if you prefer)
+            let mut seen = rustc_hash::FxHashSet::default();
+            for (k_chars, _) in out.map.iter() {
+                if let Some(&c0) = k_chars.first() {
+                    if seen.insert(c0) { /* counting unique starters */ }
+                    let len = k_chars.len();
+                    let entry = m.entry(c0).or_insert(0u64);
+                    let b = len.wrapping_sub(1);
+                    if b < 64 {
+                        *entry |= 1u64 << b;
+                    }
+                }
+            }
+            // If you still want a reserve, do it before the loop as:
+            // m.reserve(seen.len());
+            out.starter_len_mask = m;
+        } else {
+            let mut m = rustc_hash::FxHashMap::default();
+            // Reserve by provided size (cheap and safe)
+            m.reserve(self.starter_len_mask.len());
+            for (s, mask) in self.starter_len_mask {
+                if let Some(ch) = s.chars().next() {
+                    m.insert(ch, mask);
+                }
+            }
+            out.starter_len_mask = m;
+        }
+
+        // Rebuild runtime accelerators (dense BMP vectors) from sparse maps
         out.first_len_mask64.clear();
         out.first_char_max_len.clear();
         out.populate_starter_indexes();
@@ -140,24 +140,35 @@ pub struct DictionaryMaxlengthSerde {
 
 impl From<&DictMaxLen> for DictMaxLenSerde {
     fn from(d: &DictMaxLen) -> Self {
-        // map → BTreeMap<String,String> for deterministic output
+        // map → BTreeMap<String,String>
         let mut map = BTreeMap::new();
         for (k, v) in &d.map {
             map.insert(k.iter().collect::<String>(), v.to_string());
         }
 
-        // starter_cap → BTreeMap<String,u8> for deterministic output
-        let mut starter_cap = BTreeMap::new();
-        for (ch, cap) in &d.starter_cap {
-            starter_cap.insert(ch.to_string(), *cap);
+        // NEW: starter_len_mask → BTreeMap<String,u64>
+        let mut starter_len_mask = BTreeMap::new();
+        if !d.starter_len_mask.is_empty() {
+            for (ch, mask) in &d.starter_len_mask {
+                starter_len_mask.insert(ch.to_string(), *mask);
+            }
+        } else if !d.first_len_mask64.is_empty() {
+            // If sparse not kept but dense exists, serialize dense back to sparse BMP form
+            for (i, &m) in d.first_len_mask64.iter().enumerate() {
+                if m != 0 {
+                    if let Some(ch) = char::from_u32(i as u32) {
+                        starter_len_mask.insert(ch.to_string(), m);
+                    }
+                }
+            }
         }
 
         Self {
             map,
             max_len: d.max_len,
             min_len: d.min_len,
-            starter_cap,
-            key_length_mask: d.key_length_mask, // NEW
+            key_length_mask: d.key_length_mask,
+            starter_len_mask,
         }
     }
 }
