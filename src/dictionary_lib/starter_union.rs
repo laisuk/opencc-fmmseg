@@ -44,39 +44,53 @@ pub struct StarterUnion {
 }
 
 impl StarterUnion {
-    /// Builds a union of starter metadata from multiple [`DictMaxLen`] tables.
+    /// Builds a **union of starter metadata** from multiple [`DictMaxLen`] tables.
     ///
-    /// For each input dictionary:
-    /// - **BMP** starters: bitwise-ORs the length masks into [`bmp_mask`], and takes
-    ///   the element-wise maximum into [`bmp_cap`].
-    /// - **Astral** starters: updates [`astral_mask`] and [`astral_cap`] in a sparse map.
+    /// This method constructs a combined lookup for:
+    /// - [`bmp_mask`]: per-BMP codepoint bitmask, where bit *n* means at least one key
+    ///   of length `n + 1` starts with that character.
+    /// - [`bmp_cap`]: the maximum key length observed for each BMP starter.
+    /// - [`astral_mask`]/[`astral_cap`]: sparse equivalents for non-BMP starters.
+    ///
+    /// # Behavior
+    /// For each input [`DictMaxLen`]:
+    /// - Iterates directly over its [`starter_len_mask`] map (`char → u64`), instead of
+    ///   scanning all 65 536 BMP codepoints.
+    /// - Uses [`DictMaxLen::max_len_from_mask`] to determine the per-starter cap
+    ///   (`Option<u8>` → `unwrap_or(0)`).
+    /// - Bitwise-ORs masks across all dictionaries and retains the element-wise maximum
+    ///   cap value.
+    ///
+    /// This avoids the previous `O(D × 65 536)` fixed-range sweep, yielding much faster
+    /// startup times while producing identical runtime tables.
     ///
     /// # Requirements
-    /// Each `DictMaxLen` should have populated starter indexes
-    /// (i.e., `populate_starter_indexes()` has been called, which is already done by
-    /// [`DictMaxLen::build_from_pairs`]).
+    /// Each [`DictMaxLen`] must have populated its starter indexes
+    /// (i.e., [`populate_starter_indexes()`] has been called,
+    /// which is already done by [`DictMaxLen::build_from_pairs`]).
     ///
     /// # Complexity
-    /// Let *D* be the number of dictionaries. The BMP union is `O(D · 65_536)`.
-    /// Astral merging is proportional to the number of **distinct** astral starters.
+    /// Let *S* be the total number of distinct starters across all dictionaries.
+    /// The union now runs in `O(S)` instead of `O(D × 65 536)`, typically improving
+    /// initialization speed by several times, especially for sparse lexicons.
     ///
     /// # Example
     /// ```
-    /// use opencc_fmmseg::dictionary_lib::{DictMaxLen};
-    /// use opencc_fmmseg::dictionary_lib::StarterUnion;
+    /// use opencc_fmmseg::dictionary_lib::{DictMaxLen, StarterUnion};
     ///
     /// // d1: has "你好" and one non-BMP char key "𢫊"
     /// let d1 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你好".to_string(), "您好".to_string()),
-    ///     ("𢫊".to_string(), "替".to_string()),
+    ///     ("你好".into(), "您好".into()),
+    ///     ("𢫊".into(), "替".into()),
     /// ]);
     ///
     /// // d2: has single-char "你" and "世界"
     /// let d2 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你".to_string(), "您".to_string()),
-    ///     ("世界".to_string(), "世間".to_string()),
+    ///     ("你".into(), "您".into()),
+    ///     ("世界".into(), "世間".into()),
     /// ]);
     ///
+    /// // Build starter union (sparse iteration)
     /// let u = StarterUnion::build(&[&d1, &d2]);
     ///
     /// // BMP starter checks for '你'
@@ -95,42 +109,36 @@ impl StarterUnion {
         const N: usize = 0x10000;
         let mut bmp_mask = vec![0u64; N];
         let mut bmp_cap = vec![0u8; N];
-        let mut astral_mask = FxHashMap::default();
-        let mut astral_cap = FxHashMap::default();
+        let mut astral_mask: FxHashMap<char, u64> = FxHashMap::default();
+        let mut astral_cap: FxHashMap<char, u8> = FxHashMap::default();
 
         for d in dicts {
-            // BMP union
-            for i in 0..N {
-                let m = d.first_len_mask64[i];
-                if m != 0 {
-                    bmp_mask[i] |= m;
-                    let c = d.first_char_max_len[i];
-                    if c > bmp_cap[i] {
-                        bmp_cap[i] = c;
-                    }
+            // Iterate only through existing starters
+            for (&c0, &mask) in &d.starter_len_mask {
+                if mask == 0 {
+                    continue;
                 }
-            }
 
-            // Astral sparse union
-            for key in d.map.keys() {
-                if key.is_empty() {
-                    continue;
+                let cap = DictMaxLen::max_len_from_mask(mask).unwrap_or(0) as u8;
+                let cp = c0 as u32;
+
+                if cp <= 0xFFFF {
+                    let i = cp as usize;
+                    bmp_mask[i] |= mask;
+                    if cap > bmp_cap[i] {
+                        bmp_cap[i] = cap;
+                    }
+                } else {
+                    *astral_mask.entry(c0).or_insert(0) |= mask;
+                    astral_cap
+                        .entry(c0)
+                        .and_modify(|m| {
+                            if cap > *m {
+                                *m = cap
+                            }
+                        })
+                        .or_insert(cap);
                 }
-                let c0 = key[0];
-                if (c0 as u32) <= 0xFFFF {
-                    continue;
-                }
-                let len = key.len();
-                let bit = if len >= 64 { 63 } else { len - 1 };
-                *astral_mask.entry(c0).or_default() |= 1u64 << bit;
-                astral_cap
-                    .entry(c0)
-                    .and_modify(|m| {
-                        if *m < len as u8 {
-                            *m = len as u8
-                        }
-                    })
-                    .or_insert(len as u8);
             }
         }
 
