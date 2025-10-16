@@ -322,11 +322,6 @@ impl DictMaxLen {
             map.reserve(lower);
         }
 
-        // let mut starter_cap: FxHashMap<char, u8> = FxHashMap::default();
-        // if lower > 0 {
-        //     starter_cap.reserve(lower.min(0x10000));
-        // }
-
         let mut starter_len_mask = FxHashMap::default();
         if lower > 0 {
             starter_len_mask.reserve(lower.min(0x10000));
