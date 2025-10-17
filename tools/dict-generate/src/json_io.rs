@@ -1,7 +1,9 @@
 // json_io.rs (CLI only)
 use opencc_fmmseg::dictionary_lib::{DictMaxLen, DictionaryMaxlength};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap; // stable key order for diffs
+use std::collections::BTreeMap;
+// stable key order for diffs
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DictMaxLenSerde {
@@ -77,10 +79,10 @@ impl DictMaxLenSerde {
 
         // NEW: starter_len_mask: use provided map if present; otherwise derive from out.map
         if self.starter_len_mask.is_empty() {
-            let mut m = rustc_hash::FxHashMap::default();
+            let mut m = FxHashMap::default();
             // Heuristic: starters ≤ unique first chars in map, capped at BMP
             // (reserve is optional; remove if you prefer)
-            let mut seen = rustc_hash::FxHashSet::default();
+            let mut seen = FxHashSet::default();
             for (k_chars, _) in out.map.iter() {
                 if let Some(&c0) = k_chars.first() {
                     if seen.insert(c0) { /* counting unique starters */ }
@@ -96,7 +98,7 @@ impl DictMaxLenSerde {
             // m.reserve(seen.len());
             out.starter_len_mask = m;
         } else {
-            let mut m = rustc_hash::FxHashMap::default();
+            let mut m = FxHashMap::default();
             // Reserve by provided size (cheap and safe)
             m.reserve(self.starter_len_mask.len());
             for (s, mask) in self.starter_len_mask {
