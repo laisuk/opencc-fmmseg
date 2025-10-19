@@ -336,6 +336,44 @@ impl OpenCC {
     /// - Internal bridge used by higher‑level routines (e.g., [`DictRefs::apply_segment_replace`]).
     ///
     #[inline]
+    // fn segment_replace_with_union(
+    //     &self,
+    //     text: &str,
+    //     dictionaries: &[&DictMaxLen],
+    //     max_word_length: usize,
+    //     union: &StarterUnion,
+    // ) -> String {
+    //     let chars: Vec<char> = if self.is_parallel {
+    //         text.par_chars().collect()
+    //     } else {
+    //         text.chars().collect()
+    //     };
+    //
+    //     let ranges = self.get_chars_range(&chars, false);
+    //
+    //     if self.is_parallel {
+    //         ranges
+    //             .into_par_iter()
+    //             .with_min_len(8)
+    //             .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, union))
+    //             .reduce(String::new, |mut a, b| {
+    //                 a.push_str(&b);
+    //                 a
+    //             })
+    //     } else {
+    //         // Serial path: avoid growth copies
+    //         let mut out = String::with_capacity(text.len());
+    //         for r in ranges {
+    //             out.push_str(&self.convert_by_union(
+    //                 &chars[r],
+    //                 dictionaries,
+    //                 max_word_length,
+    //                 union,
+    //             ));
+    //         }
+    //         out
+    //     }
+    // }
     fn segment_replace_with_union(
         &self,
         text: &str,
@@ -343,29 +381,53 @@ impl OpenCC {
         max_word_length: usize,
         union: &StarterUnion,
     ) -> String {
-        let chars: Vec<char> = if self.is_parallel {
-            text.par_chars().collect()
-        } else {
-            text.chars().collect()
-        };
-
-        let ranges = self.get_chars_range(&chars, false);
+        let chars: Vec<char> = text.chars().collect();
+        // Build delimiter-safe ranges (no cross-phrase splits)
+        let ranges = self.get_chars_range(&chars, true);
 
         if self.is_parallel {
-            ranges
-                .into_par_iter()
-                .with_min_len(8)
-                .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, union))
-                .reduce(String::new, |mut a, b| {
-                    a.push_str(&b);
-                    a
+            let threads = rayon::current_num_threads().max(1);
+            let desired_chunks = threads * 6;
+            let chunk_ranges = (ranges.len() / desired_chunks).max(128).min(2048);
+
+            // Small-input guard: fall back to serial if we'd get ≤ 1 chunk anyway
+            if ranges.len() <= chunk_ranges {
+                let mut out = String::with_capacity(text.len() + (text.len() >> 6));
+                for r in ranges {
+                    out.push_str(&self.convert_by_union(
+                        &chars[r.start..r.end],
+                        dictionaries,
+                        max_word_length,
+                        union,
+                    ));
+                }
+                return out;
+            }
+
+            let parts: Vec<String> = ranges
+                .par_chunks(chunk_ranges) // zero-copy chunks of &\[Range\]
+                .map(|chunk| {
+                    // sequential inside each chunk
+                    let cap: usize = chunk.iter().map(|r| r.end - r.start).sum();
+                    let mut s = String::with_capacity(cap);
+                    for r in chunk {
+                        s.push_str(&self.convert_by_union(
+                            &chars[r.start..r.end],
+                            dictionaries,
+                            max_word_length,
+                            union,
+                        ));
+                    }
+                    s
                 })
+                .collect();
+
+            parts.concat() // exact single allocation
         } else {
-            // Serial path: avoid growth copies
-            let mut out = String::with_capacity(text.len());
+            let mut out = String::with_capacity(text.len() + (text.len() >> 6));
             for r in ranges {
                 out.push_str(&self.convert_by_union(
-                    &chars[r],
+                    &chars[r.start..r.end],
                     dictionaries,
                     max_word_length,
                     union,
