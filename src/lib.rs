@@ -336,44 +336,6 @@ impl OpenCC {
     /// - Internal bridge used by higher‑level routines (e.g., [`DictRefs::apply_segment_replace`]).
     ///
     #[inline]
-    // fn segment_replace_with_union(
-    //     &self,
-    //     text: &str,
-    //     dictionaries: &[&DictMaxLen],
-    //     max_word_length: usize,
-    //     union: &StarterUnion,
-    // ) -> String {
-    //     let chars: Vec<char> = if self.is_parallel {
-    //         text.par_chars().collect()
-    //     } else {
-    //         text.chars().collect()
-    //     };
-    //
-    //     let ranges = self.get_chars_range(&chars, false);
-    //
-    //     if self.is_parallel {
-    //         ranges
-    //             .into_par_iter()
-    //             .with_min_len(8)
-    //             .map(|r| self.convert_by_union(&chars[r], dictionaries, max_word_length, union))
-    //             .reduce(String::new, |mut a, b| {
-    //                 a.push_str(&b);
-    //                 a
-    //             })
-    //     } else {
-    //         // Serial path: avoid growth copies
-    //         let mut out = String::with_capacity(text.len());
-    //         for r in ranges {
-    //             out.push_str(&self.convert_by_union(
-    //                 &chars[r],
-    //                 dictionaries,
-    //                 max_word_length,
-    //                 union,
-    //             ));
-    //         }
-    //         out
-    //     }
-    // }
     fn segment_replace_with_union(
         &self,
         text: &str,
@@ -1173,11 +1135,7 @@ impl OpenCC {
     /// This bypasses phrase-level and punctuation dictionaries for performance.
     fn st(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.st_characters];
-        let chars: Vec<char> = if self.is_parallel {
-            input.par_chars().collect()
-        } else {
-            input.chars().collect()
-        };
+        let chars: Vec<char> = input.chars().collect();
         self.convert_by(&chars, &dict_refs, 1)
     }
 
@@ -1198,11 +1156,7 @@ impl OpenCC {
     /// This is a minimal-pass check — punctuation and phrases are not processed.
     fn ts(&self, input: &str) -> String {
         let dict_refs = [&self.dictionary.ts_characters];
-        let chars: Vec<char> = if self.is_parallel {
-            input.par_chars().collect()
-        } else {
-            input.chars().collect()
-        };
+        let chars: Vec<char> = input.chars().collect();
         self.convert_by(&chars, &dict_refs, 1)
     }
 
