@@ -285,31 +285,35 @@ Last Error: No error
 
 ## 🚀 Benchmark Results: `opencc-fmmseg` Conversion Speed
 
-Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on 12,000-character text with
-punctuation disabled (`punctuation = false`).
+Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on 1.2 million characters with  
+punctuation disabled (`punctuation = false`), built in **release mode** with **Rayon enabled**.
 
-Results from **v0.8.0**:
+Results from **v0.8.3**:
 
 | Input Size | s2t Mean Time | t2s Mean Time |
 |------------|--------------:|--------------:|
-| 100        |      46.47 µs |      50.40 µs |
-| 1,000      |     134.18 µs |     135.72 µs |
-| 10,000     |     393.05 µs |     375.40 µs |
-| 100,000    |      1.664 ms |      1.397 ms |
-| 1,000,000  |     16.034 ms |     13.466 ms |
+| 100        |       3.62 µs |       2.05 µs |
+| 1,000      |      38.06 µs |      33.50 µs |
+| 10,000     |     202.66 µs |     130.58 µs |
+| 100,000    |      1.096 ms |      0.686 ms |
+| 1,000,000  |     12.822 ms |      9.089 ms |
+
+---
 
 📊 **Throughput Interpretation**
 
-- ~62–77 **million characters per second**
-- ≈ **100 full-length novels (500k chars each) per second**
-- ≈ **1 GB of UTF-8 text** processed in under **10 seconds**
+- **t2s:** ≈ 110 million chars/sec
+- **s2t:** ≈ 78 million chars/sec
+- Equivalent to **~150–200 MB/s** UTF-8 text throughput
+- ≈ **200 full-length novels** (500 k chars each) per second
+- ≈ **1 GB of text** converted in under **7 seconds**
 
-At this scale, performance is so high that **I/O (disk or network)**, not the converter, becomes the bottleneck.
+At this level, CPU saturation is negligible — **I/O or interop overhead** (file/clipboard/network) now dominates
+runtime.  
+The new **mask-first gating** (`key_length_mask` + `starter_len_mask`) delivers perfect **O(n)** scaling and
+ultra-stable parallel throughput across large text corpora.
 
-> **Notes**: Version `0.8.2` introduces code optimizations that further improve conversion speed and reduce memory
-> allocations.
-
-![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_080.png)
+![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_083.png)
 
 ### 🏅 Highlights
 
