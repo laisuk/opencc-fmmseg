@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.3-pre] – 2025-10-16
+## [0.8.3] – 2025-10-20
 
 ### Added
 
@@ -14,6 +14,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   Encodes presence of lengths `1..=64` (bit `n-1` → length `n`) for fast global gating (`has_key_len()`).
 - **Per-starter length mask**: `DictMaxLen::starter_len_mask (FxHashMap<char, u64>)`  
   Exact per-starter length presence for BMP **and** astral chars. Dense BMP tables are rebuilt from this.
+- **Adaptive pre-chunking** in `segment_replace_with_union()` for large input strings.  
+  Automatically computes optimal parallel chunk sizes based on CPU count and text length.  
+  Improves Rayon task distribution and minimizes overhead for long texts (e.g., 3 M chars in ~35 ms).  
+  The pre-chunk allocator now precomputes total output capacity to reduce `String` reallocations.
 
 ### Changed
 
@@ -21,6 +25,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - For `1..=64`, test the bit in `first_len_mask64` (or sparse `starter_len_mask`).
     - For `>64` (BMP), fall back to `first_char_max_len` (derived during build).
 - **populate_starter_indexes()** now prefers `starter_len_mask` (single pass) and falls back to scanning `map` if empty.
+- **Pre-chunking logic** restructured for **sequential-safe range building** using
+  `get_split_ranges(inclusive = true)`.  
+  The number of subranges is reduced while maintaining delimiter safety, improving throughput and reducing peak
+  memory.  
+  The pre-allocation phase now computes cumulative chunk lengths before Rayon processing begins.
 - **Docs.rs** updated across the module (examples, helpers, dense/sparse behavior).
 - **CBOR I/O** now uses `serde_cbor` (`from_slice` / `to_vec`). *No format change.*
 
@@ -55,9 +64,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - Round-trip CBOR test via `serde_cbor::from_slice` validates:
   `max_len`, `key_length_mask`, and representative `map.len()` counts.
-
-> **Note:** If `DictMaxLen` is part of your public API, removal of `starter_cap` is a breaking change.  
-> Consider bumping to **0.9.0** and listing it under **Breaking**.
+- Benchmarks confirm stable performance:
+    - 3 M chars converted in **~35 ms** (C API via Qt C++ client).
+    - No observable memory spike thanks to pre-chunk preallocation and mask-based gating.
 
 ---
 
