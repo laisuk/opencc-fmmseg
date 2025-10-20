@@ -53,12 +53,20 @@ lib/ # Shared library (.dll / .so / .dylib)
 include/ # C API header + C++ helper header
 ```
 
-## Features
+## ✨ Features
 
-- 📦 Simple CLI tool for converting between Simplified and Traditional Chinese.
-- 🔍 Lexicon-driven segmentation using OpenCC dictionaries.
-- ⚡ High performance using parallel processing.
-- 🛠️ Designed to be easily embedded as a Rust library or used standalone.
+- 📦 **Unified CLI & Library** — Convert between Simplified and Traditional Chinese via a single, consistent interface.
+- 🔍 **Lexicon-driven segmentation** — Uses OpenCC dictionaries with maximum-matching (FMM) and phrase-level masking for
+  accurate linguistic conversion.
+- ⚡ **High performance** — Optimized with **Rayon parallelism**, **bit-mask gating** (`key_length_mask`,
+  `starter_len_mask`), and **zero-copy string views** for near-native throughput.
+- 🧠 **Smart gating engine** — Automatically skips impossible probes using global and per-starter length masks, ensuring
+  consistent O(n) scaling.
+- 🧩 **Modular integration** — Usable as a **Rust crate**, **C API (FFI)**, or **Qt/.NET/Python binding** with identical
+  behavior across platforms.
+- 🛠️ **Lightweight & dependency-free** — Pure Rust core, no external runtime or I/O overhead.
+- 📄 **Cross-platform ready** — Builds cleanly on **Windows**, **Linux**, and **macOS** (x86_64 / ARM64), with CLI and
+  shared-library distributions.
 
 ## Installation
 
