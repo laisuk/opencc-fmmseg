@@ -848,8 +848,7 @@ impl OpenCC {
     ///      `punctuation` is `true`
     ///
     /// Starter metadata is obtained from `union_for` (via `UnionKey::TwRevPair`
-    /// and `UnionKey::T2S`) and reused across segments for efficient longest-
-    /// match replacement.
+    /// and `UnionKey::T2S`) and reused across segments for efficient longest-match replacement.
     ///
     /// # Arguments
     ///
@@ -1576,8 +1575,7 @@ impl OpenCC {
     /// to Traditional forms. Otherwise, it performs the reverse mapping.
     ///
     /// This function is retained only for backward compatibility and is not
-    /// used by the main OpenCC conversion pipeline, which relies on dictionary-
-    /// based punctuation mappings instead.
+    /// used by the main OpenCC conversion pipeline, which relies on dictionary-based punctuation mappings instead.
     ///
     /// # Deprecated
     ///

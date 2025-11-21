@@ -878,7 +878,7 @@ impl std::fmt::Display for DictionaryError {
     }
 }
 
-impl std::error::Error for DictionaryError {}
+impl Error for DictionaryError {}
 
 impl From<io::Error> for DictionaryError {
     fn from(err: io::Error) -> Self {

@@ -1,6 +1,6 @@
 //! Internal: cached [`StarterUnion`] variants for known OpenCC configs.
 //!
-//! This module defines the cache structure used by [`DictionaryMaxlength`](super::DictionaryMaxlength)
+//! This module defines the cache structure used by [`DictionaryMaxlength`](DictionaryMaxlength)
 //! to store and reuse precomputed [`StarterUnion`] instances. Each union corresponds to a
 //! specific combination of dictionaries (e.g. S2T, T2S with punctuation, TW/HK/JP variants),
 //! and is built lazily on first use. Subsequent lookups are cheap `Arc` clones.
@@ -76,7 +76,7 @@ pub(super) struct Unions {
 /// Hong Kong variants, Japanese Shinjitai, etc.).
 ///
 /// These keys are used internally by
-/// [`DictionaryMaxlength::union_for`](super::DictionaryMaxlength::union_for)
+/// [`DictionaryMaxlength::union_for`](DictionaryMaxlength::union_for)
 /// to select the appropriate cached [`StarterUnion`].
 pub(crate) enum UnionKey {
     // ============================
