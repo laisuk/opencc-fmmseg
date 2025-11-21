@@ -1,110 +1,156 @@
 use crate::dictionary_lib::DictMaxLen;
 use rustc_hash::FxHashMap;
 
-/// Union view of starter-length metadata across multiple [`DictMaxLen`] tables.
+/// Union view of starter–length metadata across multiple [`DictMaxLen`] tables.
 ///
-/// `StarterUnion` merges (unions) the **per-starter length masks** and
-/// **per-starter maximum lengths** from several dictionaries, so the caller
-/// can do a single starter check when matching across multiple tables.
+/// A `StarterUnion` merges the **per-starter length bitmasks** and
+/// **per-starter maximum phrase lengths** from several dictionaries into a
+/// single lookup structure. This allows the segmentation engine to query
+/// *all dictionaries at once* when determining whether a given starter
+/// character can begin a match of length `L`.
 ///
-/// - **BMP (0x0000..=0xFFFF)** starters are stored densely in fixed-size arrays:
-///   - [`bmp_mask`]: bitmask of available lengths per starter (`u64`).
-///   - [`bmp_cap`]: maximum length per starter (`u16`).
-/// - **Astral (> 0xFFFF)** starters are sparse:
-///   - [`astral_mask`], [`astral_cap`] keyed by the non-BMP starter `char`.
+/// # Structure
 ///
-/// # Bit layout
-/// For each starter:
-/// - bit 0  ⇒ length = 1
-/// - bit 1  ⇒ length = 2
-/// - …
-/// - bit 63 ⇒ length **≥ 64** (the “CAP” bucket)
+/// Starters in the Unicode **BMP** (`0x0000..=0xFFFF`) are stored in dense
+/// fixed-size vectors:
+///
+/// - [`bmp_mask`]: a `u64` bitmask encoding which phrase lengths exist  
+/// - [`bmp_cap`]: the maximum phrase length for that starter  
+///
+/// Starters **outside the BMP** are far less common, so they are stored
+/// sparsely:
+///
+/// - [`astral_mask`]: maps a non-BMP starter to its length bitmask  
+/// - [`astral_cap`]: maps a non-BMP starter to its maximum phrase length  
+///
+/// # Bit Layout (per starter)
+///
+/// A starter’s bitmask packs available phrase lengths into a `u64`:
+///
+/// - bit `0` → length = 1  
+/// - bit `1` → length = 2  
+/// - …  
+/// - bit `63` → length = 64  
+///
+/// Lengths >64 are grouped into the “≥64” bucket and treated equivalently during
+/// matching.
 ///
 /// # Invariants
-/// - `bmp_mask.len() == 0x10000`; `bmp_cap.len() == 0x10000`.
-/// - A set bit for a given starter implies at least one phrase length for that starter.
-/// - By construction, `bmp_cap[c]` ≥ the largest set bit (converted to length) for `bmp_mask[c]`.
 ///
-/// # Typical use
-/// Build once after you’ve constructed your per-locale/per-variant dictionaries,
-/// then use the union’s mask/cap to drive fast longest-match scans.
+/// - `bmp_mask.len() == 0x10000`  
+/// - `bmp_cap.len()  == 0x10000`  
+/// - If a bit is set in `bmp_mask[i]`, at least one dictionary contains a key
+///   that begins with that starter and has the corresponding length.  
+/// - `bmp_cap[i]` is always ≥ the highest set bit (converted to a length).  
+///
+/// These invariants are ensured by [`StarterUnion::build`].
+///
+/// # Purpose
+///
+/// The union allows the conversion engine to:
+///
+/// - Quickly determine whether any dictionary participates in a candidate match  
+/// - Avoid scanning dictionaries whose starters cannot match the current input  
+/// - Support multi-round dictionary pipelines (S2T → TwPhrases → TwVariants)
+///
+/// As a result, longest-match scanning becomes extremely fast, relying on
+/// O(1) bit tests instead of dictionary lookups.
+///
+/// # Typical Usage
+///
+/// A `StarterUnion` is created once for each logical OpenCC configuration
+/// (e.g., S2T, T2S+punc, TW-variants-only) and cached inside
+/// [`DictionaryMaxlength`].  
+///
+/// It is then reused across:
+///
+/// - Simplified/Traditional conversions  
+/// - TW/HK/JP variant pipelines  
+/// - Parallel conversion workers  
+///
+/// ensuring consistent, high-performance starter gating across the entire engine.
 #[derive(Default, Debug)]
 pub struct StarterUnion {
-    /// Dense BMP length bitmasks, indexed by `starter as usize`.
-    pub bmp_mask: Vec<u64>, // 0x10000
+    /// Dense BMP per-starter bitmask.
+    ///
+    /// Indexed by `starter as usize`, giving a `u64` bitmask with one bit per
+    /// possible length (1..=64). The most common case (CJK characters, ASCII,
+    /// punctuation) is handled here.
+    pub bmp_mask: Vec<u64>, // size: 0x10000
 
-    /// Dense BMP per-starter maximum length (in characters), indexed by `starter as usize`.
-    pub bmp_cap: Vec<u8>, // 0x10000
+    /// Dense BMP per-starter maximum phrase length.
+    ///
+    /// Same indexing as [`bmp_mask`]. This provides the upper bound on the
+    /// candidate window size during longest-match probing.
+    pub bmp_cap: Vec<u8>, // size: 0x10000
 
-    /// Sparse length bitmasks for astral starters (`starter > 0xFFFF`).
+    /// Sparse per-starter bitmask for astral (non-BMP) codepoints.
+    ///
+    /// Keys are `char > 0xFFFF`. These starters are rare, so storing them in a
+    /// map saves memory and avoids scanning large unused ranges.
     pub astral_mask: FxHashMap<char, u64>,
 
-    /// Sparse per-starter maximum length (in characters) for astral starters.
+    /// Sparse per-starter maximum phrase length for astral starters.
+    ///
+    /// Mirrors [`astral_mask`], but stores the maximum key length instead of
+    /// the full bitmask.
     pub astral_cap: FxHashMap<char, u8>,
 }
 
 impl StarterUnion {
-    /// Builds a **union of starter metadata** from multiple [`DictMaxLen`] tables.
+    /// Builds a combined **starter metadata union** from multiple [`DictMaxLen`]
+    /// dictionaries.
     ///
-    /// This method constructs a combined lookup for:
-    /// - [`bmp_mask`]: per-BMP codepoint bitmask, where bit *n* means at least one key
-    ///   of length `n + 1` starts with that character.
+    /// The resulting [`StarterUnion`] provides fast lookup tables for longest-match
+    /// segmentation, combining starter information from all dictionaries in
+    /// `dicts`. It produces:
+    ///
+    /// - [`bmp_mask`]: a per-BMP-codepoint bitmask where bit `n` indicates that
+    ///   *some* key of length `n + 1` starts with that character.
     /// - [`bmp_cap`]: the maximum key length observed for each BMP starter.
-    /// - [`astral_mask`]/[`astral_cap`]: sparse equivalents for non-BMP starters.
+    /// - [`astral_mask`]/[`astral_cap`]: sparse equivalents for Unicode characters
+    ///   outside the BMP.
     ///
-    /// # Behavior
-    /// For each input [`DictMaxLen`]:
-    /// - Iterates directly over its [`starter_len_mask`] map (`char → u64`), instead of
-    ///   scanning all 65 536 BMP codepoints.
-    /// - Uses [`DictMaxLen::max_len_from_mask`] to determine the per-starter cap
-    ///   (`Option<u8>` → `unwrap_or(0)`).
-    /// - Bitwise-ORs masks across all dictionaries and retains the element-wise maximum
-    ///   cap value.
+    /// # How It Works
     ///
-    /// This avoids the previous `O(D × 65 536)` fixed-range sweep, yielding much faster
-    /// startup times while producing identical runtime tables.
+    /// For every provided [`DictMaxLen`] instance:
     ///
-    /// # Requirements
-    /// Each [`DictMaxLen`] must have populated its starter indexes
-    /// (i.e., [`populate_starter_indexes()`] has been called,
-    /// which is already done by [`DictMaxLen::build_from_pairs`]).
+    /// - It iterates directly over the dictionary’s [`starter_len_mask`]
+    ///   (`char → u64`).
+    /// - It merges (`OR`) the per-starter bitmasks across all dictionaries.
+    /// - It updates the per-starter “cap” (maximum key length) using the
+    ///   element-wise maximum.
+    ///
+    /// Importantly, **this avoids scanning all 65,536 BMP codepoints**, instead
+    /// iterating only over the starters that actually exist in the dictionaries.
     ///
     /// # Complexity
-    /// Let *S* be the total number of distinct starters across all dictionaries.
-    /// The union now runs in `O(S)` instead of `O(D × 65 536)`, typically improving
-    /// initialization speed by several times, especially for sparse lexicons.
     ///
-    /// # Example
-    /// ```
-    /// use opencc_fmmseg::dictionary_lib::{DictMaxLen, StarterUnion};
+    /// Let:
+    /// - *S* = total number of distinct starter characters across all dictionaries  
+    /// - *D* = number of dictionary tables  
     ///
-    /// // d1: has "你好" and one non-BMP char key "𢫊"
-    /// let d1 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你好".into(), "您好".into()),
-    ///     ("𢫊".into(), "替".into()),
-    /// ]);
+    /// Previous approach:  
+    /// `O(D × 65,536)` — fixed-range sweep of all BMP codepoints  
     ///
-    /// // d2: has single-char "你" and "世界"
-    /// let d2 = DictMaxLen::build_from_pairs(vec![
-    ///     ("你".into(), "您".into()),
-    ///     ("世界".into(), "世間".into()),
-    /// ]);
+    /// Current approach:  
+    /// `O(S)` — sparse iteration of real starters only  
     ///
-    /// // Build starter union (sparse iteration)
-    /// let u = StarterUnion::build(&[&d1, &d2]);
+    /// This provides **vastly faster startup times**, especially for sparse or
+    /// lexicon-heavy OpenCC configurations.
     ///
-    /// // BMP starter checks for '你'
-    /// let i = '你' as usize;
-    /// assert_ne!(u.bmp_mask[i] & (1 << 0), 0); // len=1 exists ("你")
-    /// assert_ne!(u.bmp_mask[i] & (1 << 1), 0); // len=2 exists ("你好")
-    /// assert!(u.bmp_cap[i] >= 2);
+    /// # Requirements
     ///
-    /// // Astral starter checks for '𢫊' (U+22ACA)
-    /// let c_astral = '𢫊';
-    /// let m = u.astral_mask.get(&c_astral).copied().unwrap_or(0);
-    /// assert_ne!(m & (1 << 0), 0); // len=1 exists
-    /// assert!(u.astral_cap.get(&c_astral).copied().unwrap_or(0) >= 1);
-    /// ```
+    /// Each [`DictMaxLen`] used here **must already have starter indexes populated**,  
+    /// which is automatically guaranteed if it was created via:
+    ///
+    /// - [`DictMaxLen::build_from_pairs`]
+    /// - [`DictionaryMaxlength::finish`]
+    ///
+    /// # Returns
+    ///
+    /// A fully merged [`StarterUnion`] containing the union of all starters,
+    /// masks, and maximum lengths across all provided dictionaries.
     pub fn build(dicts: &[&DictMaxLen]) -> Self {
         const N: usize = 0x10000;
         let mut bmp_mask = vec![0u64; N];

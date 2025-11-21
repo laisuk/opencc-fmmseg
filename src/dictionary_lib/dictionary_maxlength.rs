@@ -80,7 +80,31 @@ pub struct DictionaryMaxlength {
 impl DictionaryMaxlength {
     /// Loads the default embedded Zstd-compressed dictionary.
     ///
-    /// Recommended for normal usage, as it loads a precompiled binary blob built into the application.
+    /// This constructor initializes a [`DictionaryMaxlength`] instance using the
+    /// built-in, precompiled Zstd-compressed dictionary blob bundled with the
+    /// crate.
+    ///
+    /// It is the recommended way to create a dictionary instance for normal
+    /// application usage, as it provides:
+    ///
+    /// - Fast startup
+    /// - Zero file-system access
+    /// - A guaranteed, version-matched dictionary set
+    ///
+    /// On failure, this method stores a human-readable message in the internal
+    /// error buffer via [`set_last_error`](Self::set_last_error), allowing
+    /// foreign-language bindings (C, C#, Python, Java through JNI) to retrieve
+    /// the error message safely.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Self)` if the embedded Zstd dictionary is successfully decoded
+    /// - `Err(DictionaryError)` if decompression or parsing fails
+    ///
+    /// # Notes
+    ///
+    /// This method is a thin wrapper around [`from_zstd`](Self::from_zstd),
+    /// preserving its error while adding richer diagnostics.
     pub fn new() -> Result<Self, DictionaryError> {
         Self::from_zstd().map_err(|err| {
             let msg = format!("Failed to load dictionary from Zstd: {}", err);
@@ -142,7 +166,35 @@ impl DictionaryMaxlength {
         Ok(dictionary.finish())
     }
 
-    /// Loads dictionary from an embedded CBOR file.
+    /// Loads the dictionary from an embedded CBOR file.
+    ///
+    /// This constructor initializes a [`DictionaryMaxlength`] instance using
+    /// a pre-generated CBOR-encoded dictionary blob bundled directly into the
+    /// crate binary via `include_bytes!`.
+    ///
+    /// The CBOR file contains the fully preprocessed dictionary structure
+    /// (phrase maps, character maps, max-length metadata), making this loading
+    /// path:
+    ///
+    /// - Fast
+    /// - Deterministic
+    /// - Independent of external files
+    ///
+    /// On parse failure, this method stores a descriptive message in the global
+    /// “last error” buffer using [`set_last_error`](Self::set_last_error), which
+    /// allows foreign FFI bindings (C, C#, Python, Java/JNI, etc.) to retrieve
+    /// the error reason safely.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Self)` if the embedded CBOR is successfully decoded
+    /// - `Err(DictionaryError::ParseError)` if deserialization fails
+    ///
+    /// # Notes
+    ///
+    /// After deserialization, the resulting struct is passed through
+    /// [`finish`](Self::finish), which finalizes internal metadata such as
+    /// maximum key lengths.
     pub fn from_cbor() -> Result<Self, DictionaryError> {
         let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
 
@@ -369,11 +421,30 @@ impl DictionaryMaxlength {
         self.ts_punctuations.populate_starter_indexes();
     }
 
-    /// Convenience finisher for use after deserialization or bulk loading.
+    /// Finalizes internal metadata after deserialization or bulk loading.
     ///
-    /// This method calls [`populate_all`](#method.populate_all) and returns `self`,
-    /// allowing you to chain it directly after a constructor or deserializer.
+    /// Dictionary structures loaded from CBOR, Zstd-compressed CBOR, or plaintext
+    /// sources may not have their derived fields populated yet (such as maximum
+    /// key lengths, starter masks, or other precomputed lookup metadata).
     ///
+    /// This method performs the required post-processing by invoking
+    /// [`populate_all`](Self::populate_all), ensuring that:
+    ///
+    /// - All `DictMaxLen` tables have accurate `max_len` values
+    /// - Starter masks used by [`StarterUnion`] are correctly computed
+    /// - Internal structures required for longest-match segmentation are prepared
+    ///
+    /// Once finalized, the dictionary instance is fully ready for high-performance
+    /// conversions via `OpenCC`.
+    ///
+    /// # Returns
+    ///
+    /// Returns `self` after populating all derived fields, allowing chaining with
+    /// constructors or deserializers.
+    ///
+    /// # Examples
+    ///
+    /// Not shown here (internal helper).
     #[inline]
     pub fn finish(mut self) -> Self {
         self.populate_all();
@@ -409,7 +480,47 @@ impl DictionaryMaxlength {
         }
     }
 
-    /// Saves all dictionaries to plaintext `.txt` files in the specified directory.
+    /// Exports all internal dictionaries as plaintext `.txt` files.
+    ///
+    /// This utility writes each dictionary (phrases, characters, variants, and
+    /// reverse mappings) into a human-readable UTF-8 text file inside the
+    /// specified directory.
+    ///
+    /// Each output file uses the format:
+    ///
+    /// ```text
+    /// <key>\t<value>
+    /// ```
+    ///
+    /// where:
+    ///
+    /// - `key` is reconstructed from the internal `Box<[char]>` representation
+    /// - `value` is the mapped string
+    ///
+    /// Dictionaries exported include:
+    ///
+    /// - Simplified → Traditional (phrases/characters/punctuation)
+    /// - Traditional → Simplified (phrases/characters/punctuation)
+    /// - Taiwanese phrases, variants, and reverse mappings
+    /// - Hong Kong variants and reverse mappings
+    /// - Japanese Shinjitai/Kyūjitai mappings
+    ///
+    /// The function creates the target directory if it does not already exist.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_dir` — Directory path where dictionary `.txt` files will be
+    ///   written. The directory will be created if necessary.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` if all files were successfully written
+    /// - `Err` if file creation or writing fails
+    ///
+    /// # Notes
+    ///
+    /// This method is mainly intended for debugging, verification, and for users
+    /// who want access to the raw dictionary data in plain text form.
     pub fn to_dicts(&self, base_dir: &str) -> Result<(), Box<dyn Error>> {
         let dict_map: HashMap<&str, &FxHashMap<Box<[char]>, Box<str>>> = [
             ("STCharacters.txt", &self.st_characters.map),
@@ -456,7 +567,40 @@ impl DictionaryMaxlength {
         Ok(())
     }
 
-    /// Serializes the dictionary to a CBOR file.
+    /// Serializes the entire dictionary structure to a CBOR file.
+    ///
+    /// This function converts the current [`DictionaryMaxlength`] instance into
+    /// a compact CBOR binary representation using `serde_cbor`, and writes the
+    /// resulting bytes to the specified filesystem path.
+    ///
+    /// The output CBOR file contains:
+    ///
+    /// - All phrase and character dictionaries
+    /// - All variant and reverse-variant tables
+    /// - Precomputed max-length metadata
+    ///
+    /// This format is suitable for distributing custom dictionary builds or
+    /// regenerating the embedded dictionary used by [`from_cbor`](Self::from_cbor).
+    ///
+    /// On serialization or I/O failure, this method records a human-readable
+    /// error message in the global last-error buffer via
+    /// [`set_last_error`](Self::set_last_error), which is used by C, C#, Python,
+    /// and Java bindings for cross-language diagnostics.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` — Destination file path for the generated CBOR file.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` if serialization and writing succeed
+    /// - `Err(DictionaryError)` if an encoding or I/O error occurs
+    ///
+    /// # Notes
+    ///
+    /// This function serializes the dictionary *before* calling
+    /// [`finish`](Self::finish), meaning it includes all precomputed metadata
+    /// already present in the internal structure.
     pub fn serialize_to_cbor<P: AsRef<Path>>(&self, path: P) -> Result<(), DictionaryError> {
         let cbor_data = serde_cbor::to_vec(self).map_err(|err| {
             let msg = format!("Failed to serialize to CBOR: {}", err);
@@ -473,7 +617,33 @@ impl DictionaryMaxlength {
         Ok(())
     }
 
-    /// Deserializes the dictionary from a CBOR file.
+    /// Deserializes a dictionary from a CBOR file.
+    ///
+    /// This function reads a CBOR-encoded [`DictionaryMaxlength`] from the given
+    /// path, reconstructs the full dictionary structure using `serde_cbor`, and
+    /// then finalizes internal metadata via [`finish`](Self::finish).
+    ///
+    /// The CBOR file is expected to have been produced by
+    /// [`serialize_to_cbor`](Self::serialize_to_cbor) or an equivalent process
+    /// using the same schema. It contains:
+    ///
+    /// - All phrase and character dictionaries
+    /// - Variant and reverse-variant tables
+    /// - Associated metadata required for longest-match segmentation
+    ///
+    /// On I/O or parse failure, this method stores a human-readable error
+    /// message in the global last-error buffer using
+    /// [`set_last_error`](Self::set_last_error), which is used by FFI bindings
+    /// to surface diagnostics to other languages.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` — Source file path of the CBOR dictionary to load.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Self)` if the file is successfully read and decoded
+    /// - `Err(DictionaryError)` if reading or deserialization fails
     pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, DictionaryError> {
         let cbor_data = fs::read(&path).map_err(|err| {
             let msg = format!("Failed to read CBOR file: {}", err);
@@ -490,19 +660,85 @@ impl DictionaryMaxlength {
         Ok(dictionary.finish())
     }
 
-    /// Records the last error message encountered during dictionary operations.
+    /// Stores a human-readable error message for later retrieval.
+    ///
+    /// This function records the most recent error encountered during dictionary
+    /// operations such as loading, parsing, serialization, or file I/O.
+    ///
+    /// The message is written into the global thread-safe buffer
+    /// [`LAST_ERROR`], which is shared across FFI bindings (C, C#, Python,
+    /// Java/JNI).
+    ///
+    /// Foreign callers that cannot rely on Rust's `Result` system can retrieve
+    /// this message using [`get_last_error`](Self::get_last_error).
+    ///
+    /// # Arguments
+    ///
+    /// * `err_msg` — The error message to record.
+    ///
+    /// # Notes
+    ///
+    /// - This function overwrites any previously stored message.
+    /// - The stored message is `String`-backed and safe to clone across
+    ///   language boundaries.
     pub fn set_last_error(err_msg: &str) {
         let mut last_error = LAST_ERROR.lock().unwrap();
         *last_error = Some(err_msg.to_string());
     }
 
-    /// Retrieves the last error message set during dictionary loading or saving.
+    /// Returns the most recently recorded error message, if any.
+    ///
+    /// This function reads from the global error buffer [`LAST_ERROR`], which is
+    /// populated by calls to [`set_last_error`](Self::set_last_error) during
+    /// dictionary loading, parsing, serialization, and external-resource I/O.
+    ///
+    /// It is primarily intended for FFI consumers (C, C#, Python, Java/JNI)
+    /// that require explicit error retrieval after a failure in an exported
+    /// function.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(String)` containing the last error message
+    /// - `None` if no error has been recorded
+    ///
+    /// # Notes
+    ///
+    /// This function clones the stored string, ensuring safe ownership transfer
+    /// to external callers.
     pub fn get_last_error() -> Option<String> {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()
     }
 
-    /// Saves the dictionary to a Zstd-compressed CBOR file on disk.
+    /// Saves the dictionary to a Zstd-compressed CBOR file.
+    ///
+    /// This function serializes the entire [`DictionaryMaxlength`] structure into
+    /// CBOR format using `serde_cbor` and compresses it with Zstd (compression
+    /// level `19`) for efficient storage.
+    ///
+    /// The resulting file is suitable for:
+    ///
+    /// - Distributing custom dictionary builds
+    /// - Loading via [`load_compressed`](Self::load_compressed)
+    /// - Embedding as an asset in external applications
+    ///
+    /// Unlike [`serialize_to_cbor`](Self::serialize_to_cbor), this function
+    /// performs both **serialization** and **compression** in one step.
+    ///
+    /// # Arguments
+    ///
+    /// * `dictionary` — The dictionary instance to serialize.
+    /// * `path` — Destination file path for the compressed CBOR output.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` on success
+    /// - `Err(DictionaryError)` if serialization or I/O fails
+    ///
+    /// # Notes
+    ///
+    /// The dictionary is written **as-is** without calling [`finish`](Self::finish),
+    /// assuming it is already in a finalized state.
     pub fn save_compressed(
         dictionary: &DictionaryMaxlength,
         path: &str,
@@ -519,7 +755,31 @@ impl DictionaryMaxlength {
         Ok(())
     }
 
-    /// Loads the dictionary from a Zstd-compressed CBOR file on disk.
+    /// Loads the dictionary from a Zstd-compressed CBOR file.
+    ///
+    /// This function reverses [`save_compressed`](Self::save_compressed) by:
+    ///
+    /// 1. Opening the specified file
+    /// 2. Decompressing its Zstd stream
+    /// 3. Deserializing the embedded CBOR dictionary
+    /// 4. Finalizing metadata via [`finish`](Self::finish)
+    ///
+    /// The result is a fully initialized [`DictionaryMaxlength`] ready for use
+    /// by the OpenCC segmentation engine.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` — Path to a `.cbor.zst` or similar compressed dictionary file.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(DictionaryMaxlength)` if decoding succeeds
+    /// - `Err(DictionaryError)` if the file cannot be opened, decompressed, or parsed
+    ///
+    /// # Notes
+    ///
+    /// Zstd compression makes large dictionary bundles highly compact while
+    /// maintaining fast load times.
     pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
         let file = File::open(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
         let reader = BufReader::new(file);
@@ -568,23 +828,44 @@ impl Default for DictionaryMaxlength {
     }
 }
 
-/// Represents possible errors that can occur during dictionary loading, parsing, or serialization.
+/// Error type representing failures encountered during dictionary loading,
+/// parsing, serialization, or I/O operations.
 ///
-/// This enum is used throughout the `dictionary_lib` module to wrap low-level I/O or CBOR parsing
-/// failures. It provides a unified error type for convenience and compatibility with standard
-/// Rust error handling.
+/// This enum centralizes all error conditions used by the `dictionary_lib`
+/// module, allowing calling code (including FFI layers) to handle failures
+/// uniformly.
+///
+/// Errors typically originate from:
+///
+/// - File system operations (open, read, write)
+/// - CBOR (de)serialization via `serde_cbor`
+/// - External loaders such as Zstd-compressed dictionary files
 ///
 /// # Variants
-/// - `IoError(String)` — An error occurred during file access, reading, or writing.
-/// - `ParseError(String)` — An error occurred while deserializing or parsing CBOR or dictionary text.
 ///
-/// This error type is used in methods such as:
-/// - [`DictionaryMaxlength::from_zstd()`]
-/// - [`DictionaryMaxlength::load_compressed()`]
-/// - [`DictionaryMaxlength::from_dicts()`]
+/// - [`DictionaryError::IoError`] — Wraps file I/O failures such as inability
+///   to open, read, or write files.
+/// - [`DictionaryError::ParseError`] — Wraps CBOR parsing or serialization
+///   failures, or malformed dictionary structures.
+///
+/// # Used In
+///
+/// This error type is returned by several constructors and loaders, including:
+///
+/// - [`DictionaryMaxlength::from_zstd`](crate::dictionary_maxlength::DictionaryMaxlength::from_zstd)
+/// - [`DictionaryMaxlength::from_cbor`](crate::dictionary_maxlength::DictionaryMaxlength::from_cbor)
+/// - [`DictionaryMaxlength::load_compressed`](crate::dictionary_maxlength::DictionaryMaxlength::load_compressed)
+/// - [`DictionaryMaxlength::deserialize_from_cbor`](crate::dictionary_maxlength::DictionaryMaxlength::deserialize_from_cbor)
+///
+/// It also integrates with Rust's standard error system via `Display`,
+/// `Error`, and `From` conversions for seamless propagation in `?` expressions.
 #[derive(Debug)]
 pub enum DictionaryError {
+    /// Represents failures during file access: opening, reading, or writing.
     IoError(String),
+
+    /// Represents failures during CBOR parsing, serialization, or general
+    /// dictionary deserialization.
     ParseError(String),
 }
 
@@ -597,7 +878,7 @@ impl std::fmt::Display for DictionaryError {
     }
 }
 
-impl Error for DictionaryError {}
+impl std::error::Error for DictionaryError {}
 
 impl From<io::Error> for DictionaryError {
     fn from(err: io::Error) -> Self {

@@ -20,10 +20,31 @@ pub struct DictRound<'a> {
     pub union: Arc<StarterUnion>,
 }
 
-/// Internal helper that computes a [`DictRound`] from a slice of dictionaries
-/// and its corresponding [`StarterUnion`].
+/// Builds a [`DictRound`] from a slice of dictionaries and an associated
+/// [`StarterUnion`].
 ///
-/// `max_len` is computed as the maximum `d.max_len` among `dicts` (or `1` if empty).
+/// A *dictionary round* groups several [`DictMaxLen`] dictionaries together
+/// so they can be applied in sequence during a multi-round conversion
+/// (e.g., S2T → TwPhrases → TwVariants).
+///
+/// This helper computes:
+///
+/// - `dicts`: the provided slice of dictionaries
+/// - `union`: the precomputed starter table for fast prefix matching
+/// - `max_len`: the maximum phrase length found among the dictionaries
+///   (or `1` if the slice is empty)
+///
+/// The resulting [`DictRound`] is lightweight and used internally by
+/// [`DictRefs`] to drive longest-match replacement for each round.
+///
+/// # Arguments
+///
+/// * `dicts` – A slice of dictionaries participating in this round.
+/// * `union` – The starter metadata shared by all dictionaries in this round.
+///
+/// # Returns
+///
+/// A fully constructed [`DictRound`] prepared for segment replacement.
 #[inline]
 fn compute_round<'a>(dicts: &'a [&'a DictMaxLen], union: Arc<StarterUnion>) -> DictRound<'a> {
     let max_len = dicts.iter().map(|d| d.max_len).max().unwrap_or(1);
@@ -98,9 +119,27 @@ impl<'a> DictRefs<'a> {
         }
     }
 
-    /// Adds **optional** round 2.
+    /// Attaches an optional **round 2** to this [`DictRefs`] instance.
     ///
-    /// `round_2_union` should be built from `round_2_dicts`.
+    /// Multi-round conversions (such as S2T → TwPhrases → TwVariants) allow
+    /// additional dictionary layers to be applied after the initial round.
+    ///  
+    /// This method sets the second round by:
+    ///
+    /// - Accepting a slice of dictionaries (`round_2_dicts`)
+    /// - Accepting the corresponding [`StarterUnion`] (`round_2_union`)
+    /// - Constructing a [`DictRound`] via [`compute_round`]
+    ///
+    /// If not called, round 2 is simply omitted from the conversion pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `round_2_dicts` – Dictionaries used for the second conversion round.
+    /// * `round_2_union` – Starter metadata for these dictionaries.
+    ///
+    /// # Returns
+    ///
+    /// The same [`DictRefs`] instance with round 2 attached.
     pub fn with_round_2(
         mut self,
         round_2_dicts: &'a [&'a DictMaxLen],
@@ -110,9 +149,27 @@ impl<'a> DictRefs<'a> {
         self
     }
 
-    /// Adds **optional** round 3.
+    /// Attaches an optional **round 3** to this [`DictRefs`] instance.
     ///
-    /// `round_3_union` should be built from `round_3_dicts`.
+    /// Some conversions require three sequential dictionary layers
+    /// (e.g., S2T → TwPhrases → TwVariants).  
+    ///  
+    /// This method sets the third round by:
+    ///
+    /// - Accepting a slice of dictionaries (`round_3_dicts`)
+    /// - Accepting the corresponding [`StarterUnion`] (`round_3_union`)
+    /// - Creating a [`DictRound`] through [`compute_round`]
+    ///
+    /// If not called, round 3 remains unused.
+    ///
+    /// # Arguments
+    ///
+    /// * `round_3_dicts` – Dictionaries used for the third conversion round.
+    /// * `round_3_union` – Starter metadata for these dictionaries.
+    ///
+    /// # Returns
+    ///
+    /// The same [`DictRefs`] instance with round 3 attached.
     pub fn with_round_3(
         mut self,
         round_3_dicts: &'a [&'a DictMaxLen],

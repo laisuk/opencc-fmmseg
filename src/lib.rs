@@ -736,7 +736,30 @@ impl OpenCC {
         )
     }
 
-    /// Performs Traditional-to-Simplified Chinese conversion.
+    /// Converts Traditional Chinese text to Simplified Chinese (T2S).
+    ///
+    /// This method performs dictionary-based segment replacement using:
+    /// - Phrase-level mappings (`ts_phrases`)
+    /// - Character-level mappings (`ts_characters`)
+    ///
+    /// If `punctuation` is `true`, an additional punctuation-level dictionary
+    /// (`ts_punctuations`) is also applied. The input is first split by
+    /// configured delimiters, then each non-delimiter segment is processed
+    /// using a longest-match strategy over the configured dictionaries.
+    ///
+    /// As with [`OpenCC::s2t`], this uses the shared `DictRefs` and
+    /// `StarterUnion` metadata and may run in parallel depending on the
+    /// `OpenCC` configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Traditional Chinese text to convert.
+    /// * `punctuation` - Whether to convert punctuation symbols in addition to
+    ///   phrases and characters.
+    ///
+    /// # Returns
+    ///
+    /// Simplified Chinese text obtained after applying all mappings.
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
         let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
@@ -757,7 +780,35 @@ impl OpenCC {
         )
     }
 
-    /// Performs Simplified-to-Taiwanese conversion.
+    /// Converts Simplified Chinese text to Taiwanese Traditional (S → T → Tw).
+    ///
+    /// This method performs a **two-round** dictionary-based conversion:
+    ///
+    /// 1. **Round 1 (S2T core)**
+    ///    Applies Simplified-to-Traditional mappings using:
+    ///    - Phrase-level mappings (`st_phrases`)
+    ///    - Character-level mappings (`st_characters`)
+    ///    - Optionally punctuation-level mappings (`st_punctuations`) when
+    ///      `punctuation` is `true`
+    ///
+    /// 2. **Round 2 (Taiwan-specific variants)**
+    ///    Refines the Traditional output into Taiwanese-specific forms using:
+    ///    - Taiwanese variant mappings (`tw_variants`)
+    ///
+    /// Internally this uses precomputed starter metadata from `union_for`
+    /// (via `UnionKey::S2T` and `UnionKey::TwVariantsOnly`) and runs over
+    /// segmented input using longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Simplified Chinese text to convert.
+    /// * `punctuation` - Whether to convert punctuation symbols in addition to
+    ///   phrases and characters.
+    ///
+    /// # Returns
+    ///
+    /// Taiwanese Traditional Chinese text after applying both S2T and
+    /// Taiwanese variant mappings.
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
         let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
@@ -779,7 +830,37 @@ impl OpenCC {
             })
     }
 
-    /// Performs Taiwanese-to-Simplified conversion.
+    /// Converts Taiwanese Traditional text to Simplified Chinese (Tw → T → S).
+    ///
+    /// This method performs a **two-round** dictionary-based conversion that
+    /// reverses the `s2tw` pipeline:
+    ///
+    /// 1. **Round 1 (Taiwanese variant normalization)**
+    ///    Maps Taiwanese-specific variants back to general Traditional using:
+    ///    - Phrase-level reverse mappings (`tw_variants_rev_phrases`)
+    ///    - Character-level reverse mappings (`tw_variants_rev`)
+    ///
+    /// 2. **Round 2 (T2S core)**
+    ///    Converts the normalized Traditional text to Simplified Chinese using:
+    ///    - Phrase-level mappings (`ts_phrases`)
+    ///    - Character-level mappings (`ts_characters`)
+    ///    - Optionally punctuation-level mappings (`ts_punctuations`) when
+    ///      `punctuation` is `true`
+    ///
+    /// Starter metadata is obtained from `union_for` (via `UnionKey::TwRevPair`
+    /// and `UnionKey::T2S`) and reused across segments for efficient longest-
+    /// match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Taiwanese Traditional Chinese text to convert.
+    /// * `punctuation` - Whether to convert punctuation symbols in addition to
+    ///   phrases and characters.
+    ///
+    /// # Returns
+    ///
+    /// Simplified Chinese text after normalizing Taiwanese variants and
+    /// applying T2S mappings.
     pub fn tw2s(&self, input: &str, punctuation: bool) -> String {
         let mut round_2: Vec<&DictMaxLen> =
             vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
@@ -806,7 +887,40 @@ impl OpenCC {
         })
     }
 
-    /// Performs simplified to Traditional Taiwan conversion with idioms
+    /// Converts Simplified Chinese text to Taiwanese Traditional with idioms (S → T → Tw-phrases → Tw).
+    ///
+    /// This method performs a **three-round** dictionary-based conversion:
+    ///
+    /// 1. **Round 1 (S2T core)**
+    ///    Applies Simplified-to-Traditional mappings using:
+    ///    - Phrase-level mappings (`st_phrases`)
+    ///    - Character-level mappings (`st_characters`)
+    ///    - Optionally punctuation-level mappings (`st_punctuations`) when
+    ///      `punctuation` is `true`
+    ///
+    /// 2. **Round 2 (Taiwan-specific idioms and phrases)**
+    ///    Adjusts the Traditional text into Taiwanese-style idioms and wordings
+    ///    using:
+    ///    - Taiwanese phrase mappings (`tw_phrases`)
+    ///
+    /// 3. **Round 3 (Taiwanese variant characters)**
+    ///    Refines characters into Taiwanese variant forms using:
+    ///    - Taiwanese variant mappings (`tw_variants`)
+    ///
+    /// All three rounds share precomputed starter metadata obtained via
+    /// `union_for` (`UnionKey::S2T`, `UnionKey::TwPhrasesOnly`,
+    /// `UnionKey::TwVariantsOnly`) and run over segmented input with
+    /// longest-match replacement for high throughput.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Simplified Chinese text to convert.
+    /// * `punctuation` - Whether to convert punctuation symbols alongside
+    ///   phrases and characters.
+    ///
+    /// # Returns
+    ///
+    /// Taiwanese Traditional Chinese text with idioms and variants applied.
     pub fn s2twp(&self, input: &str, punctuation: bool) -> String {
         // Create bindings for each round of dictionary references
         let mut round_1: Vec<&DictMaxLen> =
@@ -835,7 +949,39 @@ impl OpenCC {
             })
     }
 
-    /// Performs Traditional Taiwan to Simplified with idioms
+    /// Converts Taiwanese Traditional text with idioms to Simplified Chinese (Tw-phrases → T → S).
+    ///
+    /// This method reverses the `s2twp` pipeline using a **two-round** conversion:
+    ///
+    /// 1. **Round 1 (Taiwan-specific idiom and variant normalization)**
+    ///    Normalizes Taiwanese-style idioms and variants back to general
+    ///    Traditional forms using:
+    ///    - Reverse Taiwanese idiom/phrase mappings (`tw_phrases_rev`)
+    ///    - Reverse Taiwanese variant phrase mappings (`tw_variants_rev_phrases`)
+    ///    - Reverse Taiwanese variant character mappings (`tw_variants_rev`)
+    ///
+    /// 2. **Round 2 (T2S core)**
+    ///    Converts the normalized Traditional text to Simplified Chinese using:
+    ///    - Phrase-level mappings (`ts_phrases`)
+    ///    - Character-level mappings (`ts_characters`)
+    ///    - Optionally punctuation-level mappings (`ts_punctuations`) when
+    ///      `punctuation` is `true`
+    ///
+    /// Starter metadata is provided by `union_for` with
+    /// `UnionKey::Tw2SpR1TwRevTriple` for the first round and
+    /// `UnionKey::T2S` for the second round, enabling efficient
+    /// longest-match replacement across segments.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Taiwanese Traditional Chinese text (with idioms) to convert.
+    /// * `punctuation` - Whether to convert punctuation symbols alongside
+    ///   phrases and characters.
+    ///
+    /// # Returns
+    ///
+    /// Simplified Chinese text after normalizing Taiwanese idioms and
+    /// applying T2S mappings.
     pub fn tw2sp(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.tw_phrases_rev,
@@ -860,7 +1006,35 @@ impl OpenCC {
             })
     }
 
-    /// Performs simplified to Traditional Hong Kong
+    /// Converts Simplified Chinese text to Hong Kong Traditional (S → T → HK).
+    ///
+    /// This method performs a **two-round** dictionary-based conversion:
+    ///
+    /// 1. **Round 1 (S2T core)**
+    ///    Applies Simplified-to-Traditional mappings using:
+    ///    - Phrase-level mappings (`st_phrases`)
+    ///    - Character-level mappings (`st_characters`)
+    ///    - Optionally punctuation-level mappings (`st_punctuations`) when
+    ///      `punctuation` is `true`
+    ///
+    /// 2. **Round 2 (Hong Kong-specific variants)**
+    ///    Refines the Traditional output into Hong Kong–specific forms using:
+    ///    - Hong Kong variant mappings (`hk_variants`)
+    ///
+    /// Both rounds reuse precomputed starter metadata obtained from `union_for`
+    /// (`UnionKey::S2T` and `UnionKey::HkVariantsOnly`) and operate on
+    /// segmented input with longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Simplified Chinese text to convert.
+    /// * `punctuation` - Whether to convert punctuation symbols in addition to
+    ///   phrases and characters.
+    ///
+    /// # Returns
+    ///
+    /// Hong Kong Traditional Chinese text after applying S2T and HK variant
+    /// mappings.
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
         let mut round_1: Vec<&DictMaxLen> =
             vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
@@ -880,7 +1054,36 @@ impl OpenCC {
             })
     }
 
-    /// Performs Traditional Hong Kong to Simplified
+    /// Converts Hong Kong Traditional text to Simplified Chinese (HK → T → S).
+    ///
+    /// This method reverses the `s2hk` pipeline using a **two-round**
+    /// dictionary-based conversion:
+    ///
+    /// 1. **Round 1 (HK variant normalization)**
+    ///    Normalizes Hong Kong–specific forms back to general Traditional using:
+    ///    - Reverse HK variant phrase mappings (`hk_variants_rev_phrases`)
+    ///    - Reverse HK variant character mappings (`hk_variants_rev`)
+    ///
+    /// 2. **Round 2 (T2S core)**
+    ///    Converts the normalized Traditional text to Simplified Chinese using:
+    ///    - Phrase-level mappings (`ts_phrases`)
+    ///    - Character-level mappings (`ts_characters`)
+    ///    - Optionally punctuation-level mappings (`ts_punctuations`) when
+    ///      `punctuation` is `true`
+    ///
+    /// Starter metadata is provided via `union_for` using `UnionKey::HkRevPair`
+    /// and `UnionKey::T2S`, enabling efficient longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Hong Kong Traditional Chinese text to convert.
+    /// * `punctuation` - Whether to convert punctuation symbols in addition to
+    ///   phrases and characters.
+    ///
+    /// # Returns
+    ///
+    /// Simplified Chinese text after normalizing HK variants and applying T2S
+    /// mappings.
     pub fn hk2s(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.hk_variants_rev_phrases,
@@ -903,7 +1106,25 @@ impl OpenCC {
             })
     }
 
-    /// Performs traditional to traditional Taiwan
+    /// Converts general Traditional Chinese text to Taiwanese Traditional variants (T → Tw).
+    ///
+    /// This method performs a single-round dictionary-based conversion that
+    /// rewrites general Traditional forms into Taiwanese-specific variants
+    /// using:
+    ///
+    /// - Taiwanese variant mappings (`tw_variants`)
+    ///
+    /// Starter metadata is obtained via `union_for(UnionKey::TwVariantsOnly)`
+    /// and applied over segmented input with longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Traditional Chinese text to convert into Taiwanese variants.
+    ///
+    /// # Returns
+    ///
+    /// Taiwanese Traditional Chinese text with character/word forms adjusted
+    /// according to `tw_variants`.
     pub fn t2tw(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_variants];
         let u1 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
@@ -917,7 +1138,30 @@ impl OpenCC {
         output
     }
 
-    /// Performs traditional to traditional Taiwan with idioms
+    /// Converts general Traditional Chinese text to Taiwanese Traditional with idioms (T → Tw-phrases → Tw).
+    ///
+    /// This method performs a two-round dictionary-based conversion:
+    ///
+    /// 1. **Round 1 (Taiwanese idioms and phrases)**
+    ///    Applies Taiwanese-style idiom and phrase mappings:
+    ///    - Taiwanese phrase mappings (`tw_phrases`)
+    ///
+    /// 2. **Round 2 (Taiwanese variant characters)**
+    ///    Further adjusts the result into Taiwanese character variants:
+    ///    - Taiwanese variant mappings (`tw_variants`)
+    ///
+    /// Both rounds use precomputed starter metadata from `union_for`
+    /// (`UnionKey::TwPhrasesOnly` and `UnionKey::TwVariantsOnly`) and run
+    /// over segmented input with longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Traditional Chinese text to convert into Taiwanese idiomatic
+    ///   and variant forms.
+    ///
+    /// # Returns
+    ///
+    /// Taiwanese Traditional Chinese text with both idioms and variants applied.
     pub fn t2twp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_phrases];
         let u1 = self.dictionary.union_for(UnionKey::TwPhrasesOnly);
@@ -932,7 +1176,25 @@ impl OpenCC {
         output
     }
 
-    /// Performs traditional Taiwan to traditional
+    /// Converts Taiwanese Traditional text to general Traditional (Tw → T).
+    ///
+    /// This method performs a single-round dictionary-based normalization that
+    /// maps Taiwanese-specific variants back to general Traditional Chinese
+    /// using:
+    ///
+    /// - Reverse Taiwanese variant phrase mappings (`tw_variants_rev_phrases`)
+    /// - Reverse Taiwanese variant character mappings (`tw_variants_rev`)
+    ///
+    /// Starter metadata is obtained via `union_for(UnionKey::TwRevPair)` and
+    /// applied over segmented input with longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Taiwanese Traditional Chinese text to normalize.
+    ///
+    /// # Returns
+    ///
+    /// General Traditional Chinese text with Taiwanese variants normalized.
     pub fn tw2t(&self, input: &str) -> String {
         let round_1 = [
             &self.dictionary.tw_variants_rev_phrases,
@@ -950,7 +1212,31 @@ impl OpenCC {
         output
     }
 
-    /// Performs traditional Taiwan to traditional with idioms
+    /// This method performs a two-round dictionary-based normalization:
+    ///
+    /// 1. **Round 1 (variant normalization)**
+    ///    Normalizes Taiwanese variants back to general Traditional using:
+    ///    - Reverse Taiwanese variant phrase mappings (`tw_variants_rev_phrases`)
+    ///    - Reverse Taiwanese variant character mappings (`tw_variants_rev`)
+    ///
+    /// 2. **Round 2 (idiom/phrase normalization)**
+    ///    Normalizes Taiwanese-specific idioms and phrases using:
+    ///    - Reverse Taiwanese phrase mappings (`tw_phrases_rev`)
+    ///
+    /// Starter metadata is obtained from `union_for(UnionKey::TwRevPair)` for
+    /// the first round and `union_for(UnionKey::TwPhrasesRevOnly)` for the
+    /// second round, and is reused across segments for efficient longest-match
+    /// replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Taiwanese Traditional Chinese text (including idioms) to
+    ///   normalize.
+    ///
+    /// # Returns
+    ///
+    /// General Traditional Chinese text with both Taiwanese variants and
+    /// idioms normalized.
     pub fn tw2tp(&self, input: &str) -> String {
         let round_1 = [
             &self.dictionary.tw_variants_rev_phrases,
@@ -970,7 +1256,25 @@ impl OpenCC {
         output
     }
 
-    /// Perform traditional to traditional Hong Kong
+    /// Converts general Traditional Chinese text to Hong Kong Traditional variants (T → HK).
+    ///
+    /// This method performs a single-round dictionary-based conversion that
+    /// rewrites general Traditional forms into Hong Kong–specific variants
+    /// using:
+    ///
+    /// - Hong Kong variant mappings (`hk_variants`)
+    ///
+    /// Starter metadata is obtained via `union_for(UnionKey::HkVariantsOnly)`
+    /// and applied over segmented input with longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Traditional Chinese text to convert into Hong Kong variants.
+    ///
+    /// # Returns
+    ///
+    /// Hong Kong Traditional Chinese text with character/word forms adjusted
+    /// according to `hk_variants`.
     pub fn t2hk(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.hk_variants];
         let u1 = self.dictionary.union_for(UnionKey::HkVariantsOnly);
@@ -984,7 +1288,25 @@ impl OpenCC {
         output
     }
 
-    /// Performs traditional Hong Kong to traditional
+    /// Converts Hong Kong Traditional text to general Traditional (HK → T).
+    ///
+    /// This method performs a single-round dictionary-based normalization that
+    /// maps Hong Kong–specific variants back to general Traditional Chinese
+    /// using:
+    ///
+    /// - Reverse HK variant phrase mappings (`hk_variants_rev_phrases`)
+    /// - Reverse HK variant character mappings (`hk_variants_rev`)
+    ///
+    /// Starter metadata is obtained via `union_for(UnionKey::HkRevPair)` and
+    /// reused across segments for efficient longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Hong Kong Traditional Chinese text to normalize.
+    ///
+    /// # Returns
+    ///
+    /// General Traditional Chinese text with Hong Kong variants normalized.
     pub fn hk2t(&self, input: &str) -> String {
         let round_1 = [
             &self.dictionary.hk_variants_rev_phrases,
@@ -1001,7 +1323,25 @@ impl OpenCC {
         output
     }
 
-    /// Performs Japanese Kyujitai to Shinjitai
+    /// Converts Japanese Kyūjitai (traditional kanji forms) to Shinjitai.
+    ///
+    /// This method performs a single-round dictionary-based conversion that
+    /// rewrites Kyūjitai-style characters into their modern Shinjitai forms
+    /// using:
+    ///
+    /// - Japanese variant mappings (`jp_variants`)
+    ///
+    /// Starter metadata is obtained via `union_for(UnionKey::JpVariantsOnly)`
+    /// and applied over segmented input with longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Text containing Kyūjitai-style characters to convert.
+    ///
+    /// # Returns
+    ///
+    /// Text where Kyūjitai characters have been replaced with their
+    /// corresponding Shinjitai forms.
     pub fn t2jp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.jp_variants];
         let u1 = self.dictionary.union_for(UnionKey::JpVariantsOnly);
@@ -1015,7 +1355,27 @@ impl OpenCC {
         output
     }
 
-    /// Performs japanese Shinjitai to Kyujitai
+    /// Converts Japanese Shinjitai to Kyūjitai (modern → traditional kanji forms).
+    ///
+    /// This method performs a single-round dictionary-based conversion that
+    /// maps modern Shinjitai forms back to their Kyūjitai or Traditional
+    /// Chinese equivalents using:
+    ///
+    /// - Japanese Shinjitai phrase mappings (`jps_phrases`)
+    /// - Japanese Shinjitai character mappings (`jps_characters`)
+    /// - Reverse Japanese variant mappings (`jp_variants_rev`)
+    ///
+    /// Starter metadata is obtained via `union_for(UnionKey::JpRevTriple)` and
+    /// reused across segments for efficient longest-match replacement.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Text containing Shinjitai characters to convert.
+    ///
+    /// # Returns
+    ///
+    /// Text where Shinjitai forms are converted back to Kyūjitai or their
+    /// corresponding Traditional forms.
     pub fn jp2t(&self, input: &str) -> String {
         let round_1 = [
             &self.dictionary.jps_phrases,
@@ -1203,6 +1563,27 @@ impl OpenCC {
         }
     }
 
+    /// Converts a subset of Chinese quotation punctuation between Simplified
+    /// and Traditional forms.
+    ///
+    /// This helper performs a simple regex-based replacement of four quote
+    /// characters:
+    ///
+    /// - `“”‘’` (Simplified-style quotes)
+    /// - `「」『』` (Traditional-style quotes)
+    ///
+    /// If `config` begins with `'s'`, the function converts Simplified quotes
+    /// to Traditional forms. Otherwise, it performs the reverse mapping.
+    ///
+    /// This function is retained only for backward compatibility and is not
+    /// used by the main OpenCC conversion pipeline, which relies on dictionary-
+    /// based punctuation mappings instead.
+    ///
+    /// # Deprecated
+    ///
+    /// This punctuation converter is deprecated and should not be used in new
+    /// code. It exists only to silence missing-docs warnings for legacy
+    /// compatibility.
     #[allow(dead_code)]
     fn convert_punctuation(text: &str, config: &str) -> String {
         let mut s2t_punctuation_chars: FxHashMap<&str, &str> = FxHashMap::default();

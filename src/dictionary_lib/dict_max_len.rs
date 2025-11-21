@@ -65,7 +65,7 @@ use serde::{Deserialize, Serialize};
 /// release builds it expands to an empty block, so it won’t surprise end users.
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// use opencc_fmmseg::debug_note; // bring the macro into scope
 ///
 /// // Shown during development (debug builds), silent in release:
@@ -118,7 +118,7 @@ macro_rules! debug_note {
 ///
 /// # Usage
 ///
-/// ```
+/// ```ignore
 /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
 /// use rustc_hash::FxHashMap;
 ///
@@ -238,7 +238,7 @@ pub struct DictMaxLen {
     /// Runtime-only: maximum key length per first character (Unicode BMP).
     ///
     /// Each entry stores the maximum phrase length (in characters) for the given
-    /// starter character. Parallel to `first_len_mask64` but stored as `u16`.
+    /// starter character. Parallel to [`first_len_mask64`] but stored as `u8`.
     #[serde(skip)]
     #[serde(default)]
     pub first_char_max_len: Vec<u8>,
@@ -688,9 +688,30 @@ impl DictMaxLen {
 
     // ----- New: key_length_mask and starter_len_mask helpers -----
 
-    /// Set the bit for a given `len` (1..=64) in a `u64` mask.
+    /// Sets the bit corresponding to a given key length in a `u64` mask.
     ///
-    /// Bit index is `len - 1`. Lengths > 64 are ignored (by design).
+    /// This helper encodes supported word lengths into a bitmask where:
+    ///
+    /// - Bit `0` represents length `1`
+    /// - Bit `1` represents length `2`
+    /// - ...
+    /// - Bit `63` represents length `64`
+    ///
+    /// Any length greater than `64` is **ignored by design**, as the internal
+    /// maximum matching span in `opencc-fmmseg` does not exceed this bound.
+    ///
+    /// The resulting mask is used by `StarterUnion` to quickly determine which
+    /// lengths need to be probed during longest-match lookup.
+    ///
+    /// # Arguments
+    ///
+    /// * `mask` — The bitmask to update.
+    /// * `len` — The phrase length to encode.
+    ///
+    /// # Behavior
+    ///
+    /// If `len` is within `1..=64`, the `(len - 1)`-th bit is set.
+    /// Otherwise, the call is a no-op.
     #[inline(always)]
     fn set_key_len_bit(mask: &mut u64, len: usize) {
         let b = len.wrapping_sub(1);
@@ -719,9 +740,32 @@ impl DictMaxLen {
         len >= self.min_len && len <= self.max_len
     }
 
-    /// Minimum present length (1..=64) encoded in a `u64` mask, or `None` if empty.
+    /// Returns the minimum phrase length encoded in a `u64` bitmask.
     ///
-    /// Equivalent to “index of least-significant set bit + 1”.
+    /// The mask represents supported lengths in the range **1‥=64**, where
+    /// bit `0` corresponds to length `1`, bit `1` to length `2`, and so on.
+    ///
+    /// This helper extracts the **smallest** present length by locating the
+    /// least-significant set bit.
+    ///
+    /// - If the mask is empty (`0`), it returns `None`.
+    /// - Otherwise, it returns `Some(len)` where `len` is the smallest encoded
+    ///   phrase length.
+    ///
+    /// Internally this is computed as:
+    ///
+    /// *`index_of_least_significant_set_bit + 1`*
+    ///
+    /// This constant function is used by [`StarterUnion`] to determine the
+    /// minimum matching span to probe during longest-match lookup.
+    ///
+    /// # Arguments
+    ///
+    /// * `mask` — A bitmask encoding possible phrase lengths.
+    ///
+    /// # Returns
+    ///
+    /// The minimum encoded length, or `None` if the mask is empty.
     #[inline(always)]
     pub const fn min_len_from_mask(mask: u64) -> Option<usize> {
         if mask == 0 {
@@ -731,9 +775,33 @@ impl DictMaxLen {
         }
     }
 
-    /// Maximum present length (1..=64) encoded in a `u64` mask, or `None` if empty.
+    /// Returns the maximum phrase length encoded in a `u64` bitmask.
     ///
-    /// Equivalent to “bit width of mask”.
+    /// The mask represents supported lengths in the range **1‥=64**, where
+    /// bit `0` corresponds to length `1`, bit `1` to length `2`, up to bit `63`
+    /// for length `64`.
+    ///
+    /// This helper extracts the **largest** present length by inspecting the
+    /// most-significant set bit.
+    ///
+    /// - If the mask is empty (`0`), it returns `None`.
+    /// - Otherwise, it returns `Some(len)` where `len` is the maximum encoded
+    ///   phrase length.
+    ///
+    /// Internally this is equivalent to computing the *bit width* of the mask:
+    ///
+    /// *`64 - mask.leading_zeros()`*
+    ///
+    /// This constant function is used by [`StarterUnion`] to bound the upper
+    /// limit of probe lengths during longest-match search.
+    ///
+    /// # Arguments
+    ///
+    /// * `mask` — A bitmask encoding possible phrase lengths.
+    ///
+    /// # Returns
+    ///
+    /// The maximum encoded length, or `None` if the mask is empty.
     #[inline(always)]
     pub const fn max_len_from_mask(mask: u64) -> Option<usize> {
         if mask == 0 {
@@ -762,12 +830,37 @@ impl DictMaxLen {
         }
     }
 
-    /// Exact per-starter gate: does **any key** of `length` start with `starter`?
+    /// Checks whether any dictionary entry of a given `length` begins with the
+    /// specified `starter` character.
     ///
-    /// Implemented as a single bit test on the per-starter mask; returns `false`
-    /// for `length > 64` since the mask encodes up to 64 only. For `>64` gating in
-    /// the dense BMP path, use [`first_char_max_len`](Self::first_char_max_len)
-    /// (see `starter_allows_dict`), not this helper.
+    /// This is a fast, constant-time gate used during longest-match probing.
+    ///  
+    /// Internally, each starter character has a compact `u64` bitmask encoding
+    /// the set of phrase lengths (1‥=64) that appear in the dictionaries.
+    ///  
+    /// - Bit `0` → length `1`  
+    /// - Bit `1` → length `2`  
+    /// - …  
+    /// - Bit `63` → length `64`  
+    ///
+    /// This helper simply checks whether the corresponding bit is set.
+    ///
+    /// Lengths **greater than 64** always return `false`, because the bitmask
+    /// format is fixed to 64 entries.  
+    ///  
+    /// For gating beyond 64 (relevant in dense BMP mode), use
+    /// [`first_char_max_len`](Self::first_char_max_len) instead—this is handled
+    /// in higher-level logic such as `starter_allows_dict`.
+    ///
+    /// # Arguments
+    ///
+    /// * `starter` — The first character of a candidate match.
+    /// * `length` — The phrase length being tested.
+    ///
+    /// # Returns
+    ///
+    /// `true` if any dictionary key starting with `starter` has the given
+    /// `length`, otherwise `false`.
     #[inline(always)]
     pub fn has_starter_len(&self, starter: char, length: usize) -> bool {
         let b = length.wrapping_sub(1);

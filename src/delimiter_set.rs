@@ -63,10 +63,23 @@ impl DelimiterSet {
     }
 }
 
-/// Global static instance of the [`DelimiterSet`] built from [`FULL_DELIMITERS`].
+/// Global static instance of the [`DelimiterSet`] constructed from
+/// [`FULL_DELIMITERS`].
 ///
-/// Initialization happens once at runtime via [`Lazy`], and
-/// subsequent lookups are lock-free and O(1).
+/// This structure is initialized once at runtime using [`Lazy`], after
+/// which all lookups are **lock-free** and **O(1)**.
+///
+/// The generated `DelimiterSet` contains:
+///
+/// - A 128-bit ASCII bitmap (`ascii_mask`) for fast checks of ASCII delimiters
+/// - A 1024-entry bitmap (`bmp_bits`) covering the entire Unicode BMP
+///
+/// These bitmaps allow delimiter detection via simple bit operations,
+/// avoiding hash lookups and enabling extremely fast segmentation when
+/// processing large texts.
+///
+/// This static is used internally by [`is_delimiter`] and all segmentation
+/// functions that operate on delimiter boundaries.
 pub static FULL_DELIMITER_SET: Lazy<DelimiterSet> = Lazy::new(|| {
     let mut ascii: u128 = 0;
     let mut bmp = [0u64; 1024];
@@ -89,7 +102,26 @@ pub static FULL_DELIMITER_SET: Lazy<DelimiterSet> = Lazy::new(|| {
     }
 });
 
+/// Checks whether a character is treated as a segmentation delimiter.
+///
+/// This function tests whether the given character belongs to the
+/// preconfigured `FULL_DELIMITER_SET`, which includes whitespace,
+/// punctuation, and other characters that should act as boundaries during
+/// text segmentation.
+///
+/// It is used internally by the segmenter to split input text into
+/// non-delimiter chunks before applying dictionary-based longest-match
+/// replacement.
+///
+/// # Arguments
+///
+/// * `c` – The character to test.
+///
+/// # Returns
+///
+/// `true` if the character is a delimiter, otherwise `false`.
 #[inline]
 pub fn is_delimiter(c: char) -> bool {
     FULL_DELIMITER_SET.contains(c)
 }
+
