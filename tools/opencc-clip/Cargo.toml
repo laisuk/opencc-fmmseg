@@ -9,4 +9,4 @@ edition = "2021"
 [dependencies]
 opencc-fmmseg = {path = "../.."}
 copypasta = "0.10.2"
-clap = "4.5.50"
+clap = "4.5.51"

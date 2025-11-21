@@ -201,29 +201,45 @@ The zip includes:
 
 You can link against the shared library and call the segmentation/convert functions from any C or C++ project.
 
-### Example 1
-
-```c
-#include "opencc_fmmseg_capi.h"
-void* handle = opencc_new();
-const char* config = "s2t";
-const char* result = opencc_convert(handle, "汉字", config, false);
-opencc_delete(handle);
-```
-
-### Example 2
+### Example 1 (minimal C usage)
 
 ```c
 #include <stdio.h>
 #include "opencc_fmmseg_capi.h"
 
+int main(void) {
+    void *handle = opencc_new();
+
+    const char *config = "s2t";
+    const char *input  = u8"汉字";
+
+    char *result = opencc_convert(handle, input, config, false);
+
+    printf("Input    : %s\n", input);
+    printf("Converted: %s\n", result);
+
+    opencc_string_free(result);
+    opencc_delete(handle);
+    return 0;
+}
+```
+
+### Example 2 (detection + conversion)
+
+```c
+##include <stdio.h>
+#include <stdbool.h>
+#include "opencc_fmmseg_capi.h"
+
 int main(int argc, char **argv) {
     void *opencc = opencc_new();
+
     bool is_parallel = opencc_get_parallel(opencc);
     printf("OpenCC is_parallel: %d\n", is_parallel);
 
     const char *config = u8"s2twp";
-    const char *text = u8"意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+    const char *text   = u8"意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+
     printf("Text: %s\n", text);
 
     int code = opencc_zho_check(opencc, text);
@@ -233,22 +249,18 @@ int main(int argc, char **argv) {
     code = opencc_zho_check(opencc, result);
 
     char *last_error = opencc_last_error();
+
     printf("Converted: %s\n", result);
     printf("Text Code: %d\n", code);
     printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
 
-    if (last_error != NULL) {
-        opencc_error_free(last_error);
-    }
-    if (result != NULL) {
-        opencc_string_free(result);
-    }
-    if (opencc != NULL) {
-        opencc_delete(opencc);
-    }
+    if (last_error != NULL) opencc_error_free(last_error);
+    if (result     != NULL) opencc_string_free(result);
+    opencc_delete(opencc);
 
     return 0;
 }
+
 ```
 
 ### Output
@@ -264,14 +276,18 @@ Last Error: No error
 
 ### Notes
 
-- `opencc_new()` initializes the engine.
-- `opencc_convert(...)` performs the conversion with the specified config (e.g., `s2t`, `t2s`, `s2twp`).
-- `opencc_string_free(...)` must be called to free the returned string.
-- `opencc_delete(...)` must be called to free OpenCC object.
-- `opencc_zho_check(...)` to detect zh-Hant (1), zh-Hans (2), others (0).
-- Parallelism support can be queried using `opencc_get_parallel()`.
-- Parallelism support also can be set using `opencc_set_parallel(...)`.
-- Errors are returned from `opencc_last_error()`.
+- `opencc_new()` creates and initializes a new OpenCC-FMMSEG instance.
+- `opencc_convert(...)` performs text conversion using the specified configuration (e.g., `s2t`, `t2s`, `s2twp`).
+- All input and output strings use **null-terminated UTF-8**.
+- `punctuation` accepts standard C Boolean values (`true` / `false`) via `<stdbool.h>`.
+- `opencc_string_free(...)` must be used to free strings returned by `opencc_convert(...)`.
+- `opencc_delete(...)` destroys the OpenCC instance and frees its resources.
+- `opencc_zho_check(...)` detects language type:
+  - `1` = Traditional
+  - `2` = Simplified
+  - `0` = Other / Undetermined
+- Parallel mode can be queried using `opencc_get_parallel()` and modified using `opencc_set_parallel(...)`.
+- Error messages can be retrieved with `opencc_last_error()` and must be freed using `opencc_error_free()`.
 
 ---
 
