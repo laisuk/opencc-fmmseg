@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match dict_format {
         Some("zstd") => {
             let dictionary = DictionaryMaxlength::from_dicts()?;
-            DictionaryMaxlength::save_compressed(&dictionary, output_file)?;
+            DictionaryMaxlength::save_cbor_compressed(&dictionary, output_file)?;
             eprintln!("{BLUE}Dictionary saved in ZSTD format at: {output_file}{RESET}");
         }
         Some("cbor") => {

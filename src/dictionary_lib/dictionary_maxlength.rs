@@ -721,7 +721,7 @@ impl DictionaryMaxlength {
     /// The resulting file is suitable for:
     ///
     /// - Distributing custom dictionary builds
-    /// - Loading via [`load_compressed`](Self::load_compressed)
+    /// - Loading via [`load_compressed`](Self::load_cbor_compressed)
     /// - Embedding as an asset in external applications
     ///
     /// Unlike [`serialize_to_cbor`](Self::serialize_to_cbor), this function
@@ -741,7 +741,7 @@ impl DictionaryMaxlength {
     ///
     /// The dictionary is written **as-is** without calling [`finish`](Self::finish),
     /// assuming it is already in a finalized state.
-    pub fn save_compressed(
+    pub fn save_cbor_compressed(
         dictionary: &DictionaryMaxlength,
         path: &str,
     ) -> Result<(), DictionaryError> {
@@ -756,7 +756,7 @@ impl DictionaryMaxlength {
 
     /// Loads the dictionary from a Zstd-compressed CBOR file.
     ///
-    /// This function reverses [`save_compressed`](Self::save_compressed) by:
+    /// This function reverses [`save_compressed`](Self::save_cbor_compressed) by:
     ///
     /// 1. Opening the specified file
     /// 2. Decompressing its Zstd stream
@@ -779,7 +779,7 @@ impl DictionaryMaxlength {
     ///
     /// Zstd compression makes large dictionary bundles highly compact while
     /// maintaining fast load times.
-    pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
+    pub fn load_cbor_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
         let file = File::open(path).map_err(DictionaryError::IoError)?;
         let reader = BufReader::new(file);
 
@@ -857,7 +857,7 @@ impl Default for DictionaryMaxlength {
 /// This error type is returned by methods such as:
 ///
 /// - [`DictionaryMaxlength::from_zstd()`]
-/// - [`DictionaryMaxlength::load_compressed()`]
+/// - [`DictionaryMaxlength::load_cbor_compressed()`]
 /// - [`DictionaryMaxlength::from_dicts()`]
 ///
 /// It also implements [`From`] for [`io::Error`] and [`serde_cbor::Error`],
@@ -1005,7 +1005,7 @@ mod tests {
         let compressed_file = "test_dictionary.zstd";
 
         // Attempt to save the dictionary in compressed form
-        let result = DictionaryMaxlength::save_compressed(&dictionary, compressed_file);
+        let result = DictionaryMaxlength::save_cbor_compressed(&dictionary, compressed_file);
         assert!(
             result.is_ok(),
             "Failed to save compressed dictionary: {:?}",
@@ -1031,7 +1031,7 @@ mod tests {
         let compressed_file = "test2_dictionary.zstd";
 
         // Save the dictionary in compressed form
-        let save_result = DictionaryMaxlength::save_compressed(&dictionary, compressed_file);
+        let save_result = DictionaryMaxlength::save_cbor_compressed(&dictionary, compressed_file);
         assert!(
             save_result.is_ok(),
             "Failed to save compressed dictionary: {:?}",
@@ -1039,7 +1039,7 @@ mod tests {
         );
 
         // Load the dictionary from the compressed file
-        let load_result = DictionaryMaxlength::load_compressed(compressed_file);
+        let load_result = DictionaryMaxlength::load_cbor_compressed(compressed_file);
         assert!(
             load_result.is_ok(),
             "Failed to load compressed dictionary: {:?}",
