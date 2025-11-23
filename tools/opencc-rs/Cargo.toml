@@ -9,7 +9,7 @@ build = "build.rs"
 
 [dependencies]
 opencc-fmmseg = {path = "../.."}
-clap = "4.5.51"
+clap = "4.5.53"
 encoding_rs = "0.8.35"
 encoding_rs_io = "0.1.7"
 regex = "1.12.2"
