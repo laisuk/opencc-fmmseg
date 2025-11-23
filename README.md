@@ -4,6 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/opencc-fmmseg)](https://crates.io/crates/opencc-fmmseg)
 [![Docs.rs](https://docs.rs/opencc-fmmseg/badge.svg)](https://docs.rs/opencc-fmmseg)
 ![Crates.io](https://img.shields.io/crates/d/opencc-fmmseg)
+[![Latest Downloads](https://img.shields.io/github/downloads/laisuk/opencc-fmmseg/latest/total.svg)](https://github.com/laisuk/opencc-fmmseg/releases/latest)
 [![License](https://img.shields.io/crates/l/opencc-fmmseg)](https://github.com/laisuk/opencc-fmmseg/blob/master/LICENSE)
 ![Build Status](https://github.com/laisuk/opencc-fmmseg/actions/workflows/rust.yml/badge.svg)
 
