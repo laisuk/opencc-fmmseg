@@ -6,6 +6,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.4] - 2025-11-25
+
+### Changed
+
+- Refactored `DictionaryError` into structured variants:
+    - `IoError(io::Error)`
+    - `CborParseError(serde_cbor::Error)`
+    - `LoadFileError { path, lineno, message }`
+- Replaced all string-based errors with rich underlying error types.
+- Improved error messages surfaced through `Display` and the C API `opencc_last_error()`.
+- Updated dictionary loading/serialization functions (`from_zstd`, `from_cbor`, `load_compressed`, `load_dict`,
+  `serialize_to_cbor`) to use the new unified error model.
+
+---
+
 ## [0.8.3] – 2025-10-20
 
 ### Added

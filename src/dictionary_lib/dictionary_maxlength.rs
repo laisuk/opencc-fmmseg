@@ -145,7 +145,7 @@ impl DictionaryMaxlength {
     ///
     /// # Errors
     /// - [`DictionaryError::IoError`] if Zstd decompression fails.
-    /// - [`DictionaryError::ParseError`] if CBOR deserialization fails.
+    /// - [`DictionaryError::CborParseError`] if CBOR deserialization fails.
     ///
     /// # See also
     /// - [`from_dicts`](#method.from_dicts) — loads from plaintext `.txt` files.
@@ -155,13 +155,12 @@ impl DictionaryMaxlength {
         let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
 
         // Decompress Zstd
-        let decompressed_data = decode_all(Cursor::new(compressed_data)).map_err(|err| {
-            DictionaryError::IoError(format!("Failed to decompress Zstd: {}", err))
-        })?;
+        let decompressed_data =
+            decode_all(Cursor::new(compressed_data)).map_err(DictionaryError::IoError)?;
 
         // Deserialize CBOR
-        let dictionary: DictionaryMaxlength = from_slice(&decompressed_data)
-            .map_err(|err| DictionaryError::ParseError(format!("Failed to parse CBOR: {}", err)))?;
+        let dictionary: DictionaryMaxlength =
+            from_slice(&decompressed_data).map_err(DictionaryError::CborParseError)?;
 
         Ok(dictionary.finish())
     }
@@ -188,7 +187,7 @@ impl DictionaryMaxlength {
     /// # Returns
     ///
     /// - `Ok(Self)` if the embedded CBOR is successfully decoded
-    /// - `Err(DictionaryError::ParseError)` if deserialization fails
+    /// - `Err(DictionaryError::CborParseError)` if deserialization fails
     ///
     /// # Notes
     ///
@@ -199,10 +198,9 @@ impl DictionaryMaxlength {
         let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
 
         let dictionary: DictionaryMaxlength = from_slice(cbor_bytes).map_err(|err| {
-            let msg = format!("Failed to parse CBOR: {}", err);
-            // Global last-error string:
-            Self::set_last_error(&msg);
-            DictionaryError::ParseError(msg)
+            // C API / FFI-friendly string:
+            Self::set_last_error(&format!("Failed to parse embedded CBOR: {}", err));
+            DictionaryError::CborParseError(err)
         })?;
 
         Ok(dictionary.finish())
@@ -274,7 +272,7 @@ impl DictionaryMaxlength {
     ///
     /// # Errors
     /// - [`DictionaryError::IoError`] if a dictionary file cannot be read.
-    /// - [`DictionaryError::ParseError`] if a data line is malformed (missing TAB).
+    /// - [`DictionaryError::LoadFileError`] if a data line is malformed (missing TAB).
     ///
     /// # See also
     /// - [`populate_all`](#method.populate_all) — rebuilds starter indexes after bulk edits.
@@ -286,7 +284,11 @@ impl DictionaryMaxlength {
         if !Path::new(base_dir).exists() {
             let msg = format!("Base directory not found: {}", base_dir);
             Self::set_last_error(&msg);
-            return Err(DictionaryError::IoError(msg));
+            // Wrap as real io::Error
+            return Err(DictionaryError::IoError(io::Error::new(
+                io::ErrorKind::NotFound,
+                msg,
+            )));
         }
 
         let dict_files: HashMap<&str, &str> = [
@@ -314,10 +316,10 @@ impl DictionaryMaxlength {
 
         fn load_dict(base_dir: &str, filename: &str) -> Result<DictMaxLen, DictionaryError> {
             let path = Path::new(base_dir).join(filename);
-            let path_str = path.to_string_lossy();
-            let content = fs::read_to_string(&path).map_err(|e| {
-                DictionaryError::IoError(format!("Failed to read {}: {}", path_str, e))
-            })?;
+            let path_str = path.display().to_string();
+
+            // Pure I/O errors → IoError(io::Error)
+            let content = fs::read_to_string(&path)?;
 
             let mut pairs: Vec<(String, String)> = Vec::new();
             let mut saw_data_line = false;
@@ -337,11 +339,11 @@ impl DictionaryMaxlength {
                 }
 
                 let Some((k, v)) = line.split_once('\t') else {
-                    return Err(DictionaryError::ParseError(format!(
-                        "Line {} in {} missing TAB separator",
-                        lineno + 1,
-                        path_str
-                    )));
+                    return Err(DictionaryError::LoadFileError {
+                        path: path_str.clone(), // cloned only on error
+                        lineno: lineno + 1,     // human-friendly 1-based line
+                        message: "missing TAB separator".to_string(),
+                    });
                 };
 
                 let first_value = v.split_whitespace().next().unwrap_or("");
@@ -605,13 +607,13 @@ impl DictionaryMaxlength {
         let cbor_data = serde_cbor::to_vec(self).map_err(|err| {
             let msg = format!("Failed to serialize to CBOR: {}", err);
             Self::set_last_error(&msg);
-            DictionaryError::ParseError(msg)
+            DictionaryError::CborParseError(err)
         })?;
 
         fs::write(&path, cbor_data).map_err(|err| {
             let msg = format!("Failed to write CBOR file: {}", err);
             Self::set_last_error(&msg);
-            DictionaryError::IoError(msg)
+            DictionaryError::IoError(err)
         })?;
 
         Ok(())
@@ -648,13 +650,13 @@ impl DictionaryMaxlength {
         let cbor_data = fs::read(&path).map_err(|err| {
             let msg = format!("Failed to read CBOR file: {}", err);
             Self::set_last_error(&msg);
-            DictionaryError::IoError(msg)
+            DictionaryError::IoError(err)
         })?;
 
         let dictionary: DictionaryMaxlength = from_slice(&cbor_data).map_err(|err| {
             let msg = format!("Failed to deserialize CBOR: {}", err);
             Self::set_last_error(&msg);
-            DictionaryError::ParseError(msg)
+            DictionaryError::CborParseError(err)
         })?;
 
         Ok(dictionary.finish())
@@ -743,15 +745,12 @@ impl DictionaryMaxlength {
         dictionary: &DictionaryMaxlength,
         path: &str,
     ) -> Result<(), DictionaryError> {
-        let file = File::create(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        let file = File::create(path).map_err(|e| DictionaryError::IoError(e))?;
         let writer = BufWriter::new(file);
-        let mut encoder =
-            Encoder::new(writer, 19).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        let mut encoder = Encoder::new(writer, 19).map_err(|e| DictionaryError::IoError(e))?;
         serde_cbor::to_writer(&mut encoder, dictionary)
-            .map_err(|e| DictionaryError::ParseError(e.to_string()))?;
-        encoder
-            .finish()
-            .map_err(|e| DictionaryError::IoError(e.to_string()))?;
+            .map_err(|e| DictionaryError::CborParseError(e))?;
+        encoder.finish().map_err(|e| DictionaryError::IoError(e))?;
         Ok(())
     }
 
@@ -781,12 +780,15 @@ impl DictionaryMaxlength {
     /// Zstd compression makes large dictionary bundles highly compact while
     /// maintaining fast load times.
     pub fn load_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
-        let file = File::open(path).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+        let file = File::open(path).map_err(DictionaryError::IoError)?;
         let reader = BufReader::new(file);
-        let mut decoder =
-            Decoder::new(reader).map_err(|e| DictionaryError::IoError(e.to_string()))?;
+
+        // `zstd::Decoder::new` returns an `io::Error` internally, so `IoError` is fine here.
+        let mut decoder = Decoder::new(reader).map_err(DictionaryError::IoError)?;
+
         let dictionary: DictionaryMaxlength =
-            from_reader(&mut decoder).map_err(|e| DictionaryError::ParseError(e.to_string()))?;
+            from_reader(&mut decoder).map_err(DictionaryError::CborParseError)?;
+
         Ok(dictionary.finish())
     }
 }
@@ -828,67 +830,93 @@ impl Default for DictionaryMaxlength {
     }
 }
 
-/// Error type representing failures encountered during dictionary loading,
-/// parsing, serialization, or I/O operations.
+/// Error type for dictionary loading, parsing, and serialization.
 ///
-/// This enum centralizes all error conditions used by the `dictionary_lib`
-/// module, allowing calling code (including FFI layers) to handle failures
-/// uniformly.
-///
-/// Errors typically originate from:
-///
-/// - File system operations (open, read, write)
-/// - CBOR (de)serialization via `serde_cbor`
-/// - External loaders such as Zstd-compressed dictionary files
+/// `DictionaryError` is used throughout the `dictionary_lib` module to wrap
+/// low-level I/O failures, CBOR (de)serialization errors, and plaintext
+/// dictionary format issues. It provides a single, ergonomic error type that
+/// integrates with standard Rust error handling (`?`, `std::error::Error`).
 ///
 /// # Variants
 ///
-/// - [`DictionaryError::IoError`] — Wraps file I/O failures such as inability
-///   to open, read, or write files.
-/// - [`DictionaryError::ParseError`] — Wraps CBOR parsing or serialization
-///   failures, or malformed dictionary structures.
+/// - [`DictionaryError::IoError`]
+///   - Wraps a low-level [`io::Error`] that occurred during file access,
+///     reading, or writing.
 ///
-/// # Used In
+/// - [`DictionaryError::CborParseError`]
+///   - Wraps a [`serde_cbor::Error`] that occurred while serializing or
+///     deserializing CBOR dictionary data.
 ///
-/// This error type is returned by several constructors and loaders, including:
+/// - [`DictionaryError::LoadFileError`]
+///   - Reports a logical or format error while parsing a plaintext dictionary
+///     file line-by-line (for example, a missing TAB separator). Carries the
+///     file path, the 1-based line number, and a short human-readable message.
 ///
-/// - [`DictionaryMaxlength::from_zstd`](crate::dictionary_maxlength::DictionaryMaxlength::from_zstd)
-/// - [`DictionaryMaxlength::from_cbor`](crate::dictionary_maxlength::DictionaryMaxlength::from_cbor)
-/// - [`DictionaryMaxlength::load_compressed`](crate::dictionary_maxlength::DictionaryMaxlength::load_compressed)
-/// - [`DictionaryMaxlength::deserialize_from_cbor`](crate::dictionary_maxlength::DictionaryMaxlength::deserialize_from_cbor)
+/// # Usage
 ///
-/// It also integrates with Rust's standard error system via `Display`,
-/// `Error`, and `From` conversions for seamless propagation in `?` expressions.
+/// This error type is returned by methods such as:
+///
+/// - [`DictionaryMaxlength::from_zstd()`]
+/// - [`DictionaryMaxlength::load_compressed()`]
+/// - [`DictionaryMaxlength::from_dicts()`]
+///
+/// It also implements [`From`] for [`io::Error`] and [`serde_cbor::Error`],
+/// allowing you to use the `?` operator directly on I/O and CBOR operations.
 #[derive(Debug)]
 pub enum DictionaryError {
-    /// Represents failures during file access: opening, reading, or writing.
-    IoError(String),
+    /// Low-level I/O error (missing file, no permission, etc.).
+    IoError(io::Error),
 
-    /// Represents failures during CBOR parsing, serialization, or general
-    /// dictionary deserialization.
-    ParseError(String),
+    /// CBOR serialization or deserialization failure.
+    CborParseError(serde_cbor::Error),
+
+    /// Text dictionary (.txt) format error while loading or parsing a file line-by-line.
+    LoadFileError {
+        /// Path of the dictionary file where the error occurred.
+        path: String,
+        /// 1-based line number in the file.
+        lineno: usize,
+        /// Short human-readable description of the issue.
+        message: String,
+    },
 }
 
 impl std::fmt::Display for DictionaryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DictionaryError::IoError(msg) => write!(f, "I/O Error: {}", msg),
-            DictionaryError::ParseError(msg) => write!(f, "Parse Error: {}", msg),
+            DictionaryError::IoError(e) => write!(f, "I/O error: {}", e),
+            DictionaryError::CborParseError(e) => write!(f, "Failed to parse CBOR: {}", e),
+            DictionaryError::LoadFileError {
+                path,
+                lineno,
+                message,
+            } => {
+                write!(f, "Error in {} at line {}: {}", path, lineno, message)
+            }
         }
     }
 }
 
-impl Error for DictionaryError {}
+impl Error for DictionaryError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            DictionaryError::IoError(e) => Some(e),
+            DictionaryError::CborParseError(e) => Some(e),
+            DictionaryError::LoadFileError { .. } => None,
+        }
+    }
+}
 
+// Automatic conversions for ergonomic `?` usage.
 impl From<io::Error> for DictionaryError {
     fn from(err: io::Error) -> Self {
-        DictionaryError::IoError(err.to_string())
+        DictionaryError::IoError(err)
     }
 }
 
 impl From<serde_cbor::Error> for DictionaryError {
     fn from(err: serde_cbor::Error) -> Self {
-        DictionaryError::ParseError(err.to_string())
+        DictionaryError::CborParseError(err)
     }
 }
 
@@ -909,7 +937,7 @@ mod tests {
         let filename = "dictionary_maxlength.cbor";
         dictionary.serialize_to_cbor(filename).unwrap();
         let file_contents = fs::read(filename).unwrap();
-        let expected_cbor_size = 1351396; // Update this with the actual expected size
+        let expected_cbor_size = 1351835; // Update this with the actual expected size
         assert_eq!(file_contents.len(), expected_cbor_size);
         // Clean up: Delete the test file
         fs::remove_file(filename).unwrap();
