@@ -583,7 +583,7 @@ impl OpenCC {
     ///   - You don’t want to build a [`StarterUnion`] upfront.
     ///
     /// # Parameters
-    /// - `text_chars`: Input text, pre-split into `char`s.
+    /// - `text_chars`: Input text, pre-split into `chars.
     /// - `dictionaries`: Slice of dictionary references (`DictMaxLen`).
     /// - `max_word_length`: Maximum phrase length across the dictionaries.
     ///
