@@ -47,6 +47,166 @@ static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 static STRIP_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_著]").unwrap());
 
+/// OpenCC conversion configuration (strongly-typed).
+///
+/// This enum represents the supported conversion “modes” (e.g. Simplified → Traditional).
+/// It is used by [`OpenCC::convert_with_config`] to avoid string parsing in hot paths.
+///
+/// # ABI / FFI
+///
+/// `OpenccConfig` is marked with `#[repr(u32)]`, so each variant has a stable numeric value.
+/// This is suitable for C FFI where configs are passed as `uint32_t` (`opencc_config_t`).
+///
+/// When accepting configs from FFI, **do not** `transmute`; use [`OpenccConfig::from_ffi`]
+/// to validate values.
+///
+/// # String parsing
+///
+/// For convenience and backwards compatibility, configs can also be parsed from strings
+/// via `TryFrom<&str>` (case-insensitive), which powers [`OpenCC::convert`].
+///
+/// # Variants
+///
+/// | Variant | Name   | Description                               | Punctuation parameter used? |
+/// |--------:|--------|-------------------------------------------|-----------------------------|
+/// | 1       | `S2t`  | Simplified → Traditional                   | ✅ (passed through)         |
+/// | 2       | `S2tw` | Simplified → Traditional (Taiwan)          | ✅                          |
+/// | 3       | `S2twp`| Simplified → Taiwan (with phrases)         | ✅                          |
+/// | 4       | `S2hk` | Simplified → Hong Kong                     | ✅                          |
+/// | 5       | `T2s`  | Traditional → Simplified                   | ✅                          |
+/// | 6       | `T2tw` | Traditional → Taiwan                       | ❌ (ignored)                |
+/// | 7       | `T2twp`| Traditional → Taiwan (with phrases)        | ❌ (ignored)                |
+/// | 8       | `T2hk` | Traditional → Hong Kong                    | ❌ (ignored)                |
+/// | 9       | `Tw2s` | Taiwan → Simplified                        | ✅                          |
+/// | 10      | `Tw2sp`| Taiwan → Simplified (variant)              | ✅                          |
+/// | 11      | `Tw2t` | Taiwan → Traditional                       | ❌ (ignored)                |
+/// | 12      | `Tw2tp`| Taiwan → Traditional (variant)             | ❌ (ignored)                |
+/// | 13      | `Hk2s` | Hong Kong → Simplified                     | ✅                          |
+/// | 14      | `Hk2t` | Hong Kong → Traditional                    | ❌ (ignored)                |
+/// | 15      | `Jp2t` | Japanese (Kanji variants) → Traditional     | ❌ (ignored)                |
+/// | 16      | `T2jp` | Traditional → Japanese (Kanji variants)     | ❌ (ignored)                |
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpenccConfig {
+    /// Simplified Chinese → Traditional Chinese.
+    S2t = 1,
+
+    /// Simplified Chinese → Traditional Chinese (Taiwan standard).
+    S2tw = 2,
+
+    /// Simplified Chinese → Traditional Chinese (Taiwan, with phrases).
+    S2twp = 3,
+
+    /// Simplified Chinese → Traditional Chinese (Hong Kong standard).
+    S2hk = 4,
+
+    /// Traditional Chinese → Simplified Chinese.
+    T2s = 5,
+
+    /// Traditional Chinese → Taiwanese variant.
+    T2tw = 6,
+
+    /// Traditional Chinese → Taiwanese variant (with phrases).
+    T2twp = 7,
+
+    /// Traditional Chinese → Hong Kong variant.
+    T2hk = 8,
+
+    /// Taiwanese variant → Simplified Chinese.
+    Tw2s = 9,
+
+    /// Taiwanese variant → Simplified Chinese (with phrases).
+    Tw2sp = 10,
+
+    /// Taiwanese variant → Traditional Chinese.
+    Tw2t = 11,
+
+    /// Taiwanese variant → Traditional Chinese (with phrases).
+    Tw2tp = 12,
+
+    /// Hong Kong variant → Simplified Chinese.
+    Hk2s = 13,
+
+    /// Hong Kong variant → Traditional Chinese.
+    Hk2t = 14,
+
+    /// Japanese Kanji → Traditional Chinese.
+    Jp2t = 15,
+
+    /// Traditional Chinese → Japanese Kanji.
+    T2jp = 16,
+}
+
+impl TryFrom<&str> for OpenccConfig {
+    /// Parses a configuration name (case-insensitive).
+    ///
+    /// Accepted names: `"s2t"`, `"s2tw"`, `"s2twp"`, `"s2hk"`, `"t2s"`, `"t2tw"`, `"t2twp"`,
+    /// `"t2hk"`, `"tw2s"`, `"tw2sp"`, `"tw2t"`, `"tw2tp"`, `"hk2s"`, `"hk2t"`, `"jp2t"`, `"t2jp"`.
+    ///
+    /// This is primarily used by [`OpenCC::convert`] to support legacy `&str` configs.
+    type Error = ();
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_ascii_lowercase().as_str() {
+            "s2t" => Ok(Self::S2t),
+            "s2tw" => Ok(Self::S2tw),
+            "s2twp" => Ok(Self::S2twp),
+            "s2hk" => Ok(Self::S2hk),
+            "t2s" => Ok(Self::T2s),
+            "t2tw" => Ok(Self::T2tw),
+            "t2twp" => Ok(Self::T2twp),
+            "t2hk" => Ok(Self::T2hk),
+            "tw2s" => Ok(Self::Tw2s),
+            "tw2sp" => Ok(Self::Tw2sp),
+            "tw2t" => Ok(Self::Tw2t),
+            "tw2tp" => Ok(Self::Tw2tp),
+            "hk2s" => Ok(Self::Hk2s),
+            "hk2t" => Ok(Self::Hk2t),
+            "jp2t" => Ok(Self::Jp2t),
+            "t2jp" => Ok(Self::T2jp),
+            _ => Err(()),
+        }
+    }
+}
+
+impl OpenccConfig {
+    /// Converts an FFI numeric config value into [`OpenccConfig`].
+    ///
+    /// Returns `None` for unknown values. This is the **only** supported way to accept
+    /// configuration numbers from C FFI (`uint32_t` / `opencc_config_t`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::OpenccConfig;
+    ///
+    /// assert_eq!(OpenccConfig::from_ffi(1), Some(OpenccConfig::S2t));
+    /// assert_eq!(OpenccConfig::from_ffi(999), None);
+    /// ```
+    #[inline]
+    pub fn from_ffi(v: u32) -> Option<Self> {
+        Some(match v {
+            1 => Self::S2t,
+            2 => Self::S2tw,
+            3 => Self::S2twp,
+            4 => Self::S2hk,
+            5 => Self::T2s,
+            6 => Self::T2tw,
+            7 => Self::T2twp,
+            8 => Self::T2hk,
+            9 => Self::Tw2s,
+            10 => Self::Tw2sp,
+            11 => Self::Tw2t,
+            12 => Self::Tw2tp,
+            13 => Self::Hk2s,
+            14 => Self::Hk2t,
+            15 => Self::Jp2t,
+            16 => Self::T2jp,
+            _ => return None,
+        })
+    }
+}
+
 /// Central interface for performing OpenCC-based conversion with segmentation.
 ///
 /// The `OpenCC` struct manages dictionary loading, segmentation, and multi-round text transformation.
@@ -1314,49 +1474,29 @@ impl OpenCC {
         output
     }
 
-    /// Converts Chinese text using the specified OpenCC conversion configuration.
+    /// Converts Chinese text using a configuration name (`&str`, case-insensitive).
     ///
-    /// This is the primary entry point for performing OpenCC-style text transformation. It supports
-    /// various configurations such as Simplified to Traditional, Traditional to Simplified, Taiwanese,
-    /// Hong Kong, and Japanese variants. The conversion is dictionary-based and supports optional
-    /// punctuation normalization depending on the selected configuration.
+    /// This is a **convenience / legacy** entry point that accepts OpenCC-style config names
+    /// such as `"s2t"` or `"t2s"`. Internally it parses the string into [`OpenccConfig`]
+    /// and dispatches to [`OpenCC::convert_with_config`].
     ///
-    /// Supported configurations:
-    ///
-    /// | Config     | Description                               | Punctuation Aware |
-    /// |------------|-------------------------------------------|-------------------|
-    /// | `s2t`      | Simplified Chinese → Traditional Chinese  | ✅                |
-    /// | `s2tw`     | Simplified Chinese → Traditional (Taiwan) | ✅                |
-    /// | `s2twp`    | Simplified → Taiwanese with phrases       | ✅                |
-    /// | `s2hk`     | Simplified Chinese → Traditional (HK)     | ✅                |
-    /// | `t2s`      | Traditional Chinese → Simplified Chinese  | ✅                |
-    /// | `t2tw`     | Traditional → Taiwanese                   | ❌                |
-    /// | `t2twp`    | Traditional → Taiwanese with phrases      | ❌                |
-    /// | `t2hk`     | Traditional → Hong Kong                   | ❌                |
-    /// | `tw2s`     | Taiwanese → Simplified Chinese            | ✅                |
-    /// | `tw2sp`    | Taiwanese → Simplified (with punct.)      | ✅                |
-    /// | `tw2t`     | Taiwanese → Traditional Chinese           | ❌                |
-    /// | `tw2tp`    | Taiwanese → Traditional (with punct.)     | ❌                |
-    /// | `hk2s`     | Hong Kong → Simplified Chinese            | ✅                |
-    /// | `hk2t`     | Hong Kong → Traditional Chinese           | ❌                |
-    /// | `jp2t`     | Japanese → Traditional Chinese            | ❌                |
-    /// | `t2jp`     | Traditional Chinese → Japanese            | ❌                |
+    /// Prefer [`OpenCC::convert_with_config`] if you want:
+    /// - no string parsing
+    /// - compile-time configuration selection
+    /// - an API that mirrors your C FFI numeric config
     ///
     /// # Arguments
     ///
-    /// * `input` - The input string containing Chinese text.
-    /// * `config` - The OpenCC conversion configuration name. It is case-insensitive.
-    /// * `punctuation` - Whether to also apply punctuation conversion (only applies to certain configs).
+    /// * `input` - UTF-8 text to convert.
+    /// * `config` - Configuration name (case-insensitive), e.g. `"s2t"`.
+    /// * `punctuation` - Whether to apply punctuation conversion where supported.
+    ///   For some configs, this parameter is **ignored** because their conversion
+    ///   pipeline does not include punctuation normalization.
     ///
     /// # Returns
     ///
-    /// A `String` containing the converted Chinese text. If the config is invalid,
-    /// returns an error message string and stores the last error internally.
-    ///
-    /// # Errors
-    ///
-    /// If an unknown or unsupported config is provided, the function returns a string
-    /// in the form `"Invalid config: {config}"` and records it in the last error slot.
+    /// Returns the converted text. If `config` is invalid, it returns the string
+    /// `"Invalid config: {config}"` and stores the same message in the last-error slot.
     ///
     /// # Example
     ///
@@ -1368,32 +1508,60 @@ impl OpenCC {
     /// let traditional = converter.convert(simplified, "s2t", false);
     /// assert_eq!(traditional, "漢字轉換測試");
     /// ```
-    ///
-    /// # See Also
-    /// - [`zho_check`](#method.zho_check) for script detection
-    /// - [`DictionaryMaxlength`](DictionaryMaxlength) for dictionary internals
     pub fn convert(&self, input: &str, config: &str, punctuation: bool) -> String {
-        match config.to_lowercase().as_str() {
-            "s2t" => self.s2t(input, punctuation),
-            "s2tw" => self.s2tw(input, punctuation),
-            "s2twp" => self.s2twp(input, punctuation),
-            "s2hk" => self.s2hk(input, punctuation),
-            "t2s" => self.t2s(input, punctuation),
-            "t2tw" => self.t2tw(input),
-            "t2twp" => self.t2twp(input),
-            "t2hk" => self.t2hk(input),
-            "tw2s" => self.tw2s(input, punctuation),
-            "tw2sp" => self.tw2sp(input, punctuation),
-            "tw2t" => self.tw2t(input),
-            "tw2tp" => self.tw2tp(input),
-            "hk2s" => self.hk2s(input, punctuation),
-            "hk2t" => self.hk2t(input),
-            "jp2t" => self.jp2t(input),
-            "t2jp" => self.t2jp(input),
-            _ => {
-                Self::set_last_error(format!("Invalid config: {}", config).as_str());
+        match OpenccConfig::try_from(config) {
+            Ok(cfg) => self.convert_with_config(input, cfg, punctuation),
+            Err(_) => {
+                Self::set_last_error(&format!("Invalid config: {}", config));
                 format!("Invalid config: {}", config)
             }
+        }
+    }
+
+    /// Converts Chinese text using a strongly-typed [`OpenccConfig`].
+    ///
+    /// This method avoids string parsing and is the recommended API for Rust callers.
+    /// It also maps cleanly to the C FFI numeric config (`opencc_config_t`).
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - UTF-8 text to convert.
+    /// * `config` - Conversion configuration.
+    /// * `punctuation` - Whether to apply punctuation conversion where supported.
+    ///   For some configs, this flag is **ignored** (see [`OpenccConfig`] table).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{OpenCC, OpenccConfig};
+    ///
+    /// let converter = OpenCC::new();
+    /// let out = converter.convert_with_config("汉字转换测试", OpenccConfig::S2t, false);
+    /// assert_eq!(out, "漢字轉換測試");
+    /// ```
+    pub fn convert_with_config(
+        &self,
+        input: &str,
+        config: OpenccConfig,
+        punctuation: bool,
+    ) -> String {
+        match config {
+            OpenccConfig::S2t => self.s2t(input, punctuation),
+            OpenccConfig::S2tw => self.s2tw(input, punctuation),
+            OpenccConfig::S2twp => self.s2twp(input, punctuation),
+            OpenccConfig::S2hk => self.s2hk(input, punctuation),
+            OpenccConfig::T2s => self.t2s(input, punctuation),
+            OpenccConfig::T2tw => self.t2tw(input),
+            OpenccConfig::T2twp => self.t2twp(input),
+            OpenccConfig::T2hk => self.t2hk(input),
+            OpenccConfig::Tw2s => self.tw2s(input, punctuation),
+            OpenccConfig::Tw2sp => self.tw2sp(input, punctuation),
+            OpenccConfig::Tw2t => self.tw2t(input),
+            OpenccConfig::Tw2tp => self.tw2tp(input),
+            OpenccConfig::Hk2s => self.hk2s(input, punctuation),
+            OpenccConfig::Hk2t => self.hk2t(input),
+            OpenccConfig::Jp2t => self.jp2t(input),
+            OpenccConfig::T2jp => self.t2jp(input),
         }
     }
 
@@ -1576,5 +1744,48 @@ impl OpenCC {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()
     }
-}
 
+    /// Clears the most recently recorded OpenCC runtime error.
+    ///
+    /// This function resets the internal error state maintained by OpenCC.
+    /// After calling this, [`get_last_error`](Self::get_last_error) will return `None`
+    /// until a new error is recorded.
+    ///
+    /// ## Important
+    ///
+    /// - This function only clears the **internal error state**.
+    /// - It does **not** free or affect any error strings previously returned
+    ///   by the C API (e.g. via `opencc_last_error()`).
+    /// - Clearing the error state is independent of memory management.
+    ///
+    /// In other words:
+    ///
+    /// - Use `clear_last_error()` to reset the error **status**.
+    /// - Use the appropriate C API free function to release any allocated
+    ///   error message buffers.
+    ///
+    /// ## Typical use cases
+    ///
+    /// - Resetting the error state after displaying an error to the user.
+    /// - Ensuring a clean error state before starting a new conversion batch.
+    /// - Avoiding stale error messages in long-running or interactive applications.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::OpenCC;
+    ///
+    /// // Record an error internally
+    /// OpenCC::set_last_error("Invalid config");
+    ///
+    /// // Clear it
+    /// OpenCC::clear_last_error();
+    ///
+    /// // No error remains
+    /// assert!(OpenCC::get_last_error().is_none());
+    /// ```
+    pub fn clear_last_error() {
+        let mut last_error = LAST_ERROR.lock().unwrap();
+        *last_error = None;
+    }
+}

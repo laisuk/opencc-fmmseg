@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.4] - 2025-11-25
+## [0.8.4] - 2025-12-28
 
 ### Changed
 
@@ -16,8 +16,43 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - `LoadFileError { path, lineno, message }`
 - Replaced all string-based errors with rich underlying error types.
 - Improved error messages surfaced through `Display` and the C API `opencc_last_error()`.
-- Updated dictionary loading/serialization functions (`from_zstd`, `from_cbor`, `load_compressed`, `load_dict`,
-  `serialize_to_cbor`) to use the new unified error model.
+- Updated dictionary loading/serialization functions
+  (`from_zstd`, `from_cbor`, `load_compressed`, `load_dict`, `serialize_to_cbor`)
+  to use the new unified error model.
+
+### Added
+
+- Added strongly typed Rust API:
+    - `OpenccConfig` enum (`#[repr(u32)]`) with stable numeric values.
+    - `OpenCC::convert_with_config()` as the recommended, non-string dispatch path.
+- Added numeric-config C API:
+    - `opencc_config_t` (`uint32_t`) with ABI-stable constants.
+    - `opencc_convert_cfg()` for conversion without string-based config parsing.
+- Preserved legacy string-based APIs
+  (`OpenCC::convert(&str, ...)`, `opencc_convert(...)`) for backward compatibility.
+
+### C API Improvements
+
+- Clarified ownership and lifetime rules:
+    - Returned strings are always NUL-terminated and must be freed with
+      `opencc_string_free()`.
+    - Numeric config parameters are passed by value and require no allocation
+      or cleanup.
+- Standardized error behavior:
+    - Invalid configs return a readable error string
+      (e.g. `"Invalid config: 9999"`) and also populate
+      `opencc_last_error()`.
+- Deprecated unused length-based conversion entry points
+  (planned removal in a future release).
+
+### Developer Notes
+
+- The numeric-config API is recommended for:
+    - FFI bindings (C / C++ / C# / Java / Python)
+    - Performance-sensitive code paths
+    - Avoiding runtime string validation
+- Header-only C++ helper (`OpenccFmmsegHelper.hpp`) updated to provide
+  RAII-safe lifetime management and typed-config usage on top of the C API.
 
 ---
 

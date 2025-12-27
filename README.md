@@ -278,17 +278,58 @@ Last Error: No error
 ### Notes
 
 - `opencc_new()` creates and initializes a new OpenCC-FMMSEG instance.
-- `opencc_convert(...)` performs text conversion using the specified configuration (e.g., `s2t`, `t2s`, `s2twp`).
-- All input and output strings use **null-terminated UTF-8**.
-- `punctuation` accepts standard C Boolean values (`true` / `false`) via `<stdbool.h>`.
-- `opencc_string_free(...)` must be used to free strings returned by `opencc_convert(...)`.
+
+- `opencc_convert(...)` is the **legacy string-based API**:
+    - Uses a string config such as `"s2t"`, `"t2s"`, `"s2twp"`.
+    - If the config is invalid, the conversion is **blocked** and an error string
+      (`"Invalid config: ..."`) is returned.
+    - On success, any previous error state is automatically cleared.
+
+- `opencc_convert_cfg(...)` is the **recommended API** for new code:
+    - Uses a numeric config (`opencc_config_t`) instead of strings.
+    - Avoids runtime string parsing and is more FFI-friendly.
+    - Invalid configs return a readable error string and set the last error.
+
+- `opencc_convert_cfg_mem(...)` is an **advanced buffer-based API**:
+    - Designed for bindings and performance-sensitive code.
+    - Uses a size-query + caller-allocated buffer pattern.
+    - Output length is variable; the required buffer size (including `'\0'`)
+      is reported via `out_required`.
+    - The output buffer is **owned and freed by the caller**.
+    - This API does **not** replace the `char*`-returning APIs.
+
+- All input and output strings use **null-terminated UTF-8** encoding.
+
+- `punctuation` accepts standard C Boolean values (`true` / `false`)
+  via `<stdbool.h>`.
+
+- `opencc_string_free(...)` must be used to free strings returned by:
+    - `opencc_convert(...)`
+    - `opencc_convert_cfg(...)`
+    - `opencc_last_error(...)`
+
+- `opencc_error_free(...)` frees memory returned by `opencc_last_error()` **only**.
+  It does **not** clear the internal error state.
+
+- `opencc_clear_last_error()` clears the **internal error state**:
+    - After calling this, `opencc_last_error()` will return `"No error"`.
+    - This function **does not free** any previously returned error strings.
+    - It cannot replace `opencc_error_free()`.
+
+- `opencc_last_error()` returns the most recent error message:
+    - Returns a newly allocated string.
+    - Returns `"No error"` if no error is recorded.
+    - The returned string must always be freed with `opencc_error_free()`.
+
 - `opencc_delete(...)` destroys the OpenCC instance and frees its resources.
-- `opencc_zho_check(...)` detects language type:
-  - `1` = Traditional
-  - `2` = Simplified
-  - `0` = Other / Undetermined
-- Parallel mode can be queried using `opencc_get_parallel()` and modified using `opencc_set_parallel(...)`.
-- Error messages can be retrieved with `opencc_last_error()` and must be freed using `opencc_error_free()`.
+
+- `opencc_zho_check(...)` detects the script of the input text:
+    - `1` = Traditional Chinese
+    - `2` = Simplified Chinese
+    - `0` = Other / Undetermined
+
+- Parallel mode can be queried using `opencc_get_parallel()` and modified
+  using `opencc_set_parallel(...)`.
 
 ---
 
