@@ -35,41 +35,41 @@ typedef uint32_t opencc_config_t;
  */
 enum {
     /** Simplified Chinese → Traditional Chinese */
-    OPENCC_CONFIG_S2T   = 1,
+    OPENCC_CONFIG_S2T = 1,
     /** Simplified → Traditional (Taiwan) */
-    OPENCC_CONFIG_S2TW  = 2,
+    OPENCC_CONFIG_S2TW = 2,
     /** Simplified → Traditional (Taiwan, with phrases) */
     OPENCC_CONFIG_S2TWP = 3,
     /** Simplified → Traditional (Hong Kong) */
-    OPENCC_CONFIG_S2HK  = 4,
+    OPENCC_CONFIG_S2HK = 4,
 
     /** Traditional Chinese → Simplified Chinese */
-    OPENCC_CONFIG_T2S   = 5,
+    OPENCC_CONFIG_T2S = 5,
     /** Traditional → Taiwan Traditional */
-    OPENCC_CONFIG_T2TW  = 6,
+    OPENCC_CONFIG_T2TW = 6,
     /** Traditional → Taiwan Traditional (with phrases) */
     OPENCC_CONFIG_T2TWP = 7,
     /** Traditional → Hong Kong Traditional */
-    OPENCC_CONFIG_T2HK  = 8,
+    OPENCC_CONFIG_T2HK = 8,
 
     /** Taiwan Traditional → Simplified */
-    OPENCC_CONFIG_TW2S  = 9,
+    OPENCC_CONFIG_TW2S = 9,
     /** Taiwan Traditional → Simplified (variant) */
     OPENCC_CONFIG_TW2SP = 10,
     /** Taiwan Traditional → Traditional */
-    OPENCC_CONFIG_TW2T  = 11,
+    OPENCC_CONFIG_TW2T = 11,
     /** Taiwan Traditional → Traditional (variant) */
     OPENCC_CONFIG_TW2TP = 12,
 
     /** Hong Kong Traditional → Simplified */
-    OPENCC_CONFIG_HK2S  = 13,
+    OPENCC_CONFIG_HK2S = 13,
     /** Hong Kong Traditional → Traditional */
-    OPENCC_CONFIG_HK2T  = 14,
+    OPENCC_CONFIG_HK2T = 14,
 
     /** Japanese Kanji variants → Traditional Chinese */
-    OPENCC_CONFIG_JP2T  = 15,
+    OPENCC_CONFIG_JP2T = 15,
     /** Traditional Chinese → Japanese Kanji variants */
-    OPENCC_CONFIG_T2JP  = 16
+    OPENCC_CONFIG_T2JP = 16
 };
 
 /**
@@ -279,7 +279,7 @@ void opencc_clear_last_error(void);
  * @param ptr A pointer to a string previously returned by `opencc_last_error()`.
  *            Passing NULL is safe and does nothing.
  */
-void opencc_error_free(char* ptr);
+void opencc_error_free(char *ptr);
 
 #ifdef __cplusplus
 }
