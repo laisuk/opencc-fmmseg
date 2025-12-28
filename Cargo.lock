@@ -800,6 +800,7 @@ version = "0.8.4"
 dependencies = [
  "once_cell",
  "rayon",
+ "rayon-core",
  "regex",
  "rustc-hash",
  "serde",

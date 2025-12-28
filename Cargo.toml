@@ -44,7 +44,7 @@ exclude = [
 [dependencies]
 # Rayon 1.11+ needs newer Rust; keep within 1.10.*
 rayon = ">=1.10, <1.11"
-#rayon-core = ">=1.12,<1.13"
+rayon-core = ">=1.12,<1.13"
 regex = "1.12.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_cbor = "0.11.2"
