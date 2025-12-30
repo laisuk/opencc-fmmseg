@@ -82,6 +82,7 @@ pub extern "C" fn opencc_convert(
         .into_raw()
 }
 
+// Available since v0.8.4
 #[no_mangle]
 pub extern "C" fn opencc_convert_cfg(
     instance: *const OpenCC,
@@ -119,6 +120,7 @@ pub extern "C" fn opencc_convert_cfg(
         .into_raw()
 }
 
+// Available since v0.8.4
 #[no_mangle]
 pub extern "C" fn opencc_convert_cfg_mem(
     instance: *const OpenCC,
@@ -269,6 +271,7 @@ pub extern "C" fn opencc_last_error() -> *mut c_char {
         .into_raw()
 }
 
+// Available since v0.8.4
 #[no_mangle]
 pub extern "C" fn opencc_clear_last_error() {
     OpenCC::clear_last_error();

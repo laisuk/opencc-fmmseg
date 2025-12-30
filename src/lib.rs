@@ -85,6 +85,9 @@ static STRIP_REGEX: Lazy<Regex> =
 /// | 14      | `Hk2t` | Hong Kong → Traditional                    | ❌ (ignored)                |
 /// | 15      | `Jp2t` | Japanese (Kanji variants) → Traditional     | ❌ (ignored)                |
 /// | 16      | `T2jp` | Traditional → Japanese (Kanji variants)     | ❌ (ignored)                |
+/// # Since
+///
+/// Available since **v0.8.4**.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpenccConfig {
@@ -144,6 +147,9 @@ impl TryFrom<&str> for OpenccConfig {
     /// `"t2hk"`, `"tw2s"`, `"tw2sp"`, `"tw2t"`, `"tw2tp"`, `"hk2s"`, `"hk2t"`, `"jp2t"`, `"t2jp"`.
     ///
     /// This is primarily used by [`OpenCC::convert`] to support legacy `&str` configs.
+    /// # Since
+    ///
+    /// Available since **v0.8.4**.
     type Error = ();
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
@@ -183,6 +189,9 @@ impl OpenccConfig {
     /// assert_eq!(OpenccConfig::from_ffi(1), Some(OpenccConfig::S2t));
     /// assert_eq!(OpenccConfig::from_ffi(999), None);
     /// ```
+    /// # Since
+    ///
+    /// Available since **v0.8.4**.
     #[inline]
     pub fn from_ffi(v: u32) -> Option<Self> {
         Some(match v {
@@ -1784,6 +1793,9 @@ impl OpenCC {
     /// // No error remains
     /// assert!(OpenCC::get_last_error().is_none());
     /// ```
+    /// # Since
+    ///
+    /// Available since **v0.8.4**.
     pub fn clear_last_error() {
         let mut last_error = LAST_ERROR.lock().unwrap();
         *last_error = None;
