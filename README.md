@@ -293,9 +293,15 @@ Last Error: No error
 - `opencc_convert_cfg_mem(...)` is an **advanced buffer-based API**:
     - Designed for bindings and performance-sensitive code.
     - Uses a size-query + caller-allocated buffer pattern.
-    - Output length is variable; the required buffer size (including `'\0'`)
-      is reported via `out_required`.
+    - Output length is **data-dependent and cannot be predicted** without
+      running a first pass of the conversion logic.
+    - The required buffer size (including `'\0'`) is reported via `out_required`.
     - The output buffer is **owned and freed by the caller**.
+    - For guaranteed success, callers should first perform a **size-query**
+      call with `out_buf = NULL` and `out_cap = 0`.
+    - For one-pass usage, callers may provide a buffer larger than the input
+      (e.g. input length + ~10%), but must be prepared to retry if the buffer
+      is insufficient.
     - This API does **not** replace the `char*`-returning APIs.
 
 - All input and output strings use **null-terminated UTF-8** encoding.

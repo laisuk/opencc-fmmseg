@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <windows.h>
 #include "opencc_fmmseg_capi.h"
 
@@ -91,27 +92,41 @@ int main(int argc, char **argv) {
 
     size_t required = 0;
 
-    // 1) Query size
-    if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true, nullptr, 0, &required)) {
-        std::cout << "❌ size-query failed\n";
-        print_last_error_and_free();
-    } else {
-        std::cout << "Required bytes (incl. NUL): " << required << "\n";
+    // Fast path: one-pass with slack (+10% + NUL)
+    const size_t input_len = std::strlen(text);
+    size_t cap = input_len + input_len / 10 + 1; // +10% + '\0'
 
-        // 2) Allocate buffer
-        std::string buf(required, '\0');
+    std::string buf(cap, '\0');
+
+    if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true,
+                                buf.data(), buf.size(), &required)) {
+
+        // Buffer too small → fallback to exact size-query
+        std::cout << "ℹ️ Fast path buffer insufficient, retrying with exact size...\n";
+
+        // Size-query (guaranteed-safe path)
+        if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true,
+                                    nullptr, 0, &required)) {
+            std::cout << "❌ size-query failed\n";
+            print_last_error_and_free();
+            return 1;
+        }
+
+        buf.assign(required, '\0');
 
         if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true,
                                     buf.data(), buf.size(), &required)) {
             std::cout << "❌ convert_cfg_mem failed\n";
             print_last_error_and_free();
-        } else {
-            // buf is NUL-terminated; printing is safe
-            std::cout << "Converted: " << buf.c_str() << "\n";
-            std::cout << "Converted Code: " << opencc_zho_check(opencc, buf.c_str()) << "\n";
-            print_last_error_and_free();
+            return 1;
         }
     }
+
+    // Success (either fast path or fallback)
+    std::cout << "Converted: " << buf.c_str() << "\n";
+    std::cout << "Converted Code: "
+              << opencc_zho_check(opencc, buf.c_str()) << "\n";
+    print_last_error_and_free();
 
     // ---------------------------------------------------------------------
     // Cleanup
