@@ -560,7 +560,7 @@ impl OpenCC {
             return text_chars[0].to_string();
         }
 
-        let is_multy_dicts = dictionaries.len() > 1;
+        let is_multi_dicts = dictionaries.len() > 1;
         // const CAP_BIT: usize = 63;
         let mut result = String::with_capacity(text_length * 4);
         let mut start_pos = 0;
@@ -610,7 +610,7 @@ impl OpenCC {
                     }
                     // ... starter-cap gates ...
                     // 2) per-dict starter gate (uses DictMaxLen fields):
-                    if is_multy_dicts {
+                    if is_multi_dicts {
                         if !dict.starter_allows_dict(c0, length, cap_bit) {
                             continue;
                         }
