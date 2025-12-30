@@ -18,5 +18,12 @@ zip = ">=3.0, <4.0"
 tempfile = "3.24.0"
 walkdir = "2.5.0"
 
+# For toolchain 1.75.0 compatibility:
+# crc= "=3.3.0"
+# time = "=0.3.41"
+# time-core = "=0.1.4"
+# indexmap = "=2.11.4"
+# deranged = "=0.4.0"
+
 [build-dependencies]
 winres = "0.1.12"
