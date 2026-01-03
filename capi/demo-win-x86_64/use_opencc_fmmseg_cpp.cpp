@@ -94,7 +94,8 @@ int main(int argc, char **argv) {
 
     // Fast path: one-pass with slack (+10% + NUL)
     const size_t input_len = std::strlen(text);
-    size_t cap = input_len + input_len / 10 + 1; // +10% + '\0'
+    constexpr size_t MIN_CAP = 128;
+    size_t cap = std::max(input_len + input_len / 10 + 1, MIN_CAP); // +10% + '\0'
 
     std::string buf(cap, '\0');
 

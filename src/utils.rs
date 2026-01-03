@@ -117,3 +117,43 @@ pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
     }
     byte_count
 }
+
+/// Finds a safe UTF-8 boundary within a raw byte slice, limited by a maximum byte count.
+///
+/// This function is intended for **FFI or raw byte inputs** where the data may end in the
+/// middle of a UTF-8 codepoint. It backtracks from `max` until it reaches a byte that is
+/// **not a UTF-8 continuation byte** (`0b10xxxxxx`), ensuring the returned index does not
+/// split a UTF-8 character.
+///
+/// # Notes
+/// - The returned index is **not guaranteed to be valid UTF-8 by itself**; callers should
+///   validate the resulting slice with `std::str::from_utf8` before converting to `&str`.
+/// - This function only fixes the common case where the input is **truncated at the end**.
+///   It does not repair arbitrary malformed UTF-8.
+///
+/// # Arguments
+/// * `bytes` – Input byte slice to examine.
+/// * `max` – Maximum allowed byte count.
+///
+/// # Returns
+/// A byte index at or below `max` that does not cut a UTF-8 codepoint.
+///
+/// # Example
+/// ```rust
+/// use opencc_fmmseg::utils::find_max_utf8_len_bytes;
+/// let bytes = "汉字转换测试".as_bytes(); // UTF-8, 3 bytes per CJK char
+/// let safe = find_max_utf8_len_bytes(bytes, 7);
+/// let prefix = &bytes[..safe];
+/// assert!(std::str::from_utf8(prefix).is_ok());
+/// ```
+pub fn find_max_utf8_len_bytes(bytes: &[u8], max: usize) -> usize {
+    if bytes.len() <= max {
+        return bytes.len();
+    }
+    let mut i = max;
+    while i > 0 && (bytes[i] & 0b1100_0000) == 0b1000_0000 {
+        i -= 1;
+    }
+    i
+}
+
