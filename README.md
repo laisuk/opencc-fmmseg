@@ -169,24 +169,148 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.8.3"  # or latest version
+opencc-fmmseg = "0.8.4"  # or latest version
 ```
 
 Then use it in your code:
 
 ```rust
-use opencc_fmmseg::OpenCC;
+use opencc_fmmseg::{OpenCC};
+use opencc_fmmseg::OpenccConfig;
 
 fn main() {
-    let input = "这是一个测试";
-    let opencc = OpenCC::new();
-    let output = opencc.convert(input, "s2t", false);
-    println!("{}", output); // -> "這是一個測試"
+  // ---------------------------------------------------------------------
+  // Sample UTF-8 input (same spirit as C / C++ demos)
+  // ---------------------------------------------------------------------
+  let input_text = "意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+
+  println!("Text:");
+  println!("{}", input_text);
+  println!();
+
+  // ---------------------------------------------------------------------
+  // Create OpenCC instance
+  // ---------------------------------------------------------------------
+  let converter = OpenCC::new();
+
+  // Detect script
+  let input_code = converter.zho_check(input_text);
+  println!("Text Code: {}", input_code);
+
+  // ---------------------------------------------------------------------
+  // Test 1: Legacy string-based config (convert)
+  // ---------------------------------------------------------------------
+  let config_str = "s2twp";
+  let punct = true;
+
+  println!();
+  println!(
+    "== Test 1: convert(config = \"{}\", punctuation = {}) ==",
+    config_str, punct
+  );
+
+  let output1 = converter.convert(input_text, config_str, punct);
+  println!("Converted:");
+  println!("{}", output1);
+  println!("Converted Code: {}", converter.zho_check(&output1));
+  println!(
+    "Last Error: {}",
+    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+  );
+
+  // ---------------------------------------------------------------------
+  // Test 2: Strongly typed config (convert_with_config)
+  // ---------------------------------------------------------------------
+  let config_enum = OpenccConfig::S2twp;
+
+  println!();
+  println!(
+    "== Test 2: convert_with_config(config = {:?}, punctuation = {}) ==",
+    config_enum, punct
+  );
+
+  let output2 = converter.convert_with_config(input_text, config_enum, punct);
+  println!("Converted:");
+  println!("{}", output2);
+  println!("Converted Code: {}", converter.zho_check(&output2));
+  println!(
+    "Last Error: {}",
+    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+  );
+
+  // ---------------------------------------------------------------------
+  // Test 3: Invalid config (string) — self-protected
+  // ---------------------------------------------------------------------
+  let invalid_config = "what_is_this";
+
+  println!();
+  println!(
+    "== Test 3: invalid string config (\"{}\") ==",
+    invalid_config
+  );
+
+  let output3 = converter.convert(input_text, invalid_config, true);
+  println!("Returned:");
+  println!("{}", output3);
+  println!(
+    "Last Error: {}",
+    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+  );
+
+  // ---------------------------------------------------------------------
+  // Test 4: Clear last error and verify state reset
+  // ---------------------------------------------------------------------
+  println!();
+  println!("== Test 4: clear_last_error() ==");
+
+  OpenCC::clear_last_error();
+
+  println!(
+    "Last Error after clear: {}",
+    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+  );
+
+  // ---------------------------------------------------------------------
+  // Summary
+  // ---------------------------------------------------------------------
+  println!();
+  println!("All tests completed.");
 }
+
 ```
 
+Output:
+
+```
+Text:
+意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。
+
+Text Code: 2
+
+== Test 1: convert(config = "s2twp", punctuation = true) ==
+Converted:
+義大利鄰國法蘭西羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。
+Converted Code: 1
+Last Error: <none>
+
+== Test 2: convert_with_config(config = S2twp, punctuation = true) ==
+Converted:
+義大利鄰國法蘭西羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。
+Converted Code: 1
+Last Error: <none>
+
+== Test 3: invalid string config ("what_is_this") ==
+Returned:
+Invalid config: what_is_this
+Last Error: Invalid config: what_is_this
+
+== Test 4: clear_last_error() ==
+Last Error after clear: <none>
+```
+---
+
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.8.1/opencc_fmmseg/)
+> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.8.4/opencc_fmmseg/)
 
 ---
 
