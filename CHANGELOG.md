@@ -6,6 +6,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.4.1] - 2026-01-03
+
+### Fixed
+
+- Improved C API error handling and UTF-8 validation.
+- Clarified and hardened size-query semantics for `_mem` APIs.
+- No behavior change for valid UTF-8 inputs or supported configs.
+
+---
+
 ## [0.8.4] - 2025-12-31
 
 ### Changed

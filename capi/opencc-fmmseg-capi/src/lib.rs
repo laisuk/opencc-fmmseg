@@ -1,5 +1,5 @@
 use opencc_fmmseg::{OpenCC, OpenccConfig};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
 
@@ -46,40 +46,16 @@ pub extern "C" fn opencc_convert(
     config: *const c_char,
     punctuation: bool,
 ) -> *mut c_char {
-    if instance.is_null() || input.is_null() || config.is_null() {
-        OpenCC::set_last_error("Invalid argument: instance/input/config is NULL");
+    if config.is_null() {
+        OpenCC::set_last_error("Invalid argument: config is NULL");
         return ptr::null_mut();
     }
 
-    let opencc = unsafe { &*instance };
-
-    let config_c_str = unsafe { CStr::from_ptr(config) };
-    let config_str_slice = config_c_str.to_str().unwrap_or("");
-
-    let input_c_str = unsafe { CStr::from_ptr(input) };
-    let input_str_slice = input_c_str.to_str().unwrap_or("");
-
-    // ✅ Decide success/failure deterministically (avoid relying on string matching)
-    let cfg = match OpenccConfig::try_from(config_str_slice) {
-        Ok(c) => c,
-        Err(_) => {
-            let msg = format!("Invalid config: {}", config_str_slice);
-            OpenCC::set_last_error(&msg);
-            return std::ffi::CString::new(msg)
-                .unwrap_or_else(|_| std::ffi::CString::new("Invalid config").unwrap())
-                .into_raw();
-        }
-    };
-
-    // Valid config => real conversion path
-    let result = opencc.convert_with_config(input_str_slice, cfg, punctuation);
-
-    // ✅ Success: clear stale last_error
-    OpenCC::clear_last_error();
-
-    std::ffi::CString::new(result)
-        .unwrap_or_else(|_| std::ffi::CString::new("").unwrap())
-        .into_raw()
+    convert_core(instance, input, punctuation, || {
+        let config_str =
+            decode_utf8(config, "config").map_err(|_| "Invalid UTF-8 config string".to_string())?;
+        OpenccConfig::try_from(config_str).map_err(|_| format!("Invalid config: {}", config_str))
+    })
 }
 
 // Available since v0.8.4
@@ -90,34 +66,9 @@ pub extern "C" fn opencc_convert_cfg(
     config: u32,
     punctuation: bool,
 ) -> *mut c_char {
-    if instance.is_null() || input.is_null() {
-        return ptr::null_mut();
-    }
-
-    let opencc = unsafe { &*instance };
-
-    let cfg = match OpenccConfig::from_ffi(config) {
-        Some(c) => c,
-        None => {
-            let msg = format!("Invalid config: {}", config);
-            OpenCC::set_last_error(&msg);
-            return std::ffi::CString::new(msg)
-                .unwrap_or_else(|_| std::ffi::CString::new("Invalid config").unwrap())
-                .into_raw();
-        }
-    };
-
-    let input_c_str = unsafe { CStr::from_ptr(input) };
-    let input_str_slice = input_c_str.to_str().unwrap_or("");
-
-    let result = opencc.convert_with_config(input_str_slice, cfg, punctuation);
-
-    // ✅ Success: clear stale last_error
-    OpenCC::clear_last_error();
-
-    std::ffi::CString::new(result)
-        .unwrap_or_else(|_| std::ffi::CString::new("").unwrap())
-        .into_raw()
+    convert_core(instance, input, punctuation, || {
+        OpenccConfig::from_ffi(config).ok_or_else(|| format!("Invalid config: {}", config))
+    })
 }
 
 // Available since v0.8.4
@@ -131,69 +82,197 @@ pub extern "C" fn opencc_convert_cfg_mem(
     out_cap: usize,
     out_required: *mut usize,
 ) -> bool {
+    use std::ffi::CStr;
+    use std::os::raw::c_char;
+    use std::ptr;
+
+    // Must be able to report required size.
     if out_required.is_null() {
         return false;
     }
 
-    unsafe fn write_output(
-        s: &str,
+    /// Writes UTF-8 bytes + trailing '\0' to out_buf.
+    /// Always writes `*out_required = required` (bytes.len() + 1).
+    ///
+    /// Returns:
+    /// - Ok(()) if buffer was sufficient OR this is a size-query (out_buf null / out_cap 0)
+    /// - Err(()) if buffer is provided but too small
+    #[inline]
+    unsafe fn write_output_bytes(
+        bytes: &[u8],
         out_buf: *mut c_char,
         out_cap: usize,
         out_required: *mut usize,
-    ) -> bool {
-        let bytes = s.as_bytes();
+    ) -> Result<(), ()> {
         let required = bytes.len() + 1; // + '\0'
         *out_required = required;
 
+        // size-query mode: report required only
         if out_buf.is_null() || out_cap == 0 {
-            return true; // size-query ok
+            return Ok(());
         }
 
         if out_cap < required {
-            return false;
+            return Err(());
         }
 
         ptr::copy_nonoverlapping(bytes.as_ptr(), out_buf as *mut u8, bytes.len());
         *out_buf.add(bytes.len()) = 0;
-        true
+        Ok(())
     }
 
-    if instance.is_null() || input.is_null() {
-        let msg = "Invalid argument: instance or input is NULL";
+    /// Convenience: set last_error and try to write message into out buffer.
+    #[inline]
+    fn fail_with_msg(
+        msg: &str,
+        out_buf: *mut c_char,
+        out_cap: usize,
+        out_required: *mut usize,
+    ) -> bool {
         OpenCC::set_last_error(msg);
-        unsafe {
-            write_output(msg, out_buf, out_cap, out_required);
+        let bytes = msg.as_bytes();
+
+        // If the error message itself contains interior NUL (shouldn't, but be safe),
+        // fall back to a static message that cannot contain NUL.
+        let safe_bytes = if bytes.iter().any(|&b| b == 0) {
+            b"Error"
+        } else {
+            bytes
+        };
+
+        let write_ok =
+            unsafe { write_output_bytes(safe_bytes, out_buf, out_cap, out_required).is_ok() };
+
+        // Even if we managed to write the error message (or size-query), it's still a failure.
+        // If buffer was too small, override last_error for that specific failure mode.
+        if !write_ok && !(out_buf.is_null() || out_cap == 0) {
+            OpenCC::set_last_error("Output buffer too small");
         }
-        return false;
+        false
     }
 
-    let opencc = unsafe { &*instance };
-    let input_str = unsafe { CStr::from_ptr(input).to_str().unwrap_or("") };
+    // Validate pointers
+    if instance.is_null() || input.is_null() {
+        return fail_with_msg(
+            "Invalid argument: instance or input is NULL",
+            out_buf,
+            out_cap,
+            out_required,
+        );
+    }
 
-    // ✅ Track whether this is an actual error case (invalid config)
-    let (output_string, is_error) = match OpenccConfig::from_ffi(config) {
-        Some(cfg) => (opencc.convert_with_config(input_str, cfg, punctuation), false),
-        None => {
-            let msg = format!("Invalid config: {}", config);
-            OpenCC::set_last_error(&msg);
-            (msg, true)
+    // Strict UTF-8 decode for input (do NOT swallow invalid UTF-8 into "")
+    let input_str = match unsafe { CStr::from_ptr(input) }.to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            return fail_with_msg("Invalid UTF-8 input", out_buf, out_cap, out_required);
         }
     };
 
-    let ok = unsafe { write_output(&output_string, out_buf, out_cap, out_required) };
-
-    if ok {
-        // ✅ Success (including size-query) clears stale last_error,
-        // BUT do not clear if we're returning an "Invalid config: ..." message.
-        if !is_error {
-            OpenCC::clear_last_error();
+    // Parse config (u32 -> enum)
+    let cfg = match OpenccConfig::from_ffi(config) {
+        Some(c) => c,
+        None => {
+            let msg = format!("Invalid config: {}", config);
+            return fail_with_msg(&msg, out_buf, out_cap, out_required);
         }
-    } else if !(out_buf.is_null() || out_cap == 0) {
-        // Buffer-too-small failure mode
-        OpenCC::set_last_error("Output buffer too small");
+    };
+
+    // Convert
+    let opencc = unsafe { &*instance };
+    let output_string = opencc.convert_with_config(input_str, cfg, punctuation);
+
+    // Guard: output must not contain interior NUL (otherwise C string semantics break)
+    if output_string.as_bytes().iter().any(|&b| b == 0) {
+        return fail_with_msg("Output contains NUL byte", out_buf, out_cap, out_required);
     }
 
-    ok
+    // Try to write output to buffer / or size-query.
+    let write_res =
+        unsafe { write_output_bytes(output_string.as_bytes(), out_buf, out_cap, out_required) };
+
+    match write_res {
+        Ok(()) => {
+            // True success: clear stale last_error (including size-query success)
+            OpenCC::clear_last_error();
+            true
+        }
+        Err(()) => {
+            // Buffer provided but too small
+            OpenCC::set_last_error("Output buffer too small");
+            false
+        }
+    }
+}
+
+// ------ Core Shared Helpers ------
+
+#[inline]
+fn make_c_string_or_fallback(s: &str, fallback: &'static str) -> *mut c_char {
+    CString::new(s)
+        .unwrap_or_else(|_| CString::new(fallback).expect("static has no NUL"))
+        .into_raw()
+}
+
+#[inline]
+fn fail(msg: &str) -> *mut c_char {
+    OpenCC::set_last_error(msg);
+    make_c_string_or_fallback(msg, "Error")
+}
+
+#[inline]
+fn decode_utf8<'a>(ptr_: *const c_char, what: &'static str) -> Result<&'a str, *mut c_char> {
+    let s = unsafe { CStr::from_ptr(ptr_) };
+    match s.to_str() {
+        Ok(v) => Ok(v),
+        Err(_) => Err(fail(match what {
+            "input" => "Invalid UTF-8 input",
+            "config" => "Invalid UTF-8 config string",
+            _ => "Invalid UTF-8 string",
+        })),
+    }
+}
+
+/// Shared core: resolve config -> convert -> return heap C string.
+/// `resolve_cfg` returns Ok(cfg) for success, Err(error_message) for user-facing errors.
+#[inline]
+fn convert_core<F>(
+    instance: *const OpenCC,
+    input: *const c_char,
+    punctuation: bool,
+    resolve_cfg: F,
+) -> *mut c_char
+where
+    F: FnOnce() -> Result<OpenccConfig, String>,
+{
+    if instance.is_null() || input.is_null() {
+        // match your existing behavior: return NULL; (or choose fail("...") if you prefer)
+        OpenCC::set_last_error("Invalid argument: instance/input is NULL");
+        return ptr::null_mut();
+    }
+
+    let opencc = unsafe { &*instance };
+
+    let input_str = match decode_utf8(input, "input") {
+        Ok(v) => v,
+        Err(p) => return p,
+    };
+
+    let cfg = match resolve_cfg() {
+        Ok(c) => c,
+        Err(msg) => return fail(&msg),
+    };
+
+    let result = opencc.convert_with_config(input_str, cfg, punctuation);
+
+    // IMPORTANT: only clear last_error if we're truly returning a valid CString success.
+    match CString::new(result) {
+        Ok(cstr) => {
+            OpenCC::clear_last_error();
+            cstr.into_raw()
+        }
+        Err(_) => fail("Output contains NUL byte"),
+    }
 }
 
 #[deprecated(note = "Use `opencc_convert()` or `opencc_convert_cfg` instead")]
@@ -225,8 +304,8 @@ pub extern "C" fn opencc_convert_len(
 
     let result = opencc.convert(&*input_str, config_str, punctuation);
 
-    std::ffi::CString::new(result)
-        .unwrap_or_else(|_| std::ffi::CString::new("").unwrap())
+    CString::new(result)
+        .unwrap_or_else(|_| CString::new("").unwrap())
         .into_raw()
 }
 
@@ -235,7 +314,7 @@ pub extern "C" fn opencc_convert_len(
 pub extern "C" fn opencc_string_free(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
-            let _ = std::ffi::CString::from_raw(ptr);
+            let _ = CString::from_raw(ptr);
         };
     }
 }
@@ -266,8 +345,8 @@ pub extern "C" fn opencc_last_error() -> *mut c_char {
     };
 
     // Never panic across FFI boundary
-    std::ffi::CString::new(msg)
-        .unwrap_or_else(|_| std::ffi::CString::new("No error").unwrap())
+    CString::new(msg)
+        .unwrap_or_else(|_| CString::new("No error").unwrap())
         .into_raw()
 }
 
@@ -281,11 +360,13 @@ pub extern "C" fn opencc_clear_last_error() {
 pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
-            let _ = std::ffi::CString::from_raw(ptr);
+            let _ = CString::from_raw(ptr);
             // Automatically dropped and deallocated
         }
     }
 }
+
+// ------ C API Tests ------
 
 #[cfg(test)]
 mod tests {
@@ -298,14 +379,14 @@ mod tests {
         // Define a sample input string
         let input = "你好，世界，欢迎"; // Chinese characters meaning "Hello, world!"
                                         // Convert the input string to a C string
-        let c_input = std::ffi::CString::new(input)
+        let c_input = CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
         // Call the function under test
         let result = opencc_zho_check(&opencc as *const OpenCC, c_input);
         // Free the allocated C string
         unsafe {
-            let _ = std::ffi::CString::from_raw(c_input);
+            let _ = CString::from_raw(c_input);
         };
         // Assert the result
         assert_eq!(result, 2); // Assuming the input string is in simplified Chinese, so the result should be 2
@@ -319,11 +400,11 @@ mod tests {
         // Define a sample input string
         let input = "你好，世界，欢迎！";
         // Convert the input string to a C string
-        let c_config = std::ffi::CString::new("s2s")
+        let c_config = CString::new("s2s")
             .expect("CString conversion failed")
             .into_raw();
         // Convert the input string to a C string
-        let c_input = std::ffi::CString::new(input)
+        let c_input = CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
         // Define the punctuation flag
@@ -353,11 +434,11 @@ mod tests {
         // Define a sample input string
         let input = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
         // Convert the input string to a C string
-        let c_config = std::ffi::CString::new("s2twp")
+        let c_config = CString::new("s2twp")
             .expect("CString conversion failed")
             .into_raw();
         // Convert the input string to a C string
-        let c_input = std::ffi::CString::new(input)
+        let c_input = CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
         // Define the punctuation flag
@@ -386,7 +467,7 @@ mod tests {
         let input = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
 
         // Convert the input string to a C string (no leak: keep CString alive)
-        let c_input = std::ffi::CString::new(input).expect("CString conversion failed");
+        let c_input = CString::new(input).expect("CString conversion failed");
 
         // Use numeric config (OpenccConfig::S2twp == 3)
         let config: u32 = OpenccConfig::S2twp as u32;
