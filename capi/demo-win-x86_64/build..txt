@@ -11,7 +11,7 @@ g++ -o use_opencc_fmmseg_cpp use_opencc_fmmseg_cpp.cpp -I . -L. -lopencc_fmmseg_
 g++ -o use_opencc_fmmseg_len_cpp use_opencc_fmmseg_len_cpp.cpp -I . -L. -lopencc_fmmseg_capi
 cl /EHsc /I. use_opencc_fmmseg_cpp.cpp /link /OUT:use_opencc_fmmseg_cpp.exe opencc_fmmseg_capi.dll.lib
 
-(If cl (MSVC) save .c .cpp files in UTF-8 BOM format if using u8"" mutibytes unicode)
+(If cl (MSVC) save .c .cpp files in UTF-8 BOM format if using u8"" multibyte Unicode)
 
 === Header-Only Include Test ===
 g++ -std=c++17 ^

@@ -35,41 +35,41 @@ typedef uint32_t opencc_config_t;
  */
 enum {
     /** Simplified Chinese → Traditional Chinese */
-    OPENCC_CONFIG_S2T   = 1,
+    OPENCC_CONFIG_S2T = 1,
     /** Simplified → Traditional (Taiwan) */
-    OPENCC_CONFIG_S2TW  = 2,
+    OPENCC_CONFIG_S2TW = 2,
     /** Simplified → Traditional (Taiwan, with phrases) */
     OPENCC_CONFIG_S2TWP = 3,
     /** Simplified → Traditional (Hong Kong) */
-    OPENCC_CONFIG_S2HK  = 4,
+    OPENCC_CONFIG_S2HK = 4,
 
     /** Traditional Chinese → Simplified Chinese */
-    OPENCC_CONFIG_T2S   = 5,
+    OPENCC_CONFIG_T2S = 5,
     /** Traditional → Taiwan Traditional */
-    OPENCC_CONFIG_T2TW  = 6,
+    OPENCC_CONFIG_T2TW = 6,
     /** Traditional → Taiwan Traditional (with phrases) */
     OPENCC_CONFIG_T2TWP = 7,
     /** Traditional → Hong Kong Traditional */
-    OPENCC_CONFIG_T2HK  = 8,
+    OPENCC_CONFIG_T2HK = 8,
 
     /** Taiwan Traditional → Simplified */
-    OPENCC_CONFIG_TW2S  = 9,
+    OPENCC_CONFIG_TW2S = 9,
     /** Taiwan Traditional → Simplified (variant) */
     OPENCC_CONFIG_TW2SP = 10,
     /** Taiwan Traditional → Traditional */
-    OPENCC_CONFIG_TW2T  = 11,
+    OPENCC_CONFIG_TW2T = 11,
     /** Taiwan Traditional → Traditional (variant) */
     OPENCC_CONFIG_TW2TP = 12,
 
     /** Hong Kong Traditional → Simplified */
-    OPENCC_CONFIG_HK2S  = 13,
+    OPENCC_CONFIG_HK2S = 13,
     /** Hong Kong Traditional → Traditional */
-    OPENCC_CONFIG_HK2T  = 14,
+    OPENCC_CONFIG_HK2T = 14,
 
     /** Japanese Kanji variants → Traditional Chinese */
-    OPENCC_CONFIG_JP2T  = 15,
+    OPENCC_CONFIG_JP2T = 15,
     /** Traditional Chinese → Japanese Kanji variants */
-    OPENCC_CONFIG_T2JP  = 16
+    OPENCC_CONFIG_T2JP = 16
 };
 
 /**
@@ -146,16 +146,22 @@ char *opencc_convert_len(
  * writing the result into a caller-provided buffer.
  *
  * This is an advanced API for bindings / performance-sensitive code that wants
- * to reuse memory. The output length is variable, so this function follows a
+ * to reuse memory. Because the output length is variable, this function uses a
  * size-query pattern.
  *
  * Size-query usage:
  *  1) Call with out_buf = NULL or out_cap = 0 to query required bytes (incl. '\0'):
  *       size_t required = 0;
- *       opencc_convert_cfg_mem(inst, input, cfg, punct, NULL, 0, &required);
+ *       bool ok = opencc_convert_cfg_mem(inst, input, cfg, punct, NULL, 0, &required);
+ *       // ok == true means size-query succeeded (required is valid)
  *  2) Allocate a buffer of size `required`, then call again to write output:
  *       char* buf = (char*)malloc(required);
- *       opencc_convert_cfg_mem(inst, input, cfg, punct, buf, required, &required);
+ *       ok = opencc_convert_cfg_mem(inst, input, cfg, punct, buf, required, &required);
+ *
+ * Output contract:
+ * - If `out_required` is non-NULL, this function ALWAYS writes the required size
+ *   (in bytes, INCLUDING the trailing '\0'), even when the function returns false.
+ * - The output is always UTF-8 with a trailing '\0' when the function returns true.
  *
  * @param instance      A pointer to the OpenCC instance created by `opencc_new()`.
  * @param input         The input UTF-8 string to convert (null-terminated).
@@ -163,17 +169,24 @@ char *opencc_convert_len(
  * @param punctuation   Whether to convert punctuation (true = convert). Some configs may ignore it.
  * @param out_buf       Output buffer (caller-owned). May be NULL to query size.
  * @param out_cap       Output buffer capacity in bytes.
- * @param out_required  [out] Required bytes INCLUDING the trailing '\0'.
+ * @param out_required  [out] Required bytes INCLUDING the trailing '\0'. Must not be NULL.
  *
- * @return true on success (including the size-query call).
- *         false if out_required is NULL, or if out_cap is too small, or other hard failures.
+ * @return true  on success, including size-query calls (out_buf == NULL or out_cap == 0).
+ *         false on failure, including:
+ *               - out_required is NULL
+ *               - instance/input is NULL
+ *               - invalid UTF-8 input
+ *               - invalid config
+ *               - output contains an interior NUL byte
+ *               - out_cap is too small when out_buf is provided
  *
  * Error behavior:
- * - For invalid configs, this function behaves "self-protected": it produces an error message
- *   string like "Invalid config: 9999" as the output (if buffer is provided / large enough),
- *   and also sets `opencc_last_error()` to the same message.
- * - If out_cap is too small, it returns false, sets *out_required, and sets last_error to
- *   "Output buffer too small".
+ * - On failure, this function sets `opencc_last_error()` to a human-readable message.
+ * - If the caller provides a buffer, the function may also attempt to write an error
+ *   message into `out_buf` (e.g., "Invalid config: 9999"), provided the buffer is large enough.
+ *   Regardless, failure cases return false.
+ * - If the buffer is too small (including for writing an error message), the function returns false,
+ *   sets `*out_required`, and sets `opencc_last_error()` to "Output buffer too small".
  *
  * Ownership:
  * - The output buffer is owned and freed by the caller (e.g., free()).
@@ -279,7 +292,7 @@ void opencc_clear_last_error(void);
  * @param ptr A pointer to a string previously returned by `opencc_last_error()`.
  *            Passing NULL is safe and does nothing.
  */
-void opencc_error_free(char* ptr);
+void opencc_error_free(char *ptr);
 
 #ifdef __cplusplus
 }
