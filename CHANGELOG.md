@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## v0.8.4.2 - 2026-01-05
+## [0.8.4.2] - 2026-01-05
 
 ### Changed
 - C API: added helper functions for OpenCC configuration name / ID mapping:
