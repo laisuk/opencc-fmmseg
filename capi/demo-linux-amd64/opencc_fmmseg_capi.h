@@ -24,6 +24,9 @@ extern "C" {
  *
  * This parameter is passed by value and does NOT require allocation or
  * deallocation by the caller.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 typedef uint32_t opencc_config_t;
 
@@ -32,6 +35,9 @@ typedef uint32_t opencc_config_t;
  *
  * These constants are intended to be passed as `opencc_config_t` to
  * `opencc_convert_cfg()`.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 enum {
     /** Simplified Chinese → Traditional Chinese */
@@ -117,6 +123,9 @@ char *opencc_convert(const void *instance, const char *input, const char *config
  *         stores the same message internally (retrievable via `opencc_last_error()`).
  *
  *         Returns NULL only if `instance` or `input` is NULL, or if memory allocation fails.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 char *opencc_convert_cfg(const void *instance, const char *input, opencc_config_t config, bool punctuation);
 
@@ -146,16 +155,22 @@ char *opencc_convert_len(
  * writing the result into a caller-provided buffer.
  *
  * This is an advanced API for bindings / performance-sensitive code that wants
- * to reuse memory. The output length is variable, so this function follows a
+ * to reuse memory. Because the output length is variable, this function uses a
  * size-query pattern.
  *
  * Size-query usage:
  *  1) Call with out_buf = NULL or out_cap = 0 to query required bytes (incl. '\0'):
  *       size_t required = 0;
- *       opencc_convert_cfg_mem(inst, input, cfg, punct, NULL, 0, &required);
+ *       bool ok = opencc_convert_cfg_mem(inst, input, cfg, punct, NULL, 0, &required);
+ *       // ok == true means size-query succeeded (required is valid)
  *  2) Allocate a buffer of size `required`, then call again to write output:
  *       char* buf = (char*)malloc(required);
- *       opencc_convert_cfg_mem(inst, input, cfg, punct, buf, required, &required);
+ *       ok = opencc_convert_cfg_mem(inst, input, cfg, punct, buf, required, &required);
+ *
+ * Output contract:
+ * - If `out_required` is non-NULL, this function ALWAYS writes the required size
+ *   (in bytes, INCLUDING the trailing '\0'), even when the function returns false.
+ * - The output is always UTF-8 with a trailing '\0' when the function returns true.
  *
  * @param instance      A pointer to the OpenCC instance created by `opencc_new()`.
  * @param input         The input UTF-8 string to convert (null-terminated).
@@ -163,21 +178,31 @@ char *opencc_convert_len(
  * @param punctuation   Whether to convert punctuation (true = convert). Some configs may ignore it.
  * @param out_buf       Output buffer (caller-owned). May be NULL to query size.
  * @param out_cap       Output buffer capacity in bytes.
- * @param out_required  [out] Required bytes INCLUDING the trailing '\0'.
+ * @param out_required  [out] Required bytes INCLUDING the trailing '\0'. Must not be NULL.
  *
- * @return true on success (including the size-query call).
- *         false if out_required is NULL, or if out_cap is too small, or other hard failures.
+ * @return true  on success, including size-query calls (out_buf == NULL or out_cap == 0).
+ *         false on failure, including:
+ *               - out_required is NULL
+ *               - instance/input is NULL
+ *               - invalid UTF-8 input
+ *               - invalid config
+ *               - output contains an interior NUL byte
+ *               - out_cap is too small when out_buf is provided
  *
  * Error behavior:
- * - For invalid configs, this function behaves "self-protected": it produces an error message
- *   string like "Invalid config: 9999" as the output (if buffer is provided / large enough),
- *   and also sets `opencc_last_error()` to the same message.
- * - If out_cap is too small, it returns false, sets *out_required, and sets last_error to
- *   "Output buffer too small".
+ * - On failure, this function sets `opencc_last_error()` to a human-readable message.
+ * - If the caller provides a buffer, the function may also attempt to write an error
+ *   message into `out_buf` (e.g., "Invalid config: 9999"), provided the buffer is large enough.
+ *   Regardless, failure cases return false.
+ * - If the buffer is too small (including for writing an error message), the function returns false,
+ *   sets `*out_required`, and sets `opencc_last_error()` to "Output buffer too small".
  *
  * Ownership:
  * - The output buffer is owned and freed by the caller (e.g., free()).
  * - Do NOT call `opencc_string_free()` on out_buf.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 bool opencc_convert_cfg_mem(
     const void *instance,
@@ -280,6 +305,62 @@ void opencc_clear_last_error(void);
  *            Passing NULL is safe and does nothing.
  */
 void opencc_error_free(char *ptr);
+
+/**
+ * Converts an OpenCC canonical configuration name to its numeric configuration ID.
+ *
+ * This function maps a UTF-8 configuration name such as `"s2t"`, `"s2tw"`, or `"s2twp"`
+ * to the corresponding numeric `opencc_config_t` value used by the OpenCC core.
+ *
+ * The comparison is case-insensitive and accepts only the canonical OpenCC
+ * identifiers. No memory allocation is performed.
+ *
+ * This API is intended for language bindings and applications that accept
+ * user-facing string configuration names but must call the native OpenCC
+ * API using numeric configuration IDs.
+ *
+ * @param name_utf8
+ *     A null-terminated UTF-8 string containing the canonical OpenCC
+ *     configuration name (e.g. `"s2twp"`).
+ *
+ * @param out_id
+ *     Output pointer that receives the corresponding numeric configuration ID
+ *     on success.
+ *
+ * @return
+ *     Returns `true` on success.
+ *     Returns `false` if `name_utf8` is NULL, `out_id` is NULL, or the name
+ *     is not a valid OpenCC configuration identifier.
+ *
+ * @since
+ *     Available since v0.8.4.
+ */
+bool opencc_config_name_to_id(const char* name_utf8, opencc_config_t* out_id);
+
+/**
+ * Converts a numeric OpenCC configuration ID to its canonical configuration name.
+ *
+ * This function returns the canonical, lowercase OpenCC configuration name
+ * (e.g. `"s2twp"`) corresponding to a numeric `opencc_config_t` value.
+ *
+ * The returned pointer refers to a static, null-terminated UTF-8 string and
+ * remains valid for the lifetime of the program. The caller must not modify
+ * or free the returned string.
+ *
+ * This API is primarily intended for debugging, logging, and user interface
+ * display purposes.
+ *
+ * @param id
+ *     A numeric OpenCC configuration ID (`opencc_config_t`).
+ *
+ * @return
+ *     A pointer to a static UTF-8 string containing the canonical configuration
+ *     name, or NULL if `id` is not a valid OpenCC configuration value.
+ *
+ * @since
+ *     Available since v0.8.4.
+ */
+const char* opencc_config_id_to_name(opencc_config_t id);
 
 #ifdef __cplusplus
 }
