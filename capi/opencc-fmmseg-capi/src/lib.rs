@@ -366,6 +366,127 @@ pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
     }
 }
 
+// ------ Enum Helpers ------
+
+#[no_mangle]
+pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mut u32) -> u8 {
+    if name_utf8.is_null() || out_id.is_null() {
+        return 0;
+    }
+
+    let s = unsafe { CStr::from_ptr(name_utf8) };
+    let bytes = s.to_bytes();
+
+    // ASCII-only canonical names: s2t, s2tw, ...
+    // Case-insensitive without allocation:
+    let id = match_ascii_config_name(bytes);
+
+    match id {
+        Some(v) => {
+            unsafe {
+                *out_id = v;
+            }
+            1
+        }
+        None => 0,
+    }
+}
+
+#[inline]
+fn eq_ascii_ci(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter()
+        .zip(b.iter())
+        .all(|(&x, &y)| x.to_ascii_lowercase() == y)
+}
+
+#[inline]
+fn match_ascii_config_name(bytes: &[u8]) -> Option<u32> {
+    // Optional: reject weird bytes quickly
+    if !bytes.iter().all(|&b| b.is_ascii_alphanumeric()) {
+        return None;
+    }
+
+    // Note: keep this table as the single owner (same as enum values).
+    if eq_ascii_ci(bytes, b"s2t") {
+        return Some(1);
+    }
+    if eq_ascii_ci(bytes, b"s2tw") {
+        return Some(2);
+    }
+    if eq_ascii_ci(bytes, b"s2twp") {
+        return Some(3);
+    }
+    if eq_ascii_ci(bytes, b"s2hk") {
+        return Some(4);
+    }
+    if eq_ascii_ci(bytes, b"t2s") {
+        return Some(5);
+    }
+    if eq_ascii_ci(bytes, b"t2tw") {
+        return Some(6);
+    }
+    if eq_ascii_ci(bytes, b"t2twp") {
+        return Some(7);
+    }
+    if eq_ascii_ci(bytes, b"t2hk") {
+        return Some(8);
+    }
+    if eq_ascii_ci(bytes, b"tw2s") {
+        return Some(9);
+    }
+    if eq_ascii_ci(bytes, b"tw2sp") {
+        return Some(10);
+    }
+    if eq_ascii_ci(bytes, b"tw2t") {
+        return Some(11);
+    }
+    if eq_ascii_ci(bytes, b"tw2tp") {
+        return Some(12);
+    }
+    if eq_ascii_ci(bytes, b"hk2s") {
+        return Some(13);
+    }
+    if eq_ascii_ci(bytes, b"hk2t") {
+        return Some(14);
+    }
+    if eq_ascii_ci(bytes, b"jp2t") {
+        return Some(15);
+    }
+    if eq_ascii_ci(bytes, b"t2jp") {
+        return Some(16);
+    }
+
+    None
+}
+
+#[no_mangle]
+pub extern "C" fn opencc_config_id_to_name(id: u32) -> *const c_char {
+    // Return pointers to static NUL-terminated strings.
+    // These are safe to hand out across FFI forever.
+    match id {
+        1 => b"s2t\0".as_ptr() as *const c_char,
+        2 => b"s2tw\0".as_ptr() as *const c_char,
+        3 => b"s2twp\0".as_ptr() as *const c_char,
+        4 => b"s2hk\0".as_ptr() as *const c_char,
+        5 => b"t2s\0".as_ptr() as *const c_char,
+        6 => b"t2tw\0".as_ptr() as *const c_char,
+        7 => b"t2twp\0".as_ptr() as *const c_char,
+        8 => b"t2hk\0".as_ptr() as *const c_char,
+        9 => b"tw2s\0".as_ptr() as *const c_char,
+        10 => b"tw2sp\0".as_ptr() as *const c_char,
+        11 => b"tw2t\0".as_ptr() as *const c_char,
+        12 => b"tw2tp\0".as_ptr() as *const c_char,
+        13 => b"hk2s\0".as_ptr() as *const c_char,
+        14 => b"hk2t\0".as_ptr() as *const c_char,
+        15 => b"jp2t\0".as_ptr() as *const c_char,
+        16 => b"t2jp\0".as_ptr() as *const c_char,
+        _ => ptr::null(),
+    }
+}
+
 // ------ C API Tests ------
 
 #[cfg(test)]

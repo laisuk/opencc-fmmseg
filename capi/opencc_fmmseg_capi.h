@@ -294,6 +294,62 @@ void opencc_clear_last_error(void);
  */
 void opencc_error_free(char *ptr);
 
+/**
+ * Converts an OpenCC canonical configuration name to its numeric configuration ID.
+ *
+ * This function maps a UTF-8 configuration name such as `"s2t"`, `"s2tw"`, or `"s2twp"`
+ * to the corresponding numeric `opencc_config_t` value used by the OpenCC core.
+ *
+ * The comparison is case-insensitive and accepts only the canonical OpenCC
+ * identifiers. No memory allocation is performed.
+ *
+ * This API is intended for language bindings and applications that accept
+ * user-facing string configuration names but must call the native OpenCC
+ * API using numeric configuration IDs.
+ *
+ * @param name_utf8
+ *     A null-terminated UTF-8 string containing the canonical OpenCC
+ *     configuration name (e.g. `"s2twp"`).
+ *
+ * @param out_id
+ *     Output pointer that receives the corresponding numeric configuration ID
+ *     on success.
+ *
+ * @return
+ *     Returns `true` on success.
+ *     Returns `false` if `name_utf8` is NULL, `out_id` is NULL, or the name
+ *     is not a valid OpenCC configuration identifier.
+ *
+ * @since
+ *     Available since v0.8.4.
+ */
+bool opencc_config_name_to_id(const char* name_utf8, opencc_config_t* out_id);
+
+/**
+ * Converts a numeric OpenCC configuration ID to its canonical configuration name.
+ *
+ * This function returns the canonical, lowercase OpenCC configuration name
+ * (e.g. `"s2twp"`) corresponding to a numeric `opencc_config_t` value.
+ *
+ * The returned pointer refers to a static, null-terminated UTF-8 string and
+ * remains valid for the lifetime of the program. The caller must not modify
+ * or free the returned string.
+ *
+ * This API is primarily intended for debugging, logging, and user interface
+ * display purposes.
+ *
+ * @param id
+ *     A numeric OpenCC configuration ID (`opencc_config_t`).
+ *
+ * @return
+ *     A pointer to a static UTF-8 string containing the canonical configuration
+ *     name, or NULL if `id` is not a valid OpenCC configuration value.
+ *
+ * @since
+ *     Available since v0.8.4.
+ */
+const char* opencc_config_id_to_name(opencc_config_t id);
+
 #ifdef __cplusplus
 }
 #endif
