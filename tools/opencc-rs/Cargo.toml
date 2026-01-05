@@ -14,15 +14,15 @@ encoding_rs = "0.8.35"
 encoding_rs_io = "0.1.7"
 regex = "1.12.2"
 # Keep zip MSRV-safe for 1.75 (3.x, not 4.x):
-zip = "=3.0.0"
+zip = { version = "=3.0.0", default-features = false, features = ["deflate"] }
 tempfile = "3.24.0"
 walkdir = "2.5.0"
 
 # For toolchain 1.75.0 compatibility:
+# indexmap = "=2.11.4"
 # crc= "=3.3.0"
 # time = "=0.3.41"
 # time-core = "=0.1.4"
-# indexmap = "=2.11.4"
 # deranged = "=0.4.0"
 
 [build-dependencies]
