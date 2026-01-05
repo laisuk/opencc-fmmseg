@@ -81,11 +81,7 @@ pub extern "C" fn opencc_convert_cfg_mem(
     out_buf: *mut c_char,
     out_cap: usize,
     out_required: *mut usize,
-) -> bool {
-    use std::ffi::CStr;
-    use std::os::raw::c_char;
-    use std::ptr;
-
+) -> bool {    
     // Must be able to report required size.
     if out_required.is_null() {
         return false;
