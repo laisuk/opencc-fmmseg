@@ -18,12 +18,17 @@ int main(int argc, char **argv) {
 
     // Call the length-based version
     char *result = opencc_convert_len(opencc, text, strlen(text), config, true);
-
-    code = opencc_zho_check(opencc, result);
     char *last_error = opencc_last_error();
-    printf("Converted: %s\n", result);
-    printf("Converted Code: %d\n", code);
-    printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
+
+    if (result == NULL) {
+        printf("Converted: (null)\n");
+        printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
+    } else {
+        printf("Converted: %s\n", result);
+        int code2 = opencc_zho_check(opencc, result);
+        printf("Converted Code: %d\n", code2);
+        printf("Last Error: %s\n", last_error == NULL ? "No error" : last_error);
+    }
 
     if (last_error != NULL) {
         opencc_error_free(last_error);

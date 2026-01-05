@@ -24,6 +24,9 @@ extern "C" {
  *
  * This parameter is passed by value and does NOT require allocation or
  * deallocation by the caller.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 typedef uint32_t opencc_config_t;
 
@@ -32,6 +35,9 @@ typedef uint32_t opencc_config_t;
  *
  * These constants are intended to be passed as `opencc_config_t` to
  * `opencc_convert_cfg()`.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 enum {
     /** Simplified Chinese → Traditional Chinese */
@@ -117,6 +123,9 @@ char *opencc_convert(const void *instance, const char *input, const char *config
  *         stores the same message internally (retrievable via `opencc_last_error()`).
  *
  *         Returns NULL only if `instance` or `input` is NULL, or if memory allocation fails.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 char *opencc_convert_cfg(const void *instance, const char *input, opencc_config_t config, bool punctuation);
 
@@ -191,6 +200,9 @@ char *opencc_convert_len(
  * Ownership:
  * - The output buffer is owned and freed by the caller (e.g., free()).
  * - Do NOT call `opencc_string_free()` on out_buf.
+ *
+ * @since
+ *     Available since v0.8.4.
  */
 bool opencc_convert_cfg_mem(
     const void *instance,

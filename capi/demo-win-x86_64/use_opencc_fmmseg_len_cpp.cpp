@@ -14,11 +14,25 @@ int main(int argc, char **argv) {
     auto code = opencc_zho_check(opencc, text);
     std::cout << "Text Code: " << code << "\n";
     char *result = opencc_convert_len(opencc, text, strlen(text), config, true);
-    code = opencc_zho_check(opencc, result);
     char *last_error = opencc_last_error();
-    std::cout << "Converted: " << result << "\n";
-    std::cout << "Converted Code: " << code << "\n";
-    std::cout << "Last Error: " << (last_error == NULL ? "No error" : last_error) << "\n";
+
+    if (result == nullptr) {
+        std::cout << "Converted: (null)\n";
+        std::cout << "Last Error: "
+                  << (last_error == nullptr ? "No error" : last_error)
+                  << "\n";
+    } else {
+        std::cout << "Converted: " << result << "\n";
+        std::cout << "Last Error: "
+                  << (last_error == nullptr ? "No error" : last_error)
+                  << "\n";
+
+        // Only classify language if conversion truly succeeded
+        if (last_error == nullptr) {
+            int code = opencc_zho_check(opencc, result);
+            std::cout << "Converted Code: " << code << "\n";
+        }
+    }
 
     if (last_error != NULL) {
         opencc_error_free(last_error);

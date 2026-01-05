@@ -284,29 +284,46 @@ pub extern "C" fn opencc_convert_len(
     config: *const c_char,
     punctuation: bool,
 ) -> *mut c_char {
+    // Align with convert()/convert_cfg(): NULL args are programmer errors => NULL + last_error
     if instance.is_null() || input.is_null() || config.is_null() {
+        OpenCC::set_last_error("Invalid argument: instance/input/config is NULL");
         return ptr::null_mut();
     }
 
     let opencc = unsafe { &*instance };
 
-    let input_slice = unsafe { std::slice::from_raw_parts(input as *const u8, input_len) };
+    // SAFETY: caller provided explicit length
+    let input_bytes = unsafe { std::slice::from_raw_parts(input as *const u8, input_len) };
 
-    let input_str = match std::str::from_utf8(input_slice) {
-        Ok(s) => std::borrow::Cow::Borrowed(s),
-        Err(e) => {
-            OpenCC::set_last_error(&format!("Invalid UTF-8 input: {}", e));
-            std::borrow::Cow::Owned(String::from_utf8_lossy(input_slice).into_owned())
-        }
+    // Strict UTF-8, no lossy recovery (align with decode_utf8() gate behavior)
+    let input_str = match std::str::from_utf8(input_bytes) {
+        Ok(s) => s,
+        Err(_) => return fail("Invalid UTF-8 input"),
     };
 
-    let config_str = unsafe { CStr::from_ptr(config).to_str().unwrap_or("") };
+    // Strict UTF-8 for config, same error message as decode_utf8("config")
+    let config_str = match unsafe { CStr::from_ptr(config) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return fail("Invalid UTF-8 config string"),
+    };
 
-    let result = opencc.convert(&*input_str, config_str, punctuation);
+    // Same config validation semantics as opencc_convert()
+    let cfg = match OpenccConfig::try_from(config_str) {
+        Ok(c) => c,
+        Err(_) => return fail(&format!("Invalid config: {}", config_str)),
+    };
 
-    CString::new(result)
-        .unwrap_or_else(|_| CString::new("").unwrap())
-        .into_raw()
+    // Convert
+    let result = opencc.convert_with_config(input_str, cfg, punctuation);
+
+    // Same NUL gate as convert_core()
+    match CString::new(result) {
+        Ok(cstr) => {
+            OpenCC::clear_last_error();
+            cstr.into_raw()
+        }
+        Err(_) => fail("Output contains NUL byte"),
+    }
 }
 
 // Remember to free the memory allocated for the result string from C code
@@ -366,8 +383,9 @@ pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
     }
 }
 
-// ------ Enum Helpers ------
+// ------ Config Enum Helpers ------
 
+// Available since v0.8.4
 #[no_mangle]
 pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mut u32) -> u8 {
     if name_utf8.is_null() || out_id.is_null() {
@@ -390,16 +408,6 @@ pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mu
         }
         None => 0,
     }
-}
-
-#[inline]
-fn eq_ascii_ci(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    a.iter()
-        .zip(b.iter())
-        .all(|(&x, &y)| x.to_ascii_lowercase() == y)
 }
 
 #[inline]
@@ -462,6 +470,17 @@ fn match_ascii_config_name(bytes: &[u8]) -> Option<u32> {
     None
 }
 
+#[inline]
+fn eq_ascii_ci(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter()
+        .zip(b.iter())
+        .all(|(&x, &y)| x.to_ascii_lowercase() == y)
+}
+
+// Available since v0.8.4
 #[no_mangle]
 pub extern "C" fn opencc_config_id_to_name(id: u32) -> *const c_char {
     // Return pointers to static NUL-terminated strings.
