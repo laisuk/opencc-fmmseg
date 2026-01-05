@@ -8,12 +8,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## v0.8.4.2 - 2026-01-05
 
-### Added
-- Added C API helpers for OpenCC configuration name / ID mapping:
+### Changed
+- C API: added helper functions for OpenCC configuration name / ID mapping:
   - `opencc_config_name_to_id()`
   - `opencc_config_id_to_name()`
 - Enables clean, allocation-free Name ↔ ID conversion for bindings
   (C / C++ / C# / Python / Java)
+- C API: align deprecated `opencc_convert_len()` error behavior with
+  `opencc_convert()` / `opencc_convert_cfg()`.
 
 ### Notes
 - No breaking changes
