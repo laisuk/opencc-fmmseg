@@ -23,7 +23,7 @@ fn main() {
         res.set("ProductName", "Opencc-Fmmseg C API");
         res.set("CompanyName", &authors);
         res.set("LegalCopyright", "© Laisuk. MIT License");
-        res.set("OriginalFilename", "opencc_fmmseg_capi");
+        res.set("OriginalFilename", "opencc_fmmseg_capi.dll");
         res.set("InternalName", &name);
         res.set("Comments", "Built with Rust and Opencc-Fmmseg libraries.");
         res.set("FileVersion", &ver_commas);

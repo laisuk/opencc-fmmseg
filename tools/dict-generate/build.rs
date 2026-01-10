@@ -9,10 +9,10 @@ fn main() {
 
         // Cargo metadata
         let ver = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0.0".into());
-        let name = env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "opencc-rs".into());
+        let name = env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "dict-generate".into());
         let authors = env::var("CARGO_PKG_AUTHORS").unwrap_or_else(|_| "Laisuk".into());
         let desc = env::var("CARGO_PKG_DESCRIPTION").unwrap_or_else(|_| {
-            "Opencc-Fmmseg CLI (Simplified/Traditional Chinese Converter)".into()
+            "Opencc-Fmmseg dictionary generator tool".into()
         });
 
         // Version fields (Windows expects comma-separated numerics)
@@ -20,7 +20,7 @@ fn main() {
 
         // Set rich metadata fields
         res.set("FileDescription", &desc);
-        res.set("ProductName", "opencc-rs");
+        res.set("ProductName", "dict-generate");
         res.set("CompanyName", &authors);
         res.set("LegalCopyright", "© Laisuk. MIT License");
         res.set("OriginalFilename", "dict-generate.exe");
