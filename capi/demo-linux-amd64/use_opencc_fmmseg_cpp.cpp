@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <cstring>
 #include "opencc_fmmseg_capi.h"
 
 static void print_last_error_and_free() {
@@ -109,6 +110,65 @@ int main(int argc, char **argv) {
             print_last_error_and_free();
         }
     }
+
+    // ---------------------------------------------------------------------
+    // Test 5: Config name/id helpers (pure C API, C++ caller)
+    // ---------------------------------------------------------------------
+    printf("\n== Test 5: opencc_config_name_to_id / opencc_config_id_to_name (C API) ==\n");
+
+    // 5.1) name -> id
+    opencc_config_t id_from_name = 0;
+    bool ok_name_to_id = opencc_config_name_to_id("s2twp", &id_from_name);
+
+    printf("name_to_id(\"s2twp\") => ok=%d, id=%u\n",
+           (int)ok_name_to_id, (unsigned)id_from_name);
+
+    if (ok_name_to_id && id_from_name == OPENCC_CONFIG_S2TWP) {
+        printf("✔ ASSERT: name -> id matches OPENCC_CONFIG_S2TWP\n");
+    } else {
+        printf("❌ ASSERT FAILED: expected id=%u\n",
+               (unsigned)OPENCC_CONFIG_S2TWP);
+    }
+
+    // 5.2) id -> name (round trip)
+    const char* name_from_id = opencc_config_id_to_name(id_from_name);
+
+    printf("id_to_name(%u) => %s\n",
+           (unsigned)id_from_name,
+           name_from_id ? name_from_id : "(null)");
+
+    if (name_from_id && strcmp(name_from_id, "s2twp") == 0) {
+        printf("✔ ASSERT: id -> name round-trip OK\n");
+    } else {
+        printf("❌ ASSERT FAILED: expected name=\"s2twp\"\n");
+    }
+
+    // 5.3) negative: invalid name
+    opencc_config_t dummy = 0;
+    bool ok_bad_name = opencc_config_name_to_id("not-a-config", &dummy);
+
+    printf("name_to_id(\"not-a-config\") => ok=%d\n", (int)ok_bad_name);
+
+    if (!ok_bad_name) {
+        printf("✔ ASSERT: invalid config name rejected\n");
+    } else {
+        printf("❌ ASSERT FAILED: invalid name should not succeed\n");
+    }
+
+    // 5.4) negative: invalid id
+    const char* bad_id_name = opencc_config_id_to_name((opencc_config_t)9999);
+
+    printf("id_to_name(9999) => %s\n",
+           bad_id_name ? bad_id_name : "(null)");
+
+    if (bad_id_name == NULL) {
+        printf("✔ ASSERT: invalid config id rejected\n");
+    } else {
+        printf("❌ ASSERT FAILED: invalid id should return NULL\n");
+    }
+
+    // Optional: error state should remain clean
+    print_last_error_and_free();
 
     // ---------------------------------------------------------------------
     // Cleanup
