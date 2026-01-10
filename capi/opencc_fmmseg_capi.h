@@ -87,10 +87,10 @@ enum {
 uint32_t opencc_abi_number(void);
 
 /**
- * Returns the OpenCC-FMMSEG version string (UTF-8).
+ * Returns the OpenCC-FMMSEG version string (null-terminated UTF-8).
  *
  * Example: "0.8.4"
- * The returned pointer is valid for the lifetime of the program.
+ * The returned pointer is valid for the lifetime of the program and MUST NOT be freed.
  */
 const char* opencc_version_string(void);
 
