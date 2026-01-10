@@ -1,7 +1,37 @@
-use opencc_fmmseg::{OpenCC, OpenccConfig};
+use opencc_fmmseg::opencc_config::OpenccConfig;
+use opencc_fmmseg::OpenCC;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
+
+const OPENCC_ABI_NUMBER: u32 = 1;
+
+/// Returns the C ABI version number.
+/// This value changes ONLY when the C ABI is broken.
+#[no_mangle]
+pub extern "C" fn opencc_abi_number() -> u32 {
+    OPENCC_ABI_NUMBER
+}
+
+/// Returns the OpenCC-FMMSEG version string (UTF-8, null-terminated).
+/// Example: "0.8.4"
+///
+/// The returned pointer is valid for the lifetime of the program.
+#[no_mangle]
+pub extern "C" fn opencc_version_string() -> *const c_char {
+    // Compile-time version from Cargo.toml
+    static VERSION: &str = env!("CARGO_PKG_VERSION");
+
+    // Leak once, safe by design (process lifetime)
+    static mut CSTR: *const c_char = ptr::null();
+
+    unsafe {
+        if CSTR.is_null() {
+            CSTR = CString::new(VERSION).unwrap().into_raw();
+        }
+        CSTR
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn opencc_new() -> *mut OpenCC {
@@ -81,7 +111,7 @@ pub extern "C" fn opencc_convert_cfg_mem(
     out_buf: *mut c_char,
     out_cap: usize,
     out_required: *mut usize,
-) -> bool {    
+) -> bool {
     // Must be able to report required size.
     if out_required.is_null() {
         return false;
@@ -684,5 +714,30 @@ mod tests {
                 msg
             }
         }
+    }
+
+    #[test]
+    fn opencc_abi_number_is_non_zero_and_stable() {
+        let abi = opencc_abi_number();
+
+        // ABI must be non-zero
+        assert!(abi > 0, "ABI number must be non-zero");
+
+        // Optional: lock current ABI if you want strict guarantee
+        assert_eq!(abi, 1, "Unexpected OpenCC C API ABI number");
+    }
+
+    #[test]
+    fn opencc_version_string_is_valid_utf8_and_non_empty() {
+        use std::ffi::CStr;
+
+        let ptr = opencc_version_string();
+        assert!(!ptr.is_null(), "Version string pointer must not be null");
+
+        let ver = unsafe { CStr::from_ptr(ptr) }
+            .to_str()
+            .expect("Version string must be valid UTF-8");
+
+        assert!(!ver.is_empty(), "Version string must not be empty");
     }
 }

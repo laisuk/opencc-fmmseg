@@ -12,3 +12,6 @@ opencc-fmmseg = { path = "../.." }
 
 [lib]
 crate-type = ["cdylib"]
+
+[build-dependencies]
+winres = "0.1.12"
