@@ -2,13 +2,12 @@
 name = "dict-generate"
 version = "0.8.4"
 edition = "2021"
-#rust-version = "1.75"
 
 [dependencies]
 opencc-fmmseg = { path = "../.." }
 clap = "4.5.54"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.148"
+serde_json = "1.0.149"
 serde_cbor = "0.11.2"
 rustc-hash = "2.1.1"
 

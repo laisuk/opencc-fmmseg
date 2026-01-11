@@ -2,7 +2,6 @@
 name = "opencc-fmmseg-capi"
 version = "0.8.4"
 edition = "2021"
-#rust-version = "1.75"
 
 [package.metadata.capi]
 revision = 3
