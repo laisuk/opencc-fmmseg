@@ -79,6 +79,22 @@ enum {
 };
 
 /**
+ * Returns the C ABI version number.
+ *
+ * This value is intended for runtime compatibility checks.
+ * It only changes when the C ABI is broken.
+ */
+uint32_t opencc_abi_number(void);
+
+/**
+ * Returns the OpenCC-FMMSEG version string (null-terminated UTF-8).
+ *
+ * Example: "0.8.4"
+ * The returned pointer is valid for the lifetime of the program and MUST NOT be freed.
+ */
+const char* opencc_version_string(void);
+
+/**
  * Creates and initializes a new OpenCC FMMSEG instance.
  *
  * This function allocates and returns a new instance used for conversion.
