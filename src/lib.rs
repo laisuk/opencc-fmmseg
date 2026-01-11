@@ -32,7 +32,7 @@ mod dict_refs;
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
 pub mod utils;
-pub mod opencc_config;
+mod opencc_config;
 
 use crate::delimiter_set::is_delimiter;
 pub use crate::dict_refs::DictRefs;
@@ -40,7 +40,7 @@ use crate::dictionary_lib::dictionary_maxlength::UnionKey;
 use crate::dictionary_lib::StarterUnion;
 use dictionary_lib::dict_max_len::DictMaxLen;
 use dictionary_lib::DictionaryMaxlength;
-pub use opencc_config::*;
+pub use opencc_config::OpenccConfig;
 
 /// Thread-safe holder for the last error message (if any).
 static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
@@ -1368,7 +1368,7 @@ impl OpenCC {
     /// # Arguments
     ///
     /// * `input` - UTF-8 text to convert.
-    /// * `config` - Conversion configuration.
+    /// * `config_id` - Conversion configuration.
     /// * `punctuation` - Whether to apply punctuation conversion where supported.
     ///   For some configs, this flag is **ignored** (see [`OpenccConfig`] table).
     ///
@@ -1384,10 +1384,10 @@ impl OpenCC {
     pub fn convert_with_config(
         &self,
         input: &str,
-        config: OpenccConfig,
+        config_id: OpenccConfig,
         punctuation: bool,
     ) -> String {
-        match config {
+        match config_id {
             OpenccConfig::S2t => self.s2t(input, punctuation),
             OpenccConfig::S2tw => self.s2tw(input, punctuation),
             OpenccConfig::S2twp => self.s2twp(input, punctuation),

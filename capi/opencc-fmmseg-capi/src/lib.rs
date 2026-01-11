@@ -1,4 +1,4 @@
-use opencc_fmmseg::opencc_config::OpenccConfig;
+use opencc_fmmseg::OpenccConfig;
 use opencc_fmmseg::OpenCC;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;

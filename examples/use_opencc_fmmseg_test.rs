@@ -1,5 +1,5 @@
 use opencc_fmmseg::{OpenCC};
-use opencc_fmmseg::opencc_config::OpenccConfig;
+use opencc_fmmseg::OpenccConfig;
 
 fn main() {
     // ---------------------------------------------------------------------
