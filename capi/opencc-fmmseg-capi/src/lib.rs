@@ -33,11 +33,21 @@ pub extern "C" fn opencc_version_string() -> *const c_char {
     }
 }
 
+/// C API function `opencc_new`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_new() -> *mut OpenCC {
     Box::into_raw(Box::new(OpenCC::new()))
 }
 
+/// C API function `opencc_delete`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_delete(instance: *mut OpenCC) {
     if !instance.is_null() {
@@ -48,6 +58,11 @@ pub extern "C" fn opencc_delete(instance: *mut OpenCC) {
 }
 
 #[deprecated(note = "Use `opencc_delete` instead")]
+/// C API function `opencc_free`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_free(instance: *mut OpenCC) {
     if !instance.is_null() {
@@ -57,18 +72,33 @@ pub extern "C" fn opencc_free(instance: *mut OpenCC) {
     }
 }
 
+/// C API function `opencc_get_parallel`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_get_parallel(instance: *mut OpenCC) -> bool {
     let opencc = unsafe { &*instance };
     opencc.get_parallel()
 }
 
+/// C API function `opencc_set_parallel`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_set_parallel(instance: *mut OpenCC, is_parallel: bool) {
     let opencc = unsafe { &mut *instance };
     opencc.set_parallel(is_parallel);
 }
 
+/// C API function `opencc_convert`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_convert(
     instance: *const OpenCC,
@@ -89,6 +119,11 @@ pub extern "C" fn opencc_convert(
 }
 
 // Available since v0.8.4
+/// C API function `opencc_convert_cfg`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_convert_cfg(
     instance: *const OpenCC,
@@ -102,6 +137,11 @@ pub extern "C" fn opencc_convert_cfg(
 }
 
 // Available since v0.8.4
+/// C API function `opencc_convert_cfg_mem`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_convert_cfg_mem(
     instance: *const OpenCC,
@@ -302,6 +342,11 @@ where
 }
 
 #[deprecated(note = "Use `opencc_convert()` or `opencc_convert_cfg` instead")]
+/// C API function `opencc_convert_len`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_convert_len(
     instance: *const OpenCC,
@@ -353,6 +398,11 @@ pub extern "C" fn opencc_convert_len(
 }
 
 // Remember to free the memory allocated for the result string from C code
+/// C API function `opencc_string_free`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_string_free(ptr: *mut c_char) {
     if !ptr.is_null() {
@@ -362,6 +412,11 @@ pub extern "C" fn opencc_string_free(ptr: *mut c_char) {
     }
 }
 
+/// C API function `opencc_zho_check`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_zho_check(instance: *const OpenCC, input: *const c_char) -> i32 {
     if instance.is_null() {
@@ -376,6 +431,11 @@ pub extern "C" fn opencc_zho_check(instance: *const OpenCC, input: *const c_char
     opencc.zho_check(str_slice)
 }
 
+/// C API function `opencc_last_error`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_last_error() -> *mut c_char {
     // Contract:
@@ -394,11 +454,21 @@ pub extern "C" fn opencc_last_error() -> *mut c_char {
 }
 
 // Available since v0.8.4
+/// C API function `opencc_clear_last_error`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_clear_last_error() {
     OpenCC::clear_last_error();
 }
 
+/// C API function `opencc_error_free`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
     if !ptr.is_null() {
@@ -412,6 +482,11 @@ pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
 // ------ Config Enum Helpers ------
 
 // Available since v0.8.4
+/// C API function `opencc_config_name_to_id`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mut u32) -> u8 {
     if name_utf8.is_null() || out_id.is_null() {
@@ -507,6 +582,11 @@ fn eq_ascii_ci(a: &[u8], b: &[u8]) -> bool {
 }
 
 // Available since v0.8.4
+/// C API function `opencc_config_id_to_name`.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_config_id_to_name(id: u32) -> *const c_char {
     // Return pointers to static NUL-terminated strings.
@@ -544,7 +624,7 @@ mod tests {
         let opencc = OpenCC::new();
         // Define a sample input string
         let input = "你好，世界，欢迎"; // Chinese characters meaning "Hello, world!"
-                                        // Convert the input string to a C string
+        // Convert the input string to a C string
         let c_input = CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
