@@ -23,6 +23,43 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // ---------------------------------------------------------------------
+    // Test 0: C API info (ABI number / version string)
+    // ---------------------------------------------------------------------
+    printf("\n== Test 0: C API info (opencc_abi_number / opencc_version_string) ==\n");
+
+    uint32_t abi = opencc_abi_number();
+    const char* ver = opencc_version_string();
+
+    printf("ABI number     : %u\n", (unsigned)abi);
+    printf("Version string : %s\n", ver ? ver : "(null)");
+
+    if (abi > 0) {
+        printf("✔ ASSERT: ABI number is non-zero\n");
+    } else {
+        printf("❌ ASSERT FAILED: ABI number must be non-zero\n");
+    }
+
+    if (ver && ver[0] != '\0') {
+        printf("✔ ASSERT: version string is non-empty\n");
+    } else {
+        printf("❌ ASSERT FAILED: version string must be non-null and non-empty\n");
+    }
+
+    // Optional (strict): ensure it's the same as the package version you expect.
+    // Comment out if you don't want strict pinning in demo code.
+    // if (ver && strcmp(ver, "0.8.4.2") == 0) {
+    //     printf("✔ ASSERT: version string matches expected\n");
+    // } else {
+    //     printf("⚠ NOTE: version string differs from expected build tag\n");
+    // }
+
+    // Optional: last error should typically be empty / unchanged after info calls
+    print_last_error_and_free();
+    printf("\n");
+
+    // ------ test 0 End ------
+
     bool is_parallel = opencc_get_parallel(opencc);
     printf("OpenCC is_parallel: %d\n", (int)is_parallel);
 

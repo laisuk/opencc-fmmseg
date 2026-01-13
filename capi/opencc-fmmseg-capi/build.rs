@@ -1,3 +1,4 @@
+#[cfg(target_os = "windows")]
 fn pack_win_ver(major: u64, minor: u64, patch: u64, revision: u64) -> u64 {
     (major << 48) | (minor << 32) | (patch << 16) | revision
 }
