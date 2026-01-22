@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - C API: added library ABI number and version string functions:
   - `opencc_abi_number()`
   - `opencc_version_string()`
+- Update dictionary to v1.2.0
 
 ---
 
