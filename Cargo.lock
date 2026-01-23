@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "dict-generate"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "clap",
  "opencc-fmmseg",
@@ -632,7 +632,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "opencc-clip"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "clap",
  "copypasta",
@@ -641,7 +641,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-fmmseg"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "once_cell",
  "rayon",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-fmmseg-capi"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "cargo_metadata",
  "opencc-fmmseg",
@@ -665,7 +665,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-rs"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "clap",
  "encoding_rs",
