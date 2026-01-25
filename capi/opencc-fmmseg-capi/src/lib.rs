@@ -1,5 +1,5 @@
-use opencc_fmmseg::OpenccConfig;
 use opencc_fmmseg::OpenCC;
+use opencc_fmmseg::OpenccConfig;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
@@ -624,7 +624,7 @@ mod tests {
         let opencc = OpenCC::new();
         // Define a sample input string
         let input = "你好，世界，欢迎"; // Chinese characters meaning "Hello, world!"
-        // Convert the input string to a C string
+                                        // Convert the input string to a C string
         let c_input = CString::new(input)
             .expect("CString conversion failed")
             .into_raw();
@@ -744,8 +744,20 @@ mod tests {
 
     #[test]
     fn test_opencc_last_error() {
+        // NOTE:
+        // This test relies on the global LAST_ERROR state being clean.
+        // In most cases it passes reliably, but it MAY fail in highly parallel
+        // or synchronized test environments (e.g. CI) if another test or FFI
+        // call touches the global error state concurrently.
+        //
+        // This is acceptable because:
+        // - LAST_ERROR is a process-wide global by design (C API compatibility)
+        // - The primary goal here is to validate the *normal* reset/read behavior
+        //   rather than strict isolation under parallel execution.
+
         // Clear any previous global error
         OpenCC::set_last_error("");
+
         // Convert the raw pointer to a Rust string (clone first, then free)
         let error_message = read_and_free(opencc_last_error());
 
