@@ -19,11 +19,18 @@ jobs:
             dll_name: libopencc_fmmseg_capi.so
             archive_ext: tar.gz
 
-          # macOS (arm64 on Apple Silicon runners). If you add Intel: use macos-13 + arch: x64.
+          # macOS (arm64 on Apple Silicon runners). If Intel: use macos-13 + arch: x64.
           - os: macos-latest
             platform: macos
             arch: arm64
             bin_ext: ''
+            dll_name: libopencc_fmmseg_capi.dylib
+            archive_ext: tar.gz
+
+          # macOS Intel (x64)
+          - os: macos-15-intel
+            platform: macos
+            arch: x64
             dll_name: libopencc_fmmseg_capi.dylib
             archive_ext: tar.gz
 
