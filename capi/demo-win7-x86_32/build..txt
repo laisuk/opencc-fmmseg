@@ -17,3 +17,5 @@ link /OUT:use_opencc_fmmseg_cpp.exe use_opencc_fmmseg_cpp.obj /LIBPATH:. opencc_
 (Combined)
 cl /I. use_opencc_fmmseg_c.c /link /OUT:use_opencc_fmmseg_c.exe opencc_fmmseg_capi.dll.lib
 cl /EHsc /I. use_opencc_fmmseg_cpp.cpp /link /OUT:use_opencc_fmmseg_cpp.exe opencc_fmmseg_capi.dll.lib
+
+g++ -std=c++17 UseOpenccFmmsegHelper.cpp -I . -L . -lopencc_fmmseg_capi -o UseOpenccFmmsegHelper
