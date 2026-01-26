@@ -23,13 +23,10 @@ categories = ["text-processing", "localization", "command-line-utilities", "pars
 include = [
     "Cargo.toml",
     "LICENSE",
-
     # All source code
     "src/**",
-
     # Public text dictionaries
     "dicts/**",
-
     # Exclude internal JSON dict source
     "!src/dictionary_lib/dicts/*.json",
 ]
