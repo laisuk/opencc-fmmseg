@@ -20,22 +20,19 @@ documentation = "https://docs.rs/opencc-fmmseg"
 readme = "README.md"
 keywords = ["opencc", "chinese", "segmentation", "fmm", "conversion"]
 categories = ["text-processing", "localization", "command-line-utilities", "parser-implementations"]
-exclude = [
-    "/.github",
-    "/.gitignore",
-    "/tools/",
-    "/capi/",
-    "/target/",
-    "/benches/",
-    "/examples/",
-    "/tests/",
-    "/python/",
-    "*.md",
-    "*.yml",
-    "*.bak",
-    "*.bka",
-    "*.orig",
-    "*.json"
+include = [
+    "Cargo.toml",
+    "LICENSE",
+    "README.md",
+
+    # All source code
+    "src/**",
+
+    # Public text dictionaries
+    "dicts/**",
+
+    # Exclude internal JSON dict source
+    "!src/dictionary_lib/dicts/*.json",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
