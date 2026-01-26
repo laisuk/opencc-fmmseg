@@ -23,7 +23,6 @@ categories = ["text-processing", "localization", "command-line-utilities", "pars
 include = [
     "Cargo.toml",
     "LICENSE",
-    "README.md",
 
     # All source code
     "src/**",
