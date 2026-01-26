@@ -6,12 +6,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.4.3] - 2026-01-13
+## [0.8.5] - 2026-01-26
 
 - C API: added library ABI number and version string functions:
   - `opencc_abi_number()`
   - `opencc_version_string()`
 - Update dictionary to v1.2.0
+- Extract OpenCC to crate opencc.
 
 ---
 
