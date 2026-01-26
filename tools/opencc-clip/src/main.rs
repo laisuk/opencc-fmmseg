@@ -2,7 +2,7 @@ extern crate copypasta;
 
 use clap::{Arg, ArgAction, Command};
 use copypasta::{ClipboardContext, ClipboardProvider};
-use opencc_fmmseg::{OpenCC, utils::find_max_utf8_length};
+use opencc_fmmseg::{OpenCC, find_max_utf8_length};
 
 const CONFIG_LIST: [&str; 17] = [
     "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",

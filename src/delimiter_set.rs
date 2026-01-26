@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 /// This string literal contains all whitespace, ASCII punctuation, and common
 /// Chinese punctuation marks considered delimiters by the segmentation engine.
 /// It is used to build the [`DelimiterSet`] bitset at startup.
-pub const FULL_DELIMITERS: &str =
+const FULL_DELIMITERS: &str =
     " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 
 /// Convenience helper for hot paths: tests if a [`char`] is a delimiter using
@@ -13,7 +13,7 @@ pub const FULL_DELIMITERS: &str =
 ///
 /// This is equivalent to:
 /// ```
-/// use opencc_fmmseg::delimiter_set::{is_delimiter, FULL_DELIMITER_SET};
+/// use opencc_fmmseg::{is_delimiter, FULL_DELIMITER_SET};
 /// let c = '！';
 /// assert_eq!(is_delimiter(c), FULL_DELIMITER_SET.contains(c));
 /// ```
@@ -43,7 +43,7 @@ impl DelimiterSet {
     /// # Examples
     ///
     /// ```
-    /// use opencc_fmmseg::delimiter_set::is_delimiter;
+    /// use opencc_fmmseg::{is_delimiter};
     /// assert!(is_delimiter('。'));
     /// assert!(!is_delimiter('你'));
     /// ```

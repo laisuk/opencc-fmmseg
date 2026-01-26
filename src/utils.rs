@@ -32,9 +32,9 @@
 /// - Internally, it uses `leading_zeros` to walk set bits from high→low.
 ///
 /// # Example
-/// ```ignore
+/// ```
 /// // mask with bit 0 (len=1), bit 2 (len=3), CAP (≥64)
-/// use opencc_fmmseg::utils::for_each_len_dec;
+/// use opencc_fmmseg::for_each_len_dec;
 /// let mask = (1u64 << 0) | (1u64 << 2) | (1u64 << 63);
 ///
 /// let mut seen = Vec::new();
@@ -98,7 +98,7 @@ pub fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> 
 ///
 /// # Example
 /// ```rust
-/// use opencc_fmmseg::utils::find_max_utf8_length;
+/// use opencc_fmmseg::find_max_utf8_length;
 ///
 /// let input = "汉字转换测试"; // Each Chinese character takes 3 bytes
 /// let safe_index = find_max_utf8_length(input, 7);
@@ -140,7 +140,7 @@ pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
 ///
 /// # Example
 /// ```rust
-/// use opencc_fmmseg::utils::find_max_utf8_len_bytes;
+/// use opencc_fmmseg::find_max_utf8_len_bytes;
 /// let bytes = "汉字转换测试".as_bytes(); // UTF-8, 3 bytes per CJK char
 /// let safe = find_max_utf8_len_bytes(bytes, 7);
 /// let prefix = &bytes[..safe];

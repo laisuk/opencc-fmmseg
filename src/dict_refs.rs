@@ -6,7 +6,7 @@ use std::sync::Arc;
 ///
 /// # Fields
 /// - [`dicts`]: the dictionaries to probe (probe order = precedence).
-/// - [`max_len`]: the maximum phrase length across `dicts` (in `char`s).
+/// - [`max_len`]: the maximum phrase length across `dicts` (in `char`(s)).
 /// - [`union`]: a union of starter masks/caps built **from these `dicts`**.
 ///   Typically, cached (e.g., via `OnceLock`) and shared across threads with `Arc`.
 ///

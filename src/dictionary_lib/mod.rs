@@ -16,8 +16,8 @@
 //! Although the module is publicly exposed for advanced users, most consumers
 //! will interact only with the high-level [`OpenCC`](crate::OpenCC) API.
 pub mod dictionary_maxlength;
-pub mod dict_max_len;
-pub mod starter_union;
+mod dict_max_len;
+mod starter_union;
 
 pub use self::dictionary_maxlength::{DictionaryMaxlength, DictionaryError};
 pub use self::dict_max_len::*;

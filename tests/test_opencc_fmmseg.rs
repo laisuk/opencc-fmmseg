@@ -1,9 +1,10 @@
-use opencc_fmmseg::{dictionary_lib, OpenCC};
+use opencc_fmmseg::{dictionary_lib};
 
 // Pull in the real DTO code without making a new crate
 #[path = "../tools/dict-generate/src/json_io.rs"] // adjust relative path
 mod json_io;
 use json_io::DictionaryMaxlengthSerde;
+use opencc_fmmseg::OpenCC;
 
 #[cfg(test)]
 mod tests {
