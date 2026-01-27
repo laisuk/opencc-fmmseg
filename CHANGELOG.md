@@ -12,7 +12,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - `opencc_abi_number()`
     - `opencc_version_string()`
 - Update dictionary to v1.2.0
-- Extracted `OpenCC` struct to standalone crate `opencc`.
+- Refactored `OpenCC` struct to standalone crate `opencc` with no public API changed.
 
 ---
 
