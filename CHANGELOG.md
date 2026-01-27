@@ -6,28 +6,30 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.8.5] - 2026-01-26
+## [0.8.5] - 2026-01-27
 
 - C API: added library ABI number and version string functions:
-  - `opencc_abi_number()`
-  - `opencc_version_string()`
+    - `opencc_abi_number()`
+    - `opencc_version_string()`
 - Update dictionary to v1.2.0
-- Extract OpenCC to crate opencc.
+- Extracted `OpenCC` struct to standalone crate `opencc`.
 
 ---
 
 ## [0.8.4.2] - 2026-01-05
 
 ### Changed
+
 - C API: added helper functions for OpenCC configuration name / ID mapping:
-  - `opencc_config_name_to_id()`
-  - `opencc_config_id_to_name()`
+    - `opencc_config_name_to_id()`
+    - `opencc_config_id_to_name()`
 - Enables clean, allocation-free Name ↔ ID conversion for bindings
   (C / C++ / C# / Python / Java)
 - C API: align deprecated `opencc_convert_len()` error behavior with
   `opencc_convert()` / `opencc_convert_cfg()`.
 
 ### Notes
+
 - No breaking changes
 - Rust core unchanged
 
