@@ -504,6 +504,7 @@ impl OpenCC {
     ///
     /// # See also
     /// - [`convert_by_union`]: Optimized version that uses a [`StarterUnion`] mask/cap table.
+    #[inline]
     fn convert_by(
         &self,
         text_chars: &[char],
