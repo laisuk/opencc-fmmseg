@@ -31,6 +31,7 @@ jobs:
           - os: macos-15-intel
             platform: macos
             arch: x64
+            bin_ext: ''
             dll_name: libopencc_fmmseg_capi.dylib
             archive_ext: tar.gz
 
