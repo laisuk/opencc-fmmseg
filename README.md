@@ -149,10 +149,13 @@ Options:
 - Supported conversions:
     - `s2t` – Simplified to Traditional
     - `s2tw` – Simplified to Traditional Taiwan
+    - `s2hk` – Simplified to Traditional Hong Kong
     - `s2twp` – Simplified to Traditional Taiwan with idioms
     - `t2s` – Traditional to Simplified
     - `tw2s` – Traditional Taiwan to Simplified
     - `tw2sp` – Traditional Taiwan to Simplified with idioms
+    - `hk2s` – Traditional Hong Kong to Simplified
+    - `jp2t`, `t2jp` - Japanese Shinjitai/Kyujitai
     - etc
 
 ### Lexicons
@@ -179,102 +182,102 @@ use opencc_fmmseg::{OpenCC};
 use opencc_fmmseg::OpenccConfig;
 
 fn main() {
-  // ---------------------------------------------------------------------
-  // Sample UTF-8 input (same spirit as C / C++ demos)
-  // ---------------------------------------------------------------------
-  let input_text = "意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+    // ---------------------------------------------------------------------
+    // Sample UTF-8 input (same spirit as C / C++ demos)
+    // ---------------------------------------------------------------------
+    let input_text = "意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
 
-  println!("Text:");
-  println!("{}", input_text);
-  println!();
+    println!("Text:");
+    println!("{}", input_text);
+    println!();
 
-  // ---------------------------------------------------------------------
-  // Create OpenCC instance
-  // ---------------------------------------------------------------------
-  let converter = OpenCC::new();
+    // ---------------------------------------------------------------------
+    // Create OpenCC instance
+    // ---------------------------------------------------------------------
+    let converter = OpenCC::new();
 
-  // Detect script
-  let input_code = converter.zho_check(input_text);
-  println!("Text Code: {}", input_code);
+    // Detect script
+    let input_code = converter.zho_check(input_text);
+    println!("Text Code: {}", input_code);
 
-  // ---------------------------------------------------------------------
-  // Test 1: Legacy string-based config (convert)
-  // ---------------------------------------------------------------------
-  let config_str = "s2twp";
-  let punct = true;
+    // ---------------------------------------------------------------------
+    // Test 1: Legacy string-based config (convert)
+    // ---------------------------------------------------------------------
+    let config_str = "s2twp";
+    let punct = true;
 
-  println!();
-  println!(
-    "== Test 1: convert(config = \"{}\", punctuation = {}) ==",
-    config_str, punct
-  );
+    println!();
+    println!(
+        "== Test 1: convert(config = \"{}\", punctuation = {}) ==",
+        config_str, punct
+    );
 
-  let output1 = converter.convert(input_text, config_str, punct);
-  println!("Converted:");
-  println!("{}", output1);
-  println!("Converted Code: {}", converter.zho_check(&output1));
-  println!(
-    "Last Error: {}",
-    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-  );
+    let output1 = converter.convert(input_text, config_str, punct);
+    println!("Converted:");
+    println!("{}", output1);
+    println!("Converted Code: {}", converter.zho_check(&output1));
+    println!(
+        "Last Error: {}",
+        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+    );
 
-  // ---------------------------------------------------------------------
-  // Test 2: Strongly typed config (convert_with_config)
-  // ---------------------------------------------------------------------
-  let config_enum = OpenccConfig::S2twp;
+    // ---------------------------------------------------------------------
+    // Test 2: Strongly typed config (convert_with_config)
+    // ---------------------------------------------------------------------
+    let config_enum = OpenccConfig::S2twp;
 
-  println!();
-  println!(
-    "== Test 2: convert_with_config(config = {:?}, punctuation = {}) ==",
-    config_enum, punct
-  );
+    println!();
+    println!(
+        "== Test 2: convert_with_config(config = {:?}, punctuation = {}) ==",
+        config_enum, punct
+    );
 
-  let output2 = converter.convert_with_config(input_text, config_enum, punct);
-  println!("Converted:");
-  println!("{}", output2);
-  println!("Converted Code: {}", converter.zho_check(&output2));
-  println!(
-    "Last Error: {}",
-    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-  );
+    let output2 = converter.convert_with_config(input_text, config_enum, punct);
+    println!("Converted:");
+    println!("{}", output2);
+    println!("Converted Code: {}", converter.zho_check(&output2));
+    println!(
+        "Last Error: {}",
+        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+    );
 
-  // ---------------------------------------------------------------------
-  // Test 3: Invalid config (string) — self-protected
-  // ---------------------------------------------------------------------
-  let invalid_config = "what_is_this";
+    // ---------------------------------------------------------------------
+    // Test 3: Invalid config (string) — self-protected
+    // ---------------------------------------------------------------------
+    let invalid_config = "what_is_this";
 
-  println!();
-  println!(
-    "== Test 3: invalid string config (\"{}\") ==",
-    invalid_config
-  );
+    println!();
+    println!(
+        "== Test 3: invalid string config (\"{}\") ==",
+        invalid_config
+    );
 
-  let output3 = converter.convert(input_text, invalid_config, true);
-  println!("Returned:");
-  println!("{}", output3);
-  println!(
-    "Last Error: {}",
-    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-  );
+    let output3 = converter.convert(input_text, invalid_config, true);
+    println!("Returned:");
+    println!("{}", output3);
+    println!(
+        "Last Error: {}",
+        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+    );
 
-  // ---------------------------------------------------------------------
-  // Test 4: Clear last error and verify state reset
-  // ---------------------------------------------------------------------
-  println!();
-  println!("== Test 4: clear_last_error() ==");
+    // ---------------------------------------------------------------------
+    // Test 4: Clear last error and verify state reset
+    // ---------------------------------------------------------------------
+    println!();
+    println!("== Test 4: clear_last_error() ==");
 
-  OpenCC::clear_last_error();
+    OpenCC::clear_last_error();
 
-  println!(
-    "Last Error after clear: {}",
-    OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-  );
+    println!(
+        "Last Error after clear: {}",
+        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+    );
 
-  // ---------------------------------------------------------------------
-  // Summary
-  // ---------------------------------------------------------------------
-  println!();
-  println!("All tests completed.");
+    // ---------------------------------------------------------------------
+    // Summary
+    // ---------------------------------------------------------------------
+    println!();
+    println!("All tests completed.");
 }
 
 ```
@@ -307,6 +310,7 @@ Last Error: Invalid config: what_is_this
 == Test 4: clear_last_error() ==
 Last Error after clear: <none>
 ```
+
 ---
 
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
@@ -324,7 +328,30 @@ The zip includes:
 - C API: `opencc_fmmseg_capi.h`
 - Header-only C++ helper: `OpenccFmmsegHelper.hpp`
 
-You can link against the shared library and call the segmentation/convert functions from any C or C++ project.
+### C++ RAII Helper (Recommended)
+
+For C++ projects, `OpenccFmmsegHelper.hpp` provides a **header-only RAII wrapper**
+around the C API.
+
+- Owns a native handle created by `opencc_new()`
+- Automatically releases it via `opencc_delete()` in `~OpenccFmmsegHelper()`
+- Move-only (non-copyable), exception-safe, leak-free
+- No manual handle management required
+- Conversion outputs are freed via `opencc_string_free()` (handled internally)
+
+```cpp
+#include "OpenccFmmsegHelper.hpp"
+
+OpenccFmmsegHelper opencc;
+opencc.setConfigId(OPENCC_CONFIG_S2T);
+
+std::string out = opencc.convert_cfg("汉字转换测试");
+```
+
+This helper is a thin, zero-overhead wrapper over the C API and **does not**
+require linking against any additional C++ library.
+
+---
 
 ### Example 1 (minimal C usage)
 
@@ -519,7 +546,7 @@ ultra-stable parallel throughput across large text corpora.
 
 ## Credits
 
-- [OpenCC](https://github.com/BYVoid/OpenCC) by [BYVoid Carbo Kuo](https://github.com/BYVoid) – Lexicon source.
+- [OpenCC](https://github.com/BYVoid/OpenCC) by [BYVoid](https://github.com/BYVoid) – Lexicon source.
 
 ## 📜 License
 
