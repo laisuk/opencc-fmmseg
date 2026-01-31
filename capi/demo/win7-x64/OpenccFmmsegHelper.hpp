@@ -41,11 +41,11 @@ public:
     ~OpenccFmmsegHelper() noexcept { cleanup(); }
 
     // ----- Stateful configuration (recommended: numeric config) -----
-    void setConfigId(const opencc_config_t cfg) noexcept {
+    void setConfigId(const opencc_config_t configId) noexcept {
         // Self-protect: if unknown, keep default
         // (Your C API also self-protects, but keeping helper consistent is fine.)
-        if (isValidConfigId(cfg))
-            configId_ = cfg;
+        if (isValidConfigId(configId))
+            configId_ = configId;
         else
             configId_ = OPENCC_CONFIG_S2T;
     }
@@ -65,10 +65,10 @@ public:
 
     // Stateless (typed): caller supplies config id & punctuation per call
     [[nodiscard]] std::string convert_cfg(const std::string_view input,
-                                          const opencc_config_t config,
+                                          const opencc_config_t configId,
                                           const bool punctuation = false) const {
         if (input.empty()) return {};
-        return convertByCfg(input, config, punctuation);
+        return convertByCfg(input, configId, punctuation);
     }
 
     // Stateful (typed): uses stored configId_ and punctuationEnabled_
@@ -124,8 +124,8 @@ public:
     }
 
     [[nodiscard]] static std::string_view
-    config_id_to_name(const opencc_config_t id) noexcept {
-        return configIdToName(id);
+    config_id_to_name(const opencc_config_t configId) noexcept {
+        return configIdToName(configId);
     }
 
 private:
