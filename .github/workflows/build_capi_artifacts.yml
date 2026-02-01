@@ -117,17 +117,17 @@ jobs:
           components: rust-src
 
       # Build ONLY the C API package
-      - name: Build opencc_fmmseg_capi
+      - name: Build opencc-fmmseg-capi
         shell: bash
         run: |
           set -euo pipefail
 
           if [ "${{ matrix.is_win7 }}" = "true" ]; then
-            cargo +nightly build -r --package opencc_fmmseg_capi \
+            cargo +nightly build -r --package opencc-fmmseg-capi \
               -Z build-std=std,panic_abort \
               --target "${{ matrix.target }}"
           else
-            cargo build -r --package opencc_fmmseg_capi
+            cargo build -r --package opencc-fmmseg-capi
           fi
 
       # Collect the 3 required files into a clean ZIP layout
