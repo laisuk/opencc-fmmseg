@@ -244,11 +244,33 @@ impl DictionaryMaxlength {
         note = "Embedded CBOR is no longer shipped. Use deserialize_from_cbor() with a generated CBOR file (serialize_to_cbor() or dict-generate CLI)."
     )]
     pub fn from_cbor() -> Result<Self, DictionaryError> {
-        let cbor_bytes = include_bytes!("dicts/dictionary_maxlength.cbor");
+        // Historical / conventional location
+        let path = std::path::Path::new("dicts/dictionary_maxlength.cbor");
 
-        let dictionary: DictionaryMaxlength = from_slice(cbor_bytes).map_err(|err| {
-            // C API / FFI-friendly string:
-            Self::set_last_error(&format!("Failed to parse embedded CBOR: {}", err));
+        if !path.exists() {
+            Self::set_last_error(
+                "dictionary_maxlength.cbor not found at dicts/. \
+This crate no longer ships embedded CBOR. \
+Generate it via dict-generate or use deserialize_from_cbor(path).",
+            );
+
+            return Err(DictionaryError::IoError(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "dictionary_maxlength.cbor not found",
+            )));
+        }
+
+        let cbor_data = std::fs::read(path).map_err(|err| {
+            Self::set_last_error(&format!(
+                "Failed to read CBOR file ({}): {}",
+                path.display(),
+                err
+            ));
+            DictionaryError::IoError(err)
+        })?;
+
+        let dictionary: DictionaryMaxlength = from_slice(&cbor_data).map_err(|err| {
+            Self::set_last_error(&format!("Failed to parse CBOR: {}", err));
             DictionaryError::CborParseError(err)
         })?;
 
