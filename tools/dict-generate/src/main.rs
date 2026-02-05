@@ -14,14 +14,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let matches = Command::new("Dictionary Generator")
         .about(format!(
-            "{BLUE}Dict Generator: Command Line Dictionary Generator{RESET}"
+            "{BLUE}Dict Generator: Dictionary Artifacts Generator from dictionaries in ./dicts/{RESET}"
         ))
+        .after_help(
+            "Examples:\n\
+         \n\
+         dict-generate --format cbor --output dictionary_maxlength.cbor\n\
+         dict-generate --format zstd --output dictionary_maxlength.zstd\n\
+         \n\
+         The generated CBOR can be loaded with DictionaryMaxlength::deserialize_from_cbor().\n"
+        )
         .arg(
             Arg::new("format")
                 .short('f')
                 .long("format")
                 .value_name("format")
                 .default_value("zstd")
+                .value_parser(["zstd", "cbor", "json"])
                 .help("Dictionary format: [zstd|cbor|json]"),
         )
         .arg(
@@ -71,8 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("cbor") => {
             let dictionary = DictionaryMaxlength::from_dicts()?;
-            let file = File::create(output_file)?;
-            serde_cbor::to_writer(file, &dictionary)?;
+            dictionary.serialize_to_cbor(output_file)?;
             eprintln!("{BLUE}Dictionary saved in CBOR format at: {output_file}{RESET}");
         }
         Some("json") => {

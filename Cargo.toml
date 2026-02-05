@@ -24,11 +24,10 @@ include = [
     "Cargo.toml",
     "LICENSE",
     # All source code
-    "src/**",
+    "src/**/*.rs",
+    "src/dictionary_lib/dicts/*.zstd",
     # Public text dictionaries
-    "dicts/**",
-    # Exclude internal JSON dict source
-    # "!src/dictionary_lib/dicts/*.json",
+    "dicts/**"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
