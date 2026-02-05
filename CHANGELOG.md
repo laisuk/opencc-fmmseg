@@ -6,6 +6,28 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.9.0] - 2026-02-05
+
+### Breaking changes
+- Removed the embedded `dictionary_maxlength.cbor` from the published crate
+- `from_cbor()` no longer loads an embedded dictionary and now requires an external CBOR file
+- Applications relying on implicit embedded CBOR must migrate to `from_zstd()` or explicit CBOR loading
+
+### Changed
+- Updated built-in dictionary to **v1.2.0**
+- The crate now ships **only** `dictionary_maxlength.zstd`
+  (Zstd-compressed CBOR) as the default dictionary artifact
+
+### Added
+- `from_zstd()` as the recommended default dictionary loader for non-custom usage
+- Detailed migration guidance in API documentation
+
+### Improved
+- Crate size significantly reduced by eliminating redundant embedded artifacts
+- Packaging and distribution behavior made explicit and deterministic
+
+---
+
 ## [0.8.5] - 2026-01-27
 
 - C API: added library ABI number and version string functions:

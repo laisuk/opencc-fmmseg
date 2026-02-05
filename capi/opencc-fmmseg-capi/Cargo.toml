@@ -1,6 +1,6 @@
 [package]
 name = "opencc-fmmseg-capi"
-version = "0.8.5"
+version = "0.9.0"
 edition = "2021"
 
 [package.metadata.capi]

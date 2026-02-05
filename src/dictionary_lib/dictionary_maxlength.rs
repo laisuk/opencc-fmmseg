@@ -214,6 +214,13 @@ impl DictionaryMaxlength {
     /// ⚠️ **Deprecated**: the crate no longer ships the embedded
     /// `dicts/dictionary_maxlength.cbor` to reduce crate size.
     ///
+    /// ### Recommended usage
+    ///
+    /// If you are **not using a custom dictionary**, prefer
+    /// [`from_zstd`](Self::from_zstd), which loads the built-in
+    /// Zstd-compressed dictionary bundled with the crate. This is the
+    /// fastest and most convenient option for most users.
+    ///
     /// ### Historical behavior
     ///
     /// This function previously loaded a CBOR dictionary embedded at
@@ -240,12 +247,12 @@ impl DictionaryMaxlength {
     ///
     /// - [`deserialize_from_cbor`](Self::deserialize_from_cbor)
     #[deprecated(
-        since = "0.8.6",
-        note = "Embedded CBOR is no longer shipped. Use deserialize_from_cbor() with a generated CBOR file (serialize_to_cbor() or dict-generate CLI)."
+        since = "0.9.0",
+        note = "Embedded CBOR is no longer shipped. Use from_zstd() for the default dictionary, or deserialize_from_cbor() with a generated CBOR file."
     )]
     pub fn from_cbor() -> Result<Self, DictionaryError> {
         // Historical / conventional location
-        let path = std::path::Path::new("dicts/dictionary_maxlength.cbor");
+        let path = Path::new("dicts/dictionary_maxlength.cbor");
 
         if !path.exists() {
             Self::set_last_error(
@@ -254,13 +261,13 @@ This crate no longer ships embedded CBOR. \
 Generate it via dict-generate or use deserialize_from_cbor(path).",
             );
 
-            return Err(DictionaryError::IoError(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
+            return Err(DictionaryError::IoError(io::Error::new(
+                io::ErrorKind::NotFound,
                 "dictionary_maxlength.cbor not found",
             )));
         }
 
-        let cbor_data = std::fs::read(path).map_err(|err| {
+        let cbor_data = fs::read(path).map_err(|err| {
             Self::set_last_error(&format!(
                 "Failed to read CBOR file ({}): {}",
                 path.display(),
@@ -981,7 +988,7 @@ mod tests {
         let filename = "dictionary_maxlength.cbor";
         dictionary.serialize_to_cbor(filename).unwrap();
         let file_contents = fs::read(filename).unwrap();
-        let expected_cbor_size = 1351835; // Update this with the actual expected size
+        let expected_cbor_size = 1353038; // Update this with the actual expected size
         assert_eq!(file_contents.len(), expected_cbor_size);
         // Clean up: Delete the test file
         fs::remove_file(filename).unwrap();
