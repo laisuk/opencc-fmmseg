@@ -1,6 +1,40 @@
+// build.rs
+
 #[cfg(target_os = "windows")]
-fn pack_win_ver(major: u64, minor: u64, patch: u64, revision: u64) -> u64 {
-    (major << 48) | (minor << 32) | (patch << 16) | revision
+fn read_capi_revision() -> u16 {
+    use std::{env, fs, path::Path};
+    use toml::Value;
+
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR missing");
+    let toml_path = Path::new(&manifest_dir).join("Cargo.toml");
+
+    let text = fs::read_to_string(&toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", toml_path.display()));
+    let value: Value = text
+        .parse::<Value>()
+        .unwrap_or_else(|e| panic!("Failed to parse Cargo.toml as TOML: {e}"));
+
+    let rev_i64 = value
+        .get("package")
+        .and_then(|v| v.get("metadata"))
+        .and_then(|v| v.get("capi"))
+        .and_then(|v| v.get("revision"))
+        .and_then(|v| v.as_integer())
+        .unwrap_or(0);
+
+    if !(0..=(u16::MAX as i64)).contains(&rev_i64) {
+        panic!(
+            "[package.metadata.capi] revision out of range for u16: {rev_i64} (must be 0..={})",
+            u16::MAX
+        );
+    }
+
+    rev_i64 as u16
+}
+
+#[cfg(target_os = "windows")]
+fn pack_win_ver(major: u16, minor: u16, patch: u16, revision: u16) -> u64 {
+    ((major as u64) << 48) | ((minor as u64) << 32) | ((patch as u64) << 16) | (revision as u64)
 }
 
 fn main() {
@@ -8,37 +42,32 @@ fn main() {
     {
         println!("cargo:rerun-if-changed=Cargo.toml");
 
-        use cargo_metadata::MetadataCommand;
         use std::env;
         use winres::{VersionInfo, WindowsResource};
 
-        let this_pkg_name =
-            env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "opencc-fmmseg-capi".into());
-
-        let metadata = MetadataCommand::new()
-            .no_deps()
-            .exec()
-            .expect("Failed to read cargo metadata");
-
-        let pkg = metadata
-            .packages
-            .iter()
-            .find(|p| p.name == this_pkg_name)
-            .unwrap_or_else(|| panic!("Package not found in cargo metadata: {}", this_pkg_name));
-
-        let revision: u64 = pkg
-            .metadata
-            .get("capi")
-            .and_then(|v| v.get("revision"))
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let major: u64 = pkg.version.major;
-        let minor: u64 = pkg.version.minor;
-        let patch: u64 = pkg.version.patch;
+        let major: u16 = env::var("CARGO_PKG_VERSION_MAJOR")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let minor: u16 = env::var("CARGO_PKG_VERSION_MINOR")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let patch: u16 = env::var("CARGO_PKG_VERSION_PATCH")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let revision: u16 = read_capi_revision();
 
         let packed_u64 = pack_win_ver(major, minor, patch, revision);
-        let ver_str_commas = format!("{},{},{},{}", major, minor, patch, revision);
+
+        // String table (Explorer-friendly; may hide trailing .0, but it’s correct)
+        let ver_str_dots = format!("{major}.{minor}.{patch}.{revision}");
+        // Numeric raw (VS_FIXEDFILEINFO uses comma-separated parts)
+        let ver_str_commas = ver_str_dots.replace('.', ",");
+
+        let this_pkg_name =
+            env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "opencc-fmmseg-capi".into());
 
         let authors = env::var("CARGO_PKG_AUTHORS").unwrap_or_else(|_| "Laisuk".into());
         let desc = env::var("CARGO_PKG_DESCRIPTION").unwrap_or_else(|_| {
@@ -47,13 +76,18 @@ fn main() {
 
         let mut res = WindowsResource::new();
 
-        // ✅ Set the FIXEDFILEINFO raw versions (this fixes FileVersionRaw/ProductVersionRaw)
+        // ✅ Authoritative numeric versions (VS_FIXEDFILEINFO)
         res.set_version_info(VersionInfo::FILEVERSION, packed_u64);
         res.set_version_info(VersionInfo::PRODUCTVERSION, packed_u64);
 
-        // ✅ Also set the string table versions (Explorer “Details” page)
-        res.set("FileVersion", &ver_str_commas);
-        res.set("ProductVersion", &ver_str_commas);
+        // ✅ String table versions (Explorer “Details” page)
+        res.set("FileVersion", &ver_str_dots);
+        res.set("ProductVersion", &ver_str_dots);
+
+        // ✅ Optional: also explicitly set the "*Raw" strings
+        // (helps some tooling that reads string table instead of FIXEDFILEINFO)
+        res.set("FileVersionRaw", &ver_str_commas);
+        res.set("ProductVersionRaw", &ver_str_commas);
 
         // Other metadata
         res.set("FileDescription", &desc);

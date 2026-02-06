@@ -17,4 +17,4 @@ crate-type = ["cdylib"]
 
 [build-dependencies]
 winres = "0.1.12"
-cargo_metadata = "=0.18.1"
+toml = "=0.8.23"

@@ -36,7 +36,7 @@ include = [
 # Rayon 1.11+ needs newer Rust; keep within 1.10.*
 rayon = "=1.10.0"
 #rayon-core = "=1.12.1"
-regex = "1.12.2"
+regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_cbor = "0.11.2"
 zstd = "0.13.3"
