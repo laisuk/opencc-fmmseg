@@ -11,21 +11,29 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux (x64). Add an arm64 entry later if you use an arm64 runner.
+          # Linux (x64)
           - os: ubuntu-latest
             platform: linux
             arch: x64
             bin_ext: ''
             dll_name: libopencc_fmmseg_capi.so
             archive_ext: tar.gz
+            rust_toolchain: stable
+            is_win7: false
+            cargo_cmd: cargo build --release --workspace
+            target_release_dir: target/release
 
-          # macOS (arm64 on Apple Silicon runners). If Intel: use macos-13 + arch: x64.
+          # macOS (arm64)
           - os: macos-latest
             platform: macos
             arch: arm64
             bin_ext: ''
             dll_name: libopencc_fmmseg_capi.dylib
             archive_ext: tar.gz
+            rust_toolchain: stable
+            is_win7: false
+            cargo_cmd: cargo build --release --workspace
+            target_release_dir: target/release
 
           # macOS Intel (x64)
           - os: macos-15-intel
@@ -34,45 +42,114 @@ jobs:
             bin_ext: ''
             dll_name: libopencc_fmmseg_capi.dylib
             archive_ext: tar.gz
+            rust_toolchain: stable
+            is_win7: false
+            cargo_cmd: cargo build --release --workspace
+            target_release_dir: target/release
 
-          # Windows (x64)
+          # Windows (x64) - normal
           - os: windows-latest
             platform: windows
             arch: x64
             bin_ext: '.exe'
             dll_name: opencc_fmmseg_capi.dll
             archive_ext: zip
+            rust_toolchain: stable
+            is_win7: false
+            cargo_cmd: cargo build --release --workspace
+            target_release_dir: target/release
+
+          # Windows 7 (x64) - built on windows-latest using nightly + build-std
+          - os: windows-latest
+            platform: windows
+            arch: win7-x64
+            bin_ext: '.exe'
+            dll_name: opencc_fmmseg_capi.dll
+            archive_ext: zip
+            rust_toolchain: nightly
+            is_win7: true
+            cargo_cmd: cargo +nightly build -Z build-std=std,panic_abort --target x86_64-win7-windows-msvc --release --workspace
+            target_release_dir: target/x86_64-win7-windows-msvc/release
+
+          # Windows 7 (x86) - built on windows-latest using nightly + build-std
+          - os: windows-latest
+            platform: windows
+            arch: win7-x86
+            bin_ext: '.exe'
+            dll_name: opencc_fmmseg_capi.dll
+            archive_ext: zip
+            rust_toolchain: nightly
+            is_win7: true
+            cargo_cmd: cargo +nightly build -Z build-std=std,panic_abort --target i686-win7-windows-msvc --release --workspace
+            target_release_dir: target/i686-win7-windows-msvc/release
 
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ Pin toolchain to Rust 1.85.0 or stable
+      # Stable toolchain for normal builds
       - name: Set Rust (stable)
+        if: ${{ matrix.rust_toolchain == 'stable' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy,rustfmt
+
+      # Nightly toolchain for Win7 builds (pin for reproducibility)
+      - name: Set Rust (nightly)
+        if: ${{ matrix.rust_toolchain == 'nightly' }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src
 
       - name: Build Project
-        run: cargo build --release --workspace
+        shell: bash
+        env:
+          # Win7: force subsystem 6.01 (session-only). For non-Win7 entries this is empty.
+          RUSTFLAGS: ${{ matrix.is_win7 && '-C link-arg=/SUBSYSTEM:CONSOLE,6.01' || '' }}
+        run: |
+          set -euo pipefail
+          ${{ matrix.cargo_cmd }}
+
+      # Guard: ensure Win7 binaries are really marked as 6.01 subsystem
+      - name: Verify Win7 subsystem (6.01)
+        if: ${{ matrix.is_win7 }}
+        shell: powershell
+        run: |
+          $exe = "target\x86_64-win7-windows-msvc\release\opencc-rs.exe"
+          if (!(Test-Path $exe)) { throw "Missing Win7 exe: $exe" }
+          $out = & dumpbin /headers $exe | Select-String -Pattern "subsystem version"
+          $text = ($out | ForEach-Object { $_.ToString() }) -join "`n"
+          Write-Host $text
+          if ($text -notmatch "6\.01") { throw "Subsystem is not 6.01. Check RUSTFLAGS / build outputs." }
 
       - name: Prepare Structured Release Folder
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist/bin/dicts dist/lib dist/include
 
-          cp target/release/opencc-rs${{ matrix.bin_ext }} dist/bin/
-          cp target/release/opencc-clip${{ matrix.bin_ext }} dist/bin/
-          cp target/release/dict-generate${{ matrix.bin_ext }} dist/bin/
+          OUT_DIR="${{ matrix.target_release_dir }}"
 
+          # CLI tools
+          cp "${OUT_DIR}/opencc-rs${{ matrix.bin_ext }}" dist/bin/
+          cp "${OUT_DIR}/opencc-clip${{ matrix.bin_ext }}" dist/bin/
+          cp "${OUT_DIR}/dict-generate${{ matrix.bin_ext }}" dist/bin/
+
+          # Headers
           cp capi/opencc_fmmseg_capi.h dist/include/
           cp capi/OpenccFmmsegHelper.hpp dist/include/
 
-          cp target/release/${{ matrix.dll_name }} dist/lib/
+          # C API shared lib
+          cp "${OUT_DIR}/${{ matrix.dll_name }}" dist/lib/
+
+          # Windows import lib (if produced)
           if [ "${{ matrix.platform }}" = "windows" ]; then
-            cp target/release/opencc_fmmseg_capi.dll.lib dist/lib/
+            if [ -f "${OUT_DIR}/opencc_fmmseg_capi.dll.lib" ]; then
+              cp "${OUT_DIR}/opencc_fmmseg_capi.dll.lib" dist/lib/
+            fi
           fi
 
+          # dict sources for dict-generate
           cp dicts/*.txt dist/bin/dicts/
 
       - name: Write README.txt and version.txt
@@ -83,11 +160,17 @@ jobs:
           {
             echo "Opencc-Fmmseg ${{ github.ref_name }}"
             echo ""
+            echo "Package: ${{ matrix.platform }} / ${{ matrix.arch }}"
+            if [ "${{ matrix.is_win7 }}" = "true" ]; then
+              echo "NOTE: This Windows 7 build is compiled with Rust nightly + -Z build-std"
+              echo "      and targets x86_64-win7-windows-msvc (x64) or i686-win7-windows-msvc (x86)."
+              echo "      Subsystem is set to 6.01 for Win7 compatibility."
+            fi
+            echo ""
             echo "Included folders:"
             echo "- bin/: Command-line tools (opencc-rs, opencc-clip, dict-generate) and dicts/ folder used at runtime"
             echo "- lib/: C API shared library (platform-specific)"
             echo "- include/: C API header and C++ header-only helper"
-            echo "- dicts/: Dictionary TXT files for dict-generate"
             echo ""
             echo "Usage:"
             echo "- Place the shared library in your LD_LIBRARY_PATH (Linux/macOS) or alongside .exe (Windows)."
@@ -98,6 +181,7 @@ jobs:
       - name: Package Structured Artifacts
         shell: bash
         run: |
+          set -euo pipefail
           ARTIFACT_NAME="opencc-fmmseg-${{ github.ref_name }}-${{ matrix.platform }}-${{ matrix.arch }}"
           if [ "${{ matrix.archive_ext }}" = "tar.gz" ]; then
             tar -czf "${ARTIFACT_NAME}.tar.gz" -C dist .
@@ -117,8 +201,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
