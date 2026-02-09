@@ -12,7 +12,8 @@ jobs:
       matrix:
         include:
           # Linux (x64)
-          - os: ubuntu-latest
+          - name: linux-x64
+            os: ubuntu-latest
             platform: linux
             arch: x64
             bin_ext: ''
@@ -24,7 +25,8 @@ jobs:
             target_release_dir: target/release
 
           # macOS (arm64)
-          - os: macos-latest
+          - name: macos-arm64
+            os: macos-latest
             platform: macos
             arch: arm64
             bin_ext: ''
@@ -36,7 +38,8 @@ jobs:
             target_release_dir: target/release
 
           # macOS Intel (x64)
-          - os: macos-15-intel
+          - name: macos-x64
+            os: macos-15-intel
             platform: macos
             arch: x64
             bin_ext: ''
@@ -48,7 +51,8 @@ jobs:
             target_release_dir: target/release
 
           # Windows (x64) - normal
-          - os: windows-latest
+          - name: win-x64
+            os: windows-latest
             platform: windows
             arch: x64
             bin_ext: '.exe'
@@ -60,7 +64,8 @@ jobs:
             target_release_dir: target/release
 
           # Windows 7 (x64) - built on windows-latest using nightly + build-std
-          - os: windows-latest
+          - name: win7-x64
+            os: windows-latest
             platform: windows
             arch: win7-x64
             bin_ext: '.exe'
@@ -72,7 +77,8 @@ jobs:
             target_release_dir: target/x86_64-win7-windows-msvc/release
 
           # Windows 7 (x86) - built on windows-latest using nightly + build-std
-          - os: windows-latest
+          - name: win7-x86
+            os: windows-latest
             platform: windows
             arch: win7-x86
             bin_ext: '.exe'
@@ -111,16 +117,26 @@ jobs:
           ${{ matrix.cargo_cmd }}
 
       # Guard: ensure Win7 binaries are really marked as 6.01 subsystem
-#      - name: Verify Win7 subsystem (6.01)
-#        if: ${{ matrix.is_win7 }}
-#        shell: powershell
-#        run: |
-#          $exe = "target\x86_64-win7-windows-msvc\release\opencc-rs.exe"
-#          if (!(Test-Path $exe)) { throw "Missing Win7 exe: $exe" }
-#          $out = & dumpbin /headers $exe | Select-String -Pattern "subsystem version"
-#          $text = ($out | ForEach-Object { $_.ToString() }) -join "`n"
-#          Write-Host $text
-#          if ($text -notmatch "6\.01") { throw "Subsystem is not 6.01. Check RUSTFLAGS / build outputs." }
+      - name: Verify Win7 subsystem (6.01)
+        if: ${{ matrix.is_win7 }}
+        shell: powershell
+        run: |
+          $outDir = "${{ matrix.target_release_dir }}"
+          Write-Host "OUT_DIR=$outDir"
+          
+          $exe = Join-Path $outDir ("opencc-rs${{ matrix.bin_ext }}")
+          if (!(Test-Path $exe)) { throw "Missing Win7 exe: $exe" }
+          
+          $dll = Join-Path $outDir "${{ matrix.dll_name }}"
+          if (!(Test-Path $dll)) { throw "Missing Win7 dll: $dll" }
+          
+          foreach ($p in @($exe, $dll)) {
+            Write-Host "`nChecking: $p"
+            $out = & dumpbin /headers $p | Select-String -Pattern "subsystem version"
+            $text = ($out | ForEach-Object { $_.ToString() }) -join "`n"
+            Write-Host $text
+            if ($text -notmatch "6\.01") { throw "Subsystem is not 6.01: $p" }
+          }
 
       - name: Prepare Structured Release Folder
         shell: bash
