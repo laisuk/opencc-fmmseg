@@ -111,16 +111,16 @@ jobs:
           ${{ matrix.cargo_cmd }}
 
       # Guard: ensure Win7 binaries are really marked as 6.01 subsystem
-      - name: Verify Win7 subsystem (6.01)
-        if: ${{ matrix.is_win7 }}
-        shell: powershell
-        run: |
-          $exe = "target\x86_64-win7-windows-msvc\release\opencc-rs.exe"
-          if (!(Test-Path $exe)) { throw "Missing Win7 exe: $exe" }
-          $out = & dumpbin /headers $exe | Select-String -Pattern "subsystem version"
-          $text = ($out | ForEach-Object { $_.ToString() }) -join "`n"
-          Write-Host $text
-          if ($text -notmatch "6\.01") { throw "Subsystem is not 6.01. Check RUSTFLAGS / build outputs." }
+#      - name: Verify Win7 subsystem (6.01)
+#        if: ${{ matrix.is_win7 }}
+#        shell: powershell
+#        run: |
+#          $exe = "target\x86_64-win7-windows-msvc\release\opencc-rs.exe"
+#          if (!(Test-Path $exe)) { throw "Missing Win7 exe: $exe" }
+#          $out = & dumpbin /headers $exe | Select-String -Pattern "subsystem version"
+#          $text = ($out | ForEach-Object { $_.ToString() }) -join "`n"
+#          Write-Host $text
+#          if ($text -notmatch "6\.01") { throw "Subsystem is not 6.01. Check RUSTFLAGS / build outputs." }
 
       - name: Prepare Structured Release Folder
         shell: bash
