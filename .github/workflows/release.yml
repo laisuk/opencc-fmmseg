@@ -7,6 +7,7 @@ on:
 
 jobs:
   build:
+    name: Build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -115,6 +116,10 @@ jobs:
         run: |
           set -euo pipefail
           ${{ matrix.cargo_cmd }}
+
+      # Ensure MSVC tools (dumpbin) are available
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: ${{ matrix.is_win7 }}
 
       # Guard: ensure Win7 binaries are really marked as 6.01 subsystem
       - name: Verify Win7 subsystem (6.01)
