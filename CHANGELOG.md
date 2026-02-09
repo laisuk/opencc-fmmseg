@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.9.0] - 2026-02-05
+## [0.9.0] - 2026-02-09
 
 ### Breaking changes
 - Removed the embedded `dictionary_maxlength.cbor` from the published crate
