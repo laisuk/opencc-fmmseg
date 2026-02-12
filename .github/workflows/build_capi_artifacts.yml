@@ -69,6 +69,19 @@ jobs:
             target_release_dir: target/release
 
           # -------------------------
+          # Linux (arm64)
+          # -------------------------
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            rust_toolchain: stable
+            is_win7: false
+            target: ""
+            dll_name: libopencc_fmmseg_capi.so
+            target_release_dir: target/release
+
+          # -------------------------
           # macOS (arm64)
           # -------------------------
           - name: macos-arm64
