@@ -1,4 +1,4 @@
-use opencc_fmmseg::{dictionary_lib};
+use opencc_fmmseg::dictionary_lib;
 
 // Pull in the real DTO code without making a new crate
 #[path = "../tools/dict-generate/src/json_io.rs"] // adjust relative path

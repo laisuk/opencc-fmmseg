@@ -104,7 +104,7 @@ impl TryFrom<&str> for OpenccConfig {
     type Error = ();
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s.to_ascii_lowercase().as_str() {
+        match s.trim().to_ascii_lowercase().as_str() {
             "s2t" => Ok(Self::S2t),
             "s2tw" => Ok(Self::S2tw),
             "s2twp" => Ok(Self::S2twp),

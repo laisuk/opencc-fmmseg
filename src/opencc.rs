@@ -1,4 +1,4 @@
-// Enable cfg badges on docs.rs (optional but nice)
+// Enable cfg badges on docs.rs (optional)
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! High-performance Chinese text converter using OpenCC lexicons and FMM segmentation.

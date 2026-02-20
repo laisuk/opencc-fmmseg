@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 opencc-fmmseg = {path = "../.."}
 copypasta = "0.10.2"
-clap = "4.5.58"
+clap = "4.5.60"
 #smithay-clipboard = "=0.7.2"
