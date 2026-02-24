@@ -166,29 +166,40 @@ jobs:
             -e SCCACHE_DISABLE=1 \
             "${IMAGE}" -lc '
               set -euxo pipefail
-              
+          
               echo "hello from container"
               uname -a
-              echo "PATH=$PATH"
-              
-              source /opt/rh/devtoolset-10/enable 2>/dev/null || true
-              source /opt/rh/devtoolset-11/enable 2>/dev/null || true
-              
+              echo "PATH(before)=$PATH"
+          
+              # Prefer devtoolset gcc if present, without sourcing enable scripts
+              if [ -d /opt/rh/devtoolset-11/root/usr/bin ]; then
+                export PATH="/opt/rh/devtoolset-11/root/usr/bin:$PATH"
+              elif [ -d /opt/rh/devtoolset-10/root/usr/bin ]; then
+                export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
+              fi
+          
+              echo "PATH(after)=$PATH"
+          
               echo "gcc -> $(command -v gcc || true)"
               gcc --version || true
-              echo "cc  -> $(command -v cc  || true)"
+          
+              # Ensure `cc` exists (Rust may call `cc` by default)
+              if ! command -v cc >/dev/null 2>&1; then
+                ln -sf "$(command -v gcc)" /usr/bin/cc
+              fi
+              echo "cc  -> $(command -v cc || true)"
               cc --version || true
-              
-              # Force Rust linker
+          
+              # Force Rust to use gcc as linker/toolchain
               export CC=gcc
               export CXX=g++
               export AR=ar
               export RUSTFLAGS="-C linker=gcc"
-              
+          
               cargo build -r --package opencc-fmmseg-capi -vv
-              
+          
               readelf -sW target/release/libopencc_fmmseg_capi.so \
-              | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
+                | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
             '
           
           sudo chown -R "$(id -u)":"$(id -g)" target || true
