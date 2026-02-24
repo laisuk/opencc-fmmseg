@@ -153,38 +153,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Host Rust must exist (dtolnay step)
           cargo --version
           rustc --version
 
-          # Choose correct manylinux image per arch
           IMAGE="${{ matrix.manylinux_image }}"
 
           docker run --rm \
-            -v "${GITHUB_WORKSPACE}:/io" \
-            -w /io \
-            -v "${CARGO_HOME}:/cargo" \
-            -v "${HOME}/.rustup:/rustup" \
+            -v "$GITHUB_WORKSPACE:/io" -w /io \
+            -v "$HOME/.cargo:/cargo" \
+            -v "$HOME/.rustup:/rustup" \
             -e CARGO_HOME=/cargo \
             -e RUSTUP_HOME=/rustup \
             -e PATH="/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-            "${IMAGE}" \
+            "$IMAGE" \
             /bin/bash -lc '
-              set -euo pipefail
-
-              # optional newer gcc/binutils in manylinux
-              source /opt/rh/devtoolset-10/enable 2>/dev/null || true
-              source /opt/rh/devtoolset-11/enable 2>/dev/null || true
-
-              cargo --version
-              rustc --version
-
-              cargo build -r --package opencc-fmmseg-capi
-
-              readelf -sW target/release/${{ matrix.dll_name }} \
-                | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
+            set -euo pipefail
+            source /opt/rh/devtoolset-10/enable 2>/dev/null || true
+            /cargo/bin/cargo build -r --package opencc-fmmseg-capi
+            readelf -sW target/release/libopencc_fmmseg_capi.so | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
             '
-
           sudo chown -R "$(id -u)":"$(id -g)" target || true
 
       - name: Verify manylinux2014 GLIBC (<= 2.17)
