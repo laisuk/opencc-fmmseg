@@ -152,10 +152,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          cargo --version
-          rustc --version
-
           IMAGE="${{ matrix.manylinux_image }}"
 
           docker run --rm \
@@ -170,10 +166,24 @@ jobs:
             "${IMAGE}" \
             /bin/bash -lc '
               set -euo pipefail
-              cargo --version
-              rustc --version
+
+              # Enable toolchain that provides gcc
+              source /opt/rh/devtoolset-10/enable 2>/dev/null || true
+              source /opt/rh/devtoolset-11/enable 2>/dev/null || true
+
+              # Force Rust to use gcc (don’t rely on cc symlink)
+              export CC=gcc
+              export CXX=g++
+              export AR=ar
+              export RUSTFLAGS="-C linker=gcc"
+
+              echo "gcc -> $(command -v gcc || true)"
+              gcc --version
+
               cargo build -r --package opencc-fmmseg-capi
-              readelf -sW target/release/libopencc_fmmseg_capi.so | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
+
+              readelf -sW target/release/libopencc_fmmseg_capi.so \
+                | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
             '
 
           sudo chown -R "$(id -u)":"$(id -g)" target || true
