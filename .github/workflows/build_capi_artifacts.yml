@@ -196,7 +196,7 @@ jobs:
               export AR=ar
               export RUSTFLAGS="-C linker=gcc"
           
-              cargo build -r --package opencc-fmmseg-capi -vv
+              cargo build -r --package opencc-fmmseg-capi
           
               readelf -sW target/release/libopencc_fmmseg_capi.so \
                 | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
