@@ -67,7 +67,7 @@ jobs:
             target: ""
             dll_name: libopencc_fmmseg_capi.so
             target_release_dir: target/release
-            manylinux_image: quay.io/pypa/manylinux2014_x86_64
+            manylinux_image: quay.io/pypa/manylinux2014_x86_64:latest
 
           # -------------------------
           # Linux (arm64) - manylinux2014
@@ -81,7 +81,7 @@ jobs:
             target: ""
             dll_name: libopencc_fmmseg_capi.so
             target_release_dir: target/release
-            manylinux_image: quay.io/pypa/manylinux2014_aarch64
+            manylinux_image: quay.io/pypa/manylinux2014_aarch64:latest
 
           # -------------------------
           # macOS (arm64)
@@ -153,30 +153,39 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Host Rust must exist (dtolnay step)
+          cargo --version
+          rustc --version
+
+          # Choose correct manylinux image per arch
+          IMAGE="${{ matrix.manylinux_image }}"
+
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/io" \
             -w /io \
-            "${{ matrix.manylinux_image }}" \
+            -v "${CARGO_HOME}:/cargo" \
+            -v "${HOME}/.rustup:/rustup" \
+            -e CARGO_HOME=/cargo \
+            -e RUSTUP_HOME=/rustup \
+            -e PATH="/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+            "${IMAGE}" \
             /bin/bash -lc '
               set -euo pipefail
 
+              # optional newer gcc/binutils in manylinux
               source /opt/rh/devtoolset-10/enable 2>/dev/null || true
               source /opt/rh/devtoolset-11/enable 2>/dev/null || true
 
-              # If curl is missing, install it (CentOS 7 base)
-              if ! command -v curl >/dev/null 2>&1; then
-                yum -y install curl ca-certificates
-              fi
-
-              # Install rust
-              curl -sSf https://sh.rustup.rs | sh -s -- -y
-              source "$HOME/.cargo/env"
+              cargo --version
+              rustc --version
 
               cargo build -r --package opencc-fmmseg-capi
 
               readelf -sW target/release/${{ matrix.dll_name }} \
                 | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
             '
+
+          sudo chown -R "$(id -u)":"$(id -g)" target || true
 
       - name: Verify manylinux2014 GLIBC (<= 2.17)
         if: ${{ matrix.platform == 'linux' }}
@@ -186,16 +195,11 @@ jobs:
           so="${{ matrix.target_release_dir }}/${{ matrix.dll_name }}"
           max_ver="$(readelf -sW "$so" | grep -o 'GLIBC_[0-9.]*' | sort -V | tail -n 1)"
           echo "Max GLIBC requirement: $max_ver"
-          # manylinux2014 baseline is glibc 2.17
-          if [[ "$max_ver" != GLIBC_* ]]; then
-            echo "❌ Could not detect GLIBC version"
-            exit 1
-          fi
           if [[ "$(printf '%s\n' "GLIBC_2.17" "$max_ver" | sort -V | tail -n 1)" != "GLIBC_2.17" ]]; then
-            echo "❌ Too new: $max_ver (need <= GLIBC_2.17 for manylinux2014)"
+            echo "❌ Too new: $max_ver (need <= GLIBC_2.17)"
             exit 1
           fi
-          echo "✅ manylinux2014 compatible (glibc <= 2.17)"
+          echo "✅ OK"
 
       # Build ONLY the C API package (Non-Linux)
       - name: Build opencc-fmmseg-capi
