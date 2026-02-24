@@ -136,7 +136,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          docker run --rm quay.io/pypa/manylinux2014_x86_64:latest /bin/sh -lc '
+          docker run --rm ${{ matrix.manylinux_image }} /bin/sh -lc '
             echo "== uname =="; uname -a || true
             echo "== shells =="; ls -l /bin/*sh* || true
             echo "bash:"; command -v bash || true
@@ -159,19 +159,28 @@ jobs:
           IMAGE="${{ matrix.manylinux_image }}"
 
           docker run --rm \
-            -v "$GITHUB_WORKSPACE:/io" -w /io \
-            -v "$HOME/.cargo:/cargo" \
-            -v "$HOME/.rustup:/rustup" \
+            -v "${GITHUB_WORKSPACE}:/io" -w /io \
+            -v "${CARGO_HOME}:/cargo" \
+            -v "${HOME}/.rustup:/rustup" \
             -e CARGO_HOME=/cargo \
             -e RUSTUP_HOME=/rustup \
             -e PATH="/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-            "$IMAGE" \
+            "${IMAGE}" \
             /bin/bash -lc '
-            set -euo pipefail
-            source /opt/rh/devtoolset-10/enable 2>/dev/null || true
-            /cargo/bin/cargo build -r --package opencc-fmmseg-capi
-            readelf -sW target/release/libopencc_fmmseg_capi.so | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
+              set -euo pipefail
+              echo "inside: listing /cargo/bin"
+              ls -la /cargo/bin
+              echo "inside: cargo path -> $(command -v cargo || true)"
+              cargo --version
+              rustc --version
+
+              source /opt/rh/devtoolset-10/enable 2>/dev/null || true
+              cargo build -r --package opencc-fmmseg-capi
+
+              readelf -sW target/release/libopencc_fmmseg_capi.so \
+                | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
             '
+
           sudo chown -R "$(id -u)":"$(id -g)" target || true
 
       - name: Verify manylinux2014 GLIBC (<= 2.17)
