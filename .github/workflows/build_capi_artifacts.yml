@@ -132,36 +132,42 @@ jobs:
           components: rust-src
 
       # Build ONLY the C API package (Linux)
-      - name: Build opencc-fmmseg-capi (manylinux2014)
+      - name: Build opencc-fmmseg-capi (manylinux2014, mounted rust)
         if: ${{ matrix.platform == 'linux' }}
         shell: bash
         run: |
           set -euo pipefail
 
+          # Ensure cargo exists on the host (dtolnay step should do this)
+          command -v cargo
+          command -v rustc
+
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/io" \
             -w /io \
+            -v "${CARGO_HOME}:/cargo" \
+            -v "${HOME}/.rustup:/rustup" \
+            -e CARGO_HOME=/cargo \
+            -e RUSTUP_HOME=/rustup \
+            -e PATH="/cargo/bin:${PATH}" \
             "${{ matrix.manylinux_image }}" \
             bash -lc '
               set -euo pipefail
 
-              # manylinux often provides a newer gcc via devtoolset
+              # toolset (optional)
               source /opt/rh/devtoolset-10/enable 2>/dev/null || true
               source /opt/rh/devtoolset-11/enable 2>/dev/null || true
 
-              # install rust (inside container)
-              curl -sSf https://sh.rustup.rs | sh -s -- -y
-              source "$HOME/.cargo/env"
+              # sanity
+              cargo --version
+              rustc --version
 
-              # build only your cdylib
               cargo build -r --package opencc-fmmseg-capi
 
-              # quick check: show max required GLIBC version
               readelf -sW target/release/${{ matrix.dll_name }} \
                 | grep -o "GLIBC_[0-9.]*" | sort -V | tail -n 1
             '
 
-          # Ensure host runner can read artifacts even if container wrote as root
           sudo chown -R "$(id -u)":"$(id -g)" target || true
 
       - name: Verify manylinux2014 GLIBC (<= 2.17)
