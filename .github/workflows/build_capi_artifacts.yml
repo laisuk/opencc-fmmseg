@@ -56,6 +56,19 @@ jobs:
             target_release_dir: target/i686-win7-windows-msvc/release
 
           # -------------------------
+          # Windows (arm64) - native runner
+          # -------------------------
+          - name: win-arm64
+            os: windows-11-arm
+            platform: windows
+            arch: arm64
+            rust_toolchain: stable
+            is_win7: false
+            target: aarch64-pc-windows-msvc
+            dll_name: opencc_fmmseg_capi.dll
+            target_release_dir: target/aarch64-pc-windows-msvc/release
+
+          # -------------------------
           # Linux (x64) - manylinux2014
           # -------------------------
           - name: linux-x64
@@ -122,6 +135,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+          targets: ${{ matrix.target }}
 
       # Nightly toolchain for Win7 builds (needs rust-src for build-std)
       - name: Set Rust (nightly)
@@ -252,7 +266,11 @@ jobs:
               -Z build-std=std,panic_abort \
               --target "${{ matrix.target }}"
           else
-            cargo build -r --package opencc-fmmseg-capi
+            if [ -n "${{ matrix.target }}" ]; then
+              cargo build -r --package opencc-fmmseg-capi --target "${{ matrix.target }}"
+            else
+              cargo build -r --package opencc-fmmseg-capi
+            fi
           fi
 
       # Collect the 3 required files into a clean ZIP layout
