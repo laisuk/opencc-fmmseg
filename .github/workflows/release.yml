@@ -77,6 +77,19 @@ jobs:
             cargo_cmd: cargo build --release --workspace
             target_release_dir: target/release
 
+          # Windows (arm64) - normal
+          - name: win-arm64
+            os: windows-11-arm
+            platform: windows
+            arch: arm64
+            bin_ext: '.exe'
+            dll_name: opencc_fmmseg_capi.dll
+            archive_ext: zip
+            rust_toolchain: stable
+            is_win7: false
+            cargo_cmd: cargo build --release --workspace
+            target_release_dir: target/release
+
           # Windows 7 (x64) - built on windows-latest using nightly + build-std
           - name: win7-x64
             os: windows-latest
