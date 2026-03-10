@@ -544,6 +544,12 @@ ultra-stable parallel throughput across large text corpora.
 
 ---
 
+## Project That Use opencc-fmmseg
+
+- [opencc-fmmseg-gui](https://github.com/laisuk/opencc-fmmseg-gui) : A modern cross‑platform Chinese text converter GUI built with `Tauri` + `Vite` and powered by the Rust `opencc-fmmseg` engine.
+
+---
+
 ## Credits
 
 - [OpenCC](https://github.com/BYVoid/OpenCC) by [BYVoid](https://github.com/BYVoid) – Lexicon source.
