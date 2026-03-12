@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.9.1] - 2026-03-12
+
+### Changed
+
+- Optimized `OpenccConfig` with added a functions.
+
+---
+
 ## [0.9.0] - 2026-02-09
 
 ### Breaking changes
