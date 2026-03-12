@@ -172,7 +172,7 @@ fn main() {
             };
 
             eprintln!(
-                "opencc-clip Simplified/Traditional Chinese Text Converter © 2025 laisuk Lai"
+                "opencc-clip Simplified/Traditional Chinese Text Converter © 2026 laisuk Lai"
             );
             eprintln!(
                 "Config: {}{}, punct: {}{}",
