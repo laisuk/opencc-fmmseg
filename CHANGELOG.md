@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Optimized `OpenccConfig` with added a functions.
+- Optimized `OpenccConfig` with added functions.
 
 ---
 
