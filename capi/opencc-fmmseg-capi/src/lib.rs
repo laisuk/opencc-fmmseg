@@ -19,18 +19,7 @@ pub extern "C" fn opencc_abi_number() -> u32 {
 /// The returned pointer is valid for the lifetime of the program.
 #[no_mangle]
 pub extern "C" fn opencc_version_string() -> *const c_char {
-    // Compile-time version from Cargo.toml
-    static VERSION: &str = env!("CARGO_PKG_VERSION");
-
-    // Leak once, safe by design (process lifetime)
-    static mut CSTR: *const c_char = ptr::null();
-
-    unsafe {
-        if CSTR.is_null() {
-            CSTR = CString::new(VERSION).unwrap().into_raw();
-        }
-        CSTR
-    }
+    concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char
 }
 
 /// C API function `opencc_new`.
