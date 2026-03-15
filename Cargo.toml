@@ -33,9 +33,10 @@ include = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Rayon 1.11+ needs newer Rust; keep within 1.10.*
+# Exact dependency pins to preserve MSRV (rustc 1.75.0):
+# rayon@1.10.0, rayon-core@1.12.1
 rayon = "=1.10.0"
-#rayon-core = "=1.12.1"
+rayon-core = "=1.12.1"
 regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_cbor = "0.11.2"
