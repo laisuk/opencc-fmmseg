@@ -1,0 +1,2 @@
+include README.md
+recursive-include opencc_fmmseg/native *.dll *.so *.dylib

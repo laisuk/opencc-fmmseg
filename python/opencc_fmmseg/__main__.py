@@ -3,7 +3,7 @@ from __future__ import print_function
 import argparse
 import sys
 import io
-from opencc_rs import OpenCC
+from opencc_fmmseg import OpenCC
 
 
 def subcommand_convert(args):

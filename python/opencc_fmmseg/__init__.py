@@ -2,4 +2,6 @@
 # Author: Bryan Lai
 # January, 2024
 ##########################################################
-from .opencc_rs import OpenCC
+from .opencc_fmmseg import OpenCC
+
+__all__ = ["OpenCC"]

@@ -1,4 +1,4 @@
-from opencc_rs import OpenCC
+from opencc_fmmseg import OpenCC
 
 # Example usage
 opencc = OpenCC("s2t")
