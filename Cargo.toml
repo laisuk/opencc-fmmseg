@@ -12,13 +12,13 @@ version = "0.9.1"
 edition = "2021"
 autobenches = false # Disable auto-bench
 authors = ["Laisuk Lai <laisuk@yahoo.com>"]
-description = "High-performance OpenCC-based Chinese conversion using FMM (Forward Maximum Matching) segmentation."
+description = "High-performance Chinese conversion library (Simplified ↔ Traditional) using OpenCC lexicons and FMM segmentation — no runtime I/O, cross-platform, and production-ready."
 license = "MIT"
 repository = "https://github.com/laisuk/opencc-fmmseg"
 homepage = "https://github.com/laisuk/opencc-fmmseg"
 documentation = "https://docs.rs/opencc-fmmseg"
 readme = "README.md"
-keywords = ["opencc", "chinese", "segmentation", "fmm", "conversion"]
+keywords = ["opencc", "chinese", "nlp", "text-processing", "unicode"]
 categories = ["text-processing", "localization", "command-line-utilities", "parser-implementations"]
 include = [
     "Cargo.toml",

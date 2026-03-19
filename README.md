@@ -10,11 +10,22 @@
 
 **opencc-fmmseg** is a high-performance Rust-based engine for Chinese text conversion.    
 It combines [OpenCC](https://github.com/BYVoid/OpenCC)'s lexicons with an
-optimized [Forward Maximum Matching (FMM)](https://en.wikipedia.org/wiki/Maximum_matching) algorithm, suitable for:
+optimized [Forward Maximum Matching (FMM)](https://en.wikipedia.org/wiki/Maximum_matching) algorithm to deliver fast,
+accurate, and deployment-friendly conversion — with **no runtime I/O required**.
 
-- Traditional ↔ Simplified Chinese text conversion
-- Lexicon-based segmentation
-- CLI tools and system integration via C/C++ or Python bindings
+### ✨ Key Capabilities
+
+- 🔁 **Traditional ↔ Simplified Chinese conversion**
+- 🔤 **Lexicon-based word segmentation (FMM)**
+- ⚡ **Zero runtime dictionary loading (embedded Zstd)**
+- 🧩 **Easy integration via Rust, C/C++, and Python bindings**
+
+### 🎯 Ideal For
+
+- NLP preprocessing pipelines
+- OCR and subtitle post-processing
+- Ebook / document conversion (EPUB, PDF, Office)
+- Cross-platform CLI tools and system integration
 
 ---
 
@@ -546,7 +557,8 @@ ultra-stable parallel throughput across large text corpora.
 
 ## Project That Use opencc-fmmseg
 
-- [opencc-fmmseg-gui](https://github.com/laisuk/opencc-fmmseg-gui) : A modern cross‑platform Chinese text converter GUI built with `Tauri` + `Vite` and powered by the Rust `opencc-fmmseg` engine.
+- [opencc-fmmseg-gui](https://github.com/laisuk/opencc-fmmseg-gui) : A modern cross‑platform Chinese text converter GUI
+  built with `Tauri` + `Vite` and powered by the Rust `opencc-fmmseg` engine.
 
 ---
 
