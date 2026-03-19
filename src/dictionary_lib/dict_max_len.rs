@@ -15,7 +15,7 @@
 //!   key lengths exist (again `1..=64` as bits).
 //! - **Runtime accelerators (BMP dense tables)**:
 //!   - `first_len_mask64: Vec<u64>` — per-starter length bitmasks for BMP
-//!   - `first_char_max_len: Vec<u8>` — per-starter max length (derived from mask)
+//!   - `first_char_max_len: Vec<u8>` — per-starter max length
 //!
 //! The dense tables are *indexed by the Unicode scalar value of the first
 //! character* (BMP only) and let the segmenter quickly decide if a given
@@ -112,7 +112,7 @@ macro_rules! debug_note {
 ///   (again 1..=64 as bits). This replaces legacy per-starter “cap” maps.
 /// - **Runtime accelerators (BMP dense tables)**:
 ///   - `first_len_mask64: Vec<u64>` — per-starter length bitmasks for BMP
-///   - `first_char_max_len: Vec<u8>` — per-starter max length (derived from mask)
+///   - `first_char_max_len: Vec<u8>` — per-starter max length
 ///   These dense arrays are indexed by the Unicode scalar value of the first
 ///   character (`0x0000..=0xFFFF`) and are rebuilt at load/build time.
 ///
@@ -252,7 +252,7 @@ impl DictMaxLen {
     /// - Converts each `key: String` into `Box<[char]>` (Unicode scalar values),
     /// - Tracks the **global** maximum and minimum key lengths in characters
     ///   (`max_len`, `min_len`),
-    /// - Tracks the **per-starter** maximum key length (`starter_cap`),
+    /// - Tracks the **per-starter** maximum key length,
     /// - Eagerly calls [`populate_starter_indexes`](#method.populate_starter_indexes)
     ///   to fill runtime accelerators: [`first_len_mask64`] and [`first_char_max_len`].
     ///
@@ -264,7 +264,7 @@ impl DictMaxLen {
     ///
     /// ### Empty keys
     /// An empty `key` is **allowed**. It will be inserted into `map` but does **not**
-    /// contribute to `starter_cap` or starter indexes.
+    /// contribute to starter indexes.
     ///
     /// ### Unicode note
     /// Keys are stored as `char` slices (`Box<[char]>`). If your data contains
@@ -506,12 +506,10 @@ impl DictMaxLen {
         const N: usize = 0x10000; // BMP size
 
         if self.first_len_mask64.len() != N {
-            self.first_len_mask64.clear();
-            self.first_len_mask64.resize(N, 0u64);
+            self.first_len_mask64 = vec![0u64; N];
         }
         if self.first_char_max_len.len() != N {
-            self.first_char_max_len.clear();
-            self.first_char_max_len.resize(N, 0u8);
+            self.first_char_max_len = vec![0u8; N];
         }
     }
 
@@ -586,17 +584,12 @@ impl DictMaxLen {
         if self.first_len_mask64.len() != BMP {
             self.first_len_mask64 = vec![0u64; BMP];
         } else {
-            // clear in-place
-            for v in &mut self.first_len_mask64 {
-                *v = 0;
-            }
+            self.first_len_mask64.fill(0);
         }
         if self.first_char_max_len.len() != BMP {
             self.first_char_max_len = vec![0u8; BMP];
         } else {
-            for v in &mut self.first_char_max_len {
-                *v = 0;
-            }
+            self.first_char_max_len.fill(0);
         }
 
         if !self.starter_len_mask.is_empty() {
@@ -613,9 +606,30 @@ impl DictMaxLen {
 
                 // Derive cap from the mask's max length (1..=64) -> clamp to u8
                 if mask != 0 {
-                    // same as max_len_from_mask(mask), but inline to avoid fn call if you prefer:
                     let max_len = 64 - mask.leading_zeros() as usize;
                     self.first_char_max_len[i] = u8::try_from(max_len).unwrap_or(u8::MAX);
+                }
+            }
+
+            // `starter_len_mask` only stores exact lengths up to 64. Preserve
+            // the true per-starter cap for longer keys when present.
+            if self.max_len > 64 {
+                for key in self.map.keys() {
+                    if key.is_empty() {
+                        continue;
+                    }
+
+                    let c0 = key[0];
+                    let u = c0 as u32;
+                    if u > 0xFFFF {
+                        continue;
+                    }
+
+                    let cap_u8 = u8::try_from(key.len()).unwrap_or(u8::MAX);
+                    let slot = &mut self.first_char_max_len[u as usize];
+                    if cap_u8 > *slot {
+                        *slot = cap_u8;
+                    }
                 }
             }
         } else {
@@ -1001,5 +1015,20 @@ impl Default for DictMaxLen {
             first_len_mask64: Vec::new(),
             first_char_max_len: Vec::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DictMaxLen;
+
+    #[test]
+    fn dense_starter_cap_preserves_long_keys() {
+        let key = "中".repeat(80);
+        let dict = DictMaxLen::build_from_pairs(vec![(key, "長".to_string())]);
+        let bit = 79;
+
+        assert_eq!(dict.first_char_max_len['中' as usize] as usize, 80);
+        assert!(dict.starter_allows_dict('中', 80, bit));
     }
 }

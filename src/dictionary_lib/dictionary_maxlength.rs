@@ -15,11 +15,11 @@ use serde_cbor::{from_reader, from_slice};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Cursor, Write};
+use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
-use zstd::{decode_all, Decoder, Encoder};
+use zstd::{Decoder, Encoder};
 
 mod union_cache;
 pub(crate) use union_cache::UnionKey;
@@ -198,13 +198,10 @@ impl DictionaryMaxlength {
         // Embedded compressed CBOR file at compile time
         let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
 
-        // Decompress Zstd
-        let decompressed_data =
-            decode_all(Cursor::new(compressed_data)).map_err(DictionaryError::IoError)?;
-
-        // Deserialize CBOR
+        let cursor = Cursor::new(compressed_data);
+        let mut decoder = Decoder::new(cursor).map_err(DictionaryError::IoError)?;
         let dictionary: DictionaryMaxlength =
-            from_slice(&decompressed_data).map_err(DictionaryError::CborParseError)?;
+            from_reader(&mut decoder).map_err(DictionaryError::CborParseError)?;
 
         Ok(dictionary.finish())
     }
@@ -369,40 +366,17 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             )));
         }
 
-        let dict_files: HashMap<&str, &str> = [
-            ("st_characters", "STCharacters.txt"),
-            ("st_phrases", "STPhrases.txt"),
-            ("ts_characters", "TSCharacters.txt"),
-            ("ts_phrases", "TSPhrases.txt"),
-            ("tw_phrases", "TWPhrases.txt"),
-            ("tw_phrases_rev", "TWPhrasesRev.txt"),
-            ("tw_variants", "TWVariants.txt"),
-            ("tw_variants_rev", "TWVariantsRev.txt"),
-            ("tw_variants_rev_phrases", "TWVariantsRevPhrases.txt"),
-            ("hk_variants", "HKVariants.txt"),
-            ("hk_variants_rev", "HKVariantsRev.txt"),
-            ("hk_variants_rev_phrases", "HKVariantsRevPhrases.txt"),
-            ("jps_characters", "JPShinjitaiCharacters.txt"),
-            ("jps_phrases", "JPShinjitaiPhrases.txt"),
-            ("jp_variants", "JPVariants.txt"),
-            ("jp_variants_rev", "JPVariantsRev.txt"),
-            ("st_punctuations", "STPunctuations.txt"),
-            ("ts_punctuations", "TSPunctuations.txt"),
-        ]
-        .into_iter()
-        .collect();
-
         fn load_dict(base_dir: &str, filename: &str) -> Result<DictMaxLen, DictionaryError> {
             let path = Path::new(base_dir).join(filename);
             let path_str = path.display().to_string();
-
-            // Pure I/O errors → IoError(io::Error)
-            let content = fs::read_to_string(&path)?;
+            let file = File::open(&path)?;
+            let reader = BufReader::new(file);
 
             let mut pairs: Vec<(String, String)> = Vec::new();
             let mut saw_data_line = false;
 
-            for (lineno, raw_line) in content.lines().enumerate() {
+            for (lineno, raw_line) in reader.lines().enumerate() {
+                let raw_line = raw_line?;
                 let mut line = raw_line.trim_end();
 
                 if line.is_empty() || line.starts_with('#') {
@@ -418,8 +392,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
                 let Some((k, v)) = line.split_once('\t') else {
                     return Err(DictionaryError::LoadFileError {
-                        path: path_str.clone(), // cloned only on error
-                        lineno: lineno + 1,     // human-friendly 1-based line
+                        path: path_str.clone(),
+                        lineno: lineno + 1,
                         message: "missing TAB separator".to_string(),
                     });
                 };
@@ -432,24 +406,24 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         }
 
         Ok(DictionaryMaxlength {
-            st_characters: load_dict(base_dir, dict_files["st_characters"])?,
-            st_phrases: load_dict(base_dir, dict_files["st_phrases"])?,
-            ts_characters: load_dict(base_dir, dict_files["ts_characters"])?,
-            ts_phrases: load_dict(base_dir, dict_files["ts_phrases"])?,
-            tw_phrases: load_dict(base_dir, dict_files["tw_phrases"])?,
-            tw_phrases_rev: load_dict(base_dir, dict_files["tw_phrases_rev"])?,
-            tw_variants: load_dict(base_dir, dict_files["tw_variants"])?,
-            tw_variants_rev: load_dict(base_dir, dict_files["tw_variants_rev"])?,
-            tw_variants_rev_phrases: load_dict(base_dir, dict_files["tw_variants_rev_phrases"])?,
-            hk_variants: load_dict(base_dir, dict_files["hk_variants"])?,
-            hk_variants_rev: load_dict(base_dir, dict_files["hk_variants_rev"])?,
-            hk_variants_rev_phrases: load_dict(base_dir, dict_files["hk_variants_rev_phrases"])?,
-            jps_characters: load_dict(base_dir, dict_files["jps_characters"])?,
-            jps_phrases: load_dict(base_dir, dict_files["jps_phrases"])?,
-            jp_variants: load_dict(base_dir, dict_files["jp_variants"])?,
-            jp_variants_rev: load_dict(base_dir, dict_files["jp_variants_rev"])?,
-            st_punctuations: load_dict(base_dir, dict_files["st_punctuations"])?,
-            ts_punctuations: load_dict(base_dir, dict_files["ts_punctuations"])?,
+            st_characters: load_dict(base_dir, "STCharacters.txt")?,
+            st_phrases: load_dict(base_dir, "STPhrases.txt")?,
+            ts_characters: load_dict(base_dir, "TSCharacters.txt")?,
+            ts_phrases: load_dict(base_dir, "TSPhrases.txt")?,
+            tw_phrases: load_dict(base_dir, "TWPhrases.txt")?,
+            tw_phrases_rev: load_dict(base_dir, "TWPhrasesRev.txt")?,
+            tw_variants: load_dict(base_dir, "TWVariants.txt")?,
+            tw_variants_rev: load_dict(base_dir, "TWVariantsRev.txt")?,
+            tw_variants_rev_phrases: load_dict(base_dir, "TWVariantsRevPhrases.txt")?,
+            hk_variants: load_dict(base_dir, "HKVariants.txt")?,
+            hk_variants_rev: load_dict(base_dir, "HKVariantsRev.txt")?,
+            hk_variants_rev_phrases: load_dict(base_dir, "HKVariantsRevPhrases.txt")?,
+            jps_characters: load_dict(base_dir, "JPShinjitaiCharacters.txt")?,
+            jps_phrases: load_dict(base_dir, "JPShinjitaiPhrases.txt")?,
+            jp_variants: load_dict(base_dir, "JPVariants.txt")?,
+            jp_variants_rev: load_dict(base_dir, "JPVariantsRev.txt")?,
+            st_punctuations: load_dict(base_dir, "STPunctuations.txt")?,
+            ts_punctuations: load_dict(base_dir, "TSPunctuations.txt")?,
             // runtime-only cache (serde-skipped)
             unions: Default::default(),
         })
@@ -697,13 +671,14 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// On failure, a human-readable message is written to the global last-error buffer
     /// via [`set_last_error`](Self::set_last_error).
     pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, DictionaryError> {
-        let cbor_data = fs::read(&path).map_err(|err| {
+        let file = File::open(&path).map_err(|err| {
             let msg = format!("Failed to read CBOR file: {}", err);
             Self::set_last_error(&msg);
             DictionaryError::IoError(err)
         })?;
+        let reader = BufReader::new(file);
 
-        let dictionary: DictionaryMaxlength = from_slice(&cbor_data).map_err(|err| {
+        let dictionary: DictionaryMaxlength = from_reader(reader).map_err(|err| {
             let msg = format!("Failed to deserialize CBOR: {}", err);
             Self::set_last_error(&msg);
             DictionaryError::CborParseError(err)

@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Optimized `OpenccConfig` with added functions.
 - Update dictionary
 - Python demo package optimization
+- Micro-optimization for `dictionary_lib`
 
 ---
 
