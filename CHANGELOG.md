@@ -6,11 +6,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.9.1] - 2026-03-12
+## [0.9.1-beta1] - 2026-03-20
 
 ### Changed
 
 - Optimized `OpenccConfig` with added functions.
+- Update dictionary
+- Python demo package optimization
 
 ---
 
