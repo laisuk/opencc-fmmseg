@@ -358,14 +358,15 @@ impl OpenCC {
         out
     }
 
-    /// Core dictionary‑matching routine (FMM) optimized by a precomputed **starter union**.
+    /// Core dictionary-matching routine (FMM) optimized by a precomputed **starter union**,
+    /// appending the converted output into an existing [`String`] buffer.
     ///
-    /// This is the tightest loop of the segment‑replacement engine. It scans a delimiter‑free
-    /// `&[char]` left‑to‑right using **Forward Maximum Matching (FMM)**, while a prebuilt
-    /// [`StarterUnion`] (bitmasks + per‑starter caps) prunes impossible lengths before any
-    /// per‑dictionary lookup.
+    /// This is the tightest loop of the segment-replacement engine. It scans a delimiter-free
+    /// `&[char]` left-to-right using **Forward Maximum Matching (FMM)**, while a prebuilt
+    /// [`StarterUnion`] (bitmasks + per-starter caps) prunes impossible lengths before any
+    /// per-dictionary lookup.
     ///
-    /// Compared to `convert_by()`:
+    /// Compared to [`convert_by_into`]:
     /// - Uses `union.bmp_mask/cap` (BMP) and `union.astral_mask/cap` (astral) to **prune lengths**
     ///   before probing dictionaries.
     /// - Tries viable lengths in **descending order** via [`for_each_len_dec`]; the first hit wins.
@@ -373,35 +374,37 @@ impl OpenCC {
     /// # Matching strategy
     /// For each `start_pos`:
     /// 1. Compute `cap_here = min(max_word_length, remaining, union_cap_for_starter)`.
-    /// 2. Enumerate **only viable lengths** (longest → shortest) using the union’s bitmask/cap.
-    /// 3. For each viable `length`, probe each dictionary **only if** that dict can host such a key
-    ///    (checked against `dict.max_len` and the dict’s own per‑starter cap).
-    /// 4. On the first match, emit replacement and advance by `length`.
-    /// 5. If no match, emit the current char and advance by 1.
+    /// 2. Enumerate **only viable lengths** (longest to shortest) using the union’s bitmask/cap.
+    /// 3. For each viable `length`, probe each dictionary only if that dictionary can host such a key
+    ///    (checked against the dictionary’s keyed-length table and optional per-starter cap).
+    /// 4. On the first match, append the replacement and advance by `length`.
+    /// 5. If no match is found, append the current character and advance by 1.
     ///
     /// # Arguments
-    /// - `text_chars`: Non‑delimited slice of `char` (a single segment).
+    /// - `text_chars`: Non-delimited slice of `char` (a single segment).
     /// - `dictionaries`: Dictionaries to consult (probe order = precedence).
-    /// - `max_word_length`: Global cap for match length in chars (e.g., 16).
-    /// - `union`: Precomputed [`StarterUnion`] built from **exactly** these `dictionaries`.
+    /// - `max_word_length`: Global cap for match length in chars (for example, 16).
+    /// - `union`: Precomputed [`StarterUnion`] built from exactly these `dictionaries`.
+    /// - `result`: Destination buffer to append converted output into.
     ///
-    /// # Returns
-    /// Converted segment as a `String`.
+    /// # Notes
+    /// - This function **appends** into `result`; it does not clear it first.
+    /// - Callers that need a fresh string should create and preallocate `result` before calling.
     ///
     /// # Requirements
-    /// - `union` **must** be built from the same set/content of `dictionaries` (rebuild if they change).
-    /// - Each [`DictMaxLen`] has populated starter indexes
-    ///   (e.g., via [`DictMaxLen::build_from_pairs`] or `populate_starter_indexes`).
+    /// - `union` must be built from the same set/content of `dictionaries` and rebuilt if they change.
+    /// - Each [`DictMaxLen`] must have populated starter indexes
+    ///   (for example, via [`DictMaxLen::build_from_pairs`] or `populate_starter_indexes`).
     ///
     /// # Performance notes
-    /// - Union pruning avoids per‑dict checks for impossible starters/lengths.
-    /// - Longest‑first, first‑hit‑wins often exits early on common phrases.
+    /// - Union pruning avoids per-dictionary checks for impossible starters/lengths.
+    /// - Longest-first, first-hit-wins often exits early on common phrases.
     /// - BMP starters use O(1) array lookups; astral starters use sparse maps.
     ///
     /// # Complexity
-    /// Let *N* be the segment length, *D* the number of dictionaries.
-    /// Typical: `O(N · K · D)` where `K ≤ 64` viable lengths per position after pruning
-    /// (often much smaller due to early exits).
+    /// Let *N* be the segment length and *D* the number of dictionaries.
+    /// Typical complexity is `O(N · K · D)`, where `K ≤ 64` viable lengths per position after pruning
+    /// and is often much smaller due to early exits.
     ///
     /// # Example (internal)
     /// ```ignore
@@ -412,33 +415,15 @@ impl OpenCC {
     /// let dicts: [&DictMaxLen; 2] = [&d1, &d2];
     /// let union = StarterUnion::build(&dicts);
     ///
-    /// // Given a delimiter‑free segment `text_chars`:
-    /// // let out = opencc.convert_by_union(&text_chars, &dicts, 16, &union);
+    /// let text_chars: Vec<char> = "你好世界".chars().collect();
+    /// let mut out = String::with_capacity(text_chars.len() * 4);
+    /// // opencc.convert_by_union_into(&text_chars, &dicts, 16, &union, &mut out);
     /// ```
     ///
     /// # Safety & invariants
-    /// - Slices are only formed within `start_pos..start_pos+length` after ensuring bounds (`length ≤ remaining`).
-    /// - `text_chars` is immutable and alive for the duration; aliasing multiple immutable slices is safe.
-    /// - CAP (≥64) semantics are enforced by [`for_each_len_dec`].
-    #[inline(always)]
-    pub fn convert_by_union(
-        &self,
-        text_chars: &[char],
-        dictionaries: &[&DictMaxLen],
-        max_word_length: usize,
-        union: &StarterUnion,
-    ) -> String {
-        let mut result = String::with_capacity(text_chars.len() * 4);
-        self.convert_by_union_into(
-            text_chars,
-            dictionaries,
-            max_word_length,
-            union,
-            &mut result,
-        );
-        result
-    }
-
+    /// - Slices are only formed within `start_pos..start_pos + length` after bounds are verified.
+    /// - `text_chars` is immutable and lives for the duration of the call; aliasing immutable slices is safe.
+    /// - CAP (>= 64) semantics are enforced by [`for_each_len_dec`].
     #[inline(always)]
     fn convert_by_union_into(
         &self,
@@ -459,7 +444,6 @@ impl OpenCC {
         }
 
         let is_multi_dicts = dictionaries.len() > 1;
-        // const CAP_BIT: usize = 63;
         let mut start_pos = 0;
 
         while start_pos < text_length {
@@ -468,7 +452,7 @@ impl OpenCC {
             let rem = text_length - start_pos;
             let global_cap = max_word_length.min(rem);
 
-            // Pull precomputed mask + cap
+            // Pull precomputed mask + cap.
             let (mask, cap_u8) = if u0 <= 0xFFFF {
                 let idx = u0 as usize;
                 (union.bmp_mask[idx], union.bmp_cap[idx])
@@ -489,30 +473,25 @@ impl OpenCC {
             let mut matched = false;
 
             let text_ptr = text_chars.as_ptr();
-            // starter is the first scalar at start_pos
-            // let starter = unsafe { *text_ptr.add(start_pos) };
 
             for_each_len_dec(mask, cap_here, |length| {
-                // precompute once per length
                 let cap_bit = if length >= 64 { 63 } else { length - 1 };
-                // sentinel: no slice yet
+
+                // Sentinel: no slice built yet for this length.
                 let mut data_ptr: *const char = std::ptr::null();
                 let mut data_len: usize = 0;
-
-                // precompute starter tests, etc.
 
                 for &dict in dictionaries {
                     if !dict.has_key_len(length) {
                         continue;
                     }
-                    // ... starter-cap gates ...
-                    // 2) per-dict starter gate (uses DictMaxLen fields):
-                    if is_multi_dicts {
-                        if !dict.starter_allows_dict(c0, length, cap_bit) {
-                            continue;
-                        }
+
+                    // Per-dictionary starter gate.
+                    if is_multi_dicts && !dict.starter_allows_dict(c0, length, cap_bit) {
+                        continue;
                     }
-                    // Build the slice once per `length`
+
+                    // Build the slice once per length.
                     if data_ptr.is_null() {
                         debug_assert!(start_pos < text_length);
                         debug_assert!(length <= text_length - start_pos);
@@ -520,7 +499,6 @@ impl OpenCC {
                         data_len = length;
                     }
 
-                    // Materialize the fat slice only here
                     let slice: &[char] = unsafe { std::slice::from_raw_parts(data_ptr, data_len) };
 
                     if let Some(val) = dict.map.get(slice) {
@@ -542,45 +520,39 @@ impl OpenCC {
     }
 
     /// Converts text using the given dictionaries with **greedy maximum-match**,
-    /// without relying on a precomputed [`StarterUnion`].
+    /// without relying on a precomputed [`StarterUnion`], and appends the result
+    /// into an existing [`String`] buffer.
     ///
     /// # Algorithm
     ///
     /// - At each position, tries the longest possible slice (up to `max_word_length`).
-    /// - Scans dictionaries in order; if a match is found, emits the mapped value
+    /// - Scans dictionaries in order; if a match is found, appends the mapped value
     ///   and advances by that length.
-    /// - If no dictionary matches, emits the current character as-is and advances by 1.
+    /// - If no dictionary matches, appends the current character as-is and advances by 1.
     ///
     /// # Performance
     ///
-    /// - Simpler but slower than [`convert_by_union`], since every length from
+    /// - Simpler but slower than [`convert_by_union_into`], since every length from
     ///   `max_word_length..=1` must be checked at runtime.
     /// - Useful when:
     ///   - Only single-character dictionaries are applied (e.g. `st`, `ts`);
-    ///   - You don’t want to build a [`StarterUnion`] upfront.
+    ///   - You don’t want to build a [`StarterUnion`] upfront;
+    ///   - You want to reuse an output buffer and avoid an extra wrapper allocation.
     ///
     /// # Parameters
-    /// - `text_chars`: Input text, pre-split into `chars.
-    /// - `dictionaries`: Slice of dictionary references (`DictMaxLen`).
+    /// - `text_chars`: Input text, pre-split into chars.
+    /// - `dictionaries`: Slice of dictionary references ([`DictMaxLen`]).
     /// - `max_word_length`: Maximum phrase length across the dictionaries.
+    /// - `result`: Destination buffer to append converted output into.
     ///
-    /// # Returns
-    /// A new [`String`] containing the converted text.
+    /// # Notes
+    ///
+    /// - This function **appends** into `result`; it does not clear it first.
+    /// - Callers that need a fresh output string should create and preallocate
+    ///   the buffer before calling this method.
     ///
     /// # See also
-    /// - [`convert_by_union`]: Optimized version that uses a [`StarterUnion`] mask/cap table.
-    #[inline]
-    fn convert_by(
-        &self,
-        text_chars: &[char],
-        dictionaries: &[&DictMaxLen],
-        max_word_length: usize,
-    ) -> String {
-        let mut result = String::with_capacity(text_chars.len() * 4);
-        self.convert_by_into(text_chars, dictionaries, max_word_length, &mut result);
-        result
-    }
-
+    /// - [`convert_by_union_into`]: Optimized version that uses a [`StarterUnion`] mask/cap table.
     #[inline]
     fn convert_by_into(
         &self,
@@ -606,7 +578,7 @@ impl OpenCC {
             let mut best_match_length = 0usize;
             let mut best_match: &str = "";
 
-            // greedy: try longest length first
+            // Greedy: try longest length first.
             for length in (1..=max_length).rev() {
                 let candidate = &text_chars[start_pos..start_pos + length];
 
@@ -627,7 +599,7 @@ impl OpenCC {
             }
 
             if best_match_length == 0 {
-                // no dictionary hit: emit single char and move on
+                // No dictionary hit: emit single char and move on.
                 result.push(text_chars[start_pos]);
                 start_pos += 1;
                 continue;
@@ -1472,48 +1444,91 @@ impl OpenCC {
         }
     }
 
-    /// Internal: Applies a fast character-level Simplified-to-Traditional conversion.
+    /// Helper: Converts text using a single-character dictionary and returns a new [`String`].
     ///
-    /// This method performs a low-overhead transformation using only the `st_characters`
-    /// dictionary, mapping each character in the input string to its Traditional form
-    /// if available.
+    /// This is a thin wrapper around [`convert_by_into`] specialized for
+    /// character-level (max length = 1) dictionary application.
     ///
-    /// Designed for high-speed single-pass checks (e.g., used in `zho_check()`).
-    /// Supports parallel character collection if `is_parallel` is enabled.
+    /// # Behavior
+    /// - Processes the input one character at a time.
+    /// - For each character, applies the dictionary mapping if present.
+    /// - Falls back to the original character if no mapping exists.
+    ///
+    /// # Performance
+    /// - Single-pass, no phrase matching.
+    /// - Minimal overhead compared to full FMM conversion.
+    /// - Preallocates output buffer (`len * 4`) to avoid reallocations.
     ///
     /// # Arguments
-    /// * `input` - Simplified Chinese input string.
+    /// - `input`: Input text.
+    /// - `dict`: Single-character dictionary ([`DictMaxLen`]).
     ///
     /// # Returns
-    /// A string where each character has been converted using `st_characters`.
+    /// A newly allocated [`String`] containing the converted text.
     ///
-    /// # Note
-    /// This bypasses phrase-level and punctuation dictionaries for performance.
-    fn st(&self, input: &str) -> String {
-        let dict_refs = [&self.dictionary.st_characters];
+    /// # See also
+    /// - [`convert_by_into`]: General FMM-based conversion with phrase support.
+    #[inline]
+    fn convert_single_char_dict(&self, input: &str, dict: &DictMaxLen) -> String {
+        let dict_refs = [dict];
         let chars: Vec<char> = input.chars().collect();
-        self.convert_by(&chars, &dict_refs, 1)
+        let mut result = String::with_capacity(chars.len() * 4);
+        self.convert_by_into(&chars, &dict_refs, 1, &mut result);
+        result
     }
 
-    /// Internal: Applies a fast character-level Traditional-to-Simplified conversion.
+    /// Internal: Fast character-level Simplified → Traditional conversion.
     ///
-    /// Uses only the `ts_characters` dictionary to map Traditional characters to
-    /// their Simplified form, one-by-one. Optimized for script detection or fast filters.
+    /// Applies only the `st_characters` dictionary, mapping each character
+    /// independently to its Traditional form if available.
     ///
-    /// Uses Rayon parallelization if `is_parallel` is enabled.
+    /// # Behavior
+    /// - Character-by-character conversion (no phrase matching).
+    /// - Unmapped characters are preserved as-is.
+    ///
+    /// # Performance
+    /// - Single-pass, low overhead.
+    /// - Suitable for fast checks (e.g., `zho_check()`).
     ///
     /// # Arguments
-    /// * `input` - Traditional Chinese input string.
+    /// - `input`: Simplified Chinese input string.
     ///
     /// # Returns
-    /// A Simplified Chinese string converted from individual characters.
+    /// A [`String`] with characters converted using `st_characters`.
     ///
-    /// # Note
-    /// This is a minimal-pass check — punctuation and phrases are not processed.
+    /// # Notes
+    /// - Bypasses phrase-level and punctuation dictionaries.
+    /// - Internally uses [`convert_single_char_dict`].
+    #[inline]
+    fn st(&self, input: &str) -> String {
+        self.convert_single_char_dict(input, &self.dictionary.st_characters)
+    }
+
+    /// Internal: Fast character-level Traditional → Simplified conversion.
+    ///
+    /// Applies only the `ts_characters` dictionary, mapping each character
+    /// independently to its Simplified form if available.
+    ///
+    /// # Behavior
+    /// - Character-by-character conversion (no phrase matching).
+    /// - Unmapped characters are preserved as-is.
+    ///
+    /// # Performance
+    /// - Single-pass, low overhead.
+    /// - Suitable for script detection or lightweight filtering.
+    ///
+    /// # Arguments
+    /// - `input`: Traditional Chinese input string.
+    ///
+    /// # Returns
+    /// A [`String`] with characters converted using `ts_characters`.
+    ///
+    /// # Notes
+    /// - This is a minimal-pass conversion (no phrases or punctuation handling).
+    /// - Internally uses [`convert_single_char_dict`].
+    #[inline]
     fn ts(&self, input: &str) -> String {
-        let dict_refs = [&self.dictionary.ts_characters];
-        let chars: Vec<char> = input.chars().collect();
-        self.convert_by(&chars, &dict_refs, 1)
+        self.convert_single_char_dict(input, &self.dictionary.ts_characters)
     }
 
     /// Detects the likely Chinese script type of the input text.
