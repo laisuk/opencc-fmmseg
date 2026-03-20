@@ -1457,7 +1457,7 @@ impl OpenCC {
     /// # Performance
     /// - Single-pass, no phrase matching.
     /// - Minimal overhead compared to full FMM conversion.
-    /// - Preallocates output buffer (`len * 4`) to avoid reallocations.
+    /// - Pre-allocates output buffer (`len * 4`) to avoid reallocations.
     ///
     /// # Arguments
     /// - `input`: Input text.
