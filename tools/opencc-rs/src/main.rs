@@ -2,13 +2,17 @@ mod office_converter;
 
 use office_converter::OfficeConverter;
 
-use clap::{builder::{StringValueParser, TypedValueParser, ValueParser}, Arg, ArgMatches, Command};
+use clap::{
+    builder::{StringValueParser, TypedValueParser, ValueParser},
+    Arg, ArgMatches, Command,
+};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use opencc_fmmseg::{OpenCC, OpenccConfig};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
+use std::sync::OnceLock;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("opencc-rs")
@@ -65,12 +69,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+fn get_supported_configs() -> &'static str {
+    static SUPPORTED: OnceLock<String> = OnceLock::new();
+    SUPPORTED.get_or_init(|| {
+        let mut s = String::with_capacity(128);
+        for (i, cfg) in OpenccConfig::ALL.iter().enumerate() {
+            if i > 0 {
+                s.push_str(" | ");
+            }
+            s.push_str(cfg.as_str());
+        }
+        s
+    })
+}
+
 fn config_value_parser() -> ValueParser {
     ValueParser::new(StringValueParser::new().try_map(|s| {
         OpenccConfig::try_from(s.as_str())
             .map(OpenccConfig::as_str)
             .map(str::to_owned)
-            .map_err(|_| format!("invalid config: {s}"))
+            .map_err(|_| format!("\nSupported configs: {}", get_supported_configs()))
     }))
 }
 
@@ -91,7 +109,10 @@ fn common_args() -> Vec<Arg> {
             .long("config")
             .required(true)
             .value_parser(config_value_parser())
-            .help("Conversion configuration"),
+            .help(format!(
+                "Conversion configuration ({})",
+                get_supported_configs()
+            )),
         Arg::new("punct")
             .short('p')
             .long("punct")
