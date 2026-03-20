@@ -256,10 +256,10 @@ impl OpenCC {
         union: &StarterUnion,
     ) -> String {
         let chars: Vec<char> = text.chars().collect();
-        // Build delimiter-safe ranges (no cross-phrase splits)
-        let ranges = self.get_chars_range(&chars, true);
 
         if self.is_parallel {
+            // Build delimiter-safe ranges (no cross-phrase splits)
+            let ranges = self.get_chars_range(&chars, true);
             let threads = rayon::current_num_threads().max(1);
             let desired_chunks = threads * 6;
             let chunk_ranges = (ranges.len() / desired_chunks).max(128).min(2048);
@@ -300,18 +300,62 @@ impl OpenCC {
 
             parts.concat() // exact single allocation
         } else {
-            let mut out = String::with_capacity(text.len() + (text.len() >> 6));
-            for r in ranges {
+            self.segment_replace_with_union_serial_streaming(
+                text.len(),
+                &chars,
+                dictionaries,
+                max_word_length,
+                union,
+            )
+        }
+    }
+
+    /// Serial delimiter-aware segment conversion without storing intermediate ranges.
+    ///
+    /// This helper is used only when parallel mode is disabled. It scans the
+    /// pre-collected `chars` slice once, emits delimiter-bounded segments as they
+    /// are found, and appends each converted segment directly into the output
+    /// buffer via [`convert_by_union_into`](Self::convert_by_union_into).
+    ///
+    /// Compared with the range-based path, this avoids allocating
+    /// `Vec<Range<usize>>` and removes one layer of orchestration for serial
+    /// workloads while preserving the same delimiter semantics.
+    #[inline]
+    fn segment_replace_with_union_serial_streaming(
+        &self,
+        text_len: usize,
+        chars: &[char],
+        dictionaries: &[&DictMaxLen],
+        max_word_length: usize,
+        union: &StarterUnion,
+    ) -> String {
+        let mut out = String::with_capacity(text_len + (text_len >> 6));
+        let mut start = 0usize;
+
+        for (i, ch) in chars.iter().enumerate() {
+            if is_delimiter(*ch) {
                 self.convert_by_union_into(
-                    &chars[r.start..r.end],
+                    &chars[start..i + 1],
                     dictionaries,
                     max_word_length,
                     union,
                     &mut out,
                 );
+                start = i + 1;
             }
-            out
         }
+
+        if start < chars.len() {
+            self.convert_by_union_into(
+                &chars[start..],
+                dictionaries,
+                max_word_length,
+                union,
+                &mut out,
+            );
+        }
+
+        out
     }
 
     /// Core dictionary‑matching routine (FMM) optimized by a precomputed **starter union**.
@@ -633,6 +677,11 @@ impl OpenCC {
         self.is_parallel = is_parallel;
     }
 
+    /// Applies a single dictionary round using the shared segment-replace engine.
+    ///
+    /// This is a small internal adapter that wires one round of dictionaries and
+    /// its cached [`StarterUnion`] into [`DictRefs`], then executes the common
+    /// `segment_replace_with_union` closure.
     #[inline]
     fn apply_dicts_1(&self, input: &str, round_1: &[&DictMaxLen], u1: Arc<StarterUnion>) -> String {
         DictRefs::new(round_1, u1).apply_segment_replace(input, |input, refs, max_len, union| {
@@ -640,6 +689,11 @@ impl OpenCC {
         })
     }
 
+    /// Applies a two-round conversion pipeline with shared orchestration.
+    ///
+    /// The caller supplies both dictionary slices and their corresponding cached
+    /// unions. This helper keeps the public conversion entrypoints compact while
+    /// preserving the same round ordering and replacement logic.
     #[inline]
     fn apply_dicts_2(
         &self,
@@ -656,6 +710,11 @@ impl OpenCC {
             })
     }
 
+    /// Applies a three-round conversion pipeline with shared orchestration.
+    ///
+    /// This is the internal bridge for the multi-stage configurations that need
+    /// three sequential dictionary passes, such as S2T followed by phrase and
+    /// variant normalization.
     #[inline]
     fn apply_dicts_3(
         &self,
@@ -675,6 +734,11 @@ impl OpenCC {
             })
     }
 
+    /// Applies a shared T2S-style second round with optional punctuation maps.
+    ///
+    /// This helper selects either the 2-dictionary (`ts_phrases`,
+    /// `ts_characters`) or 3-dictionary (`+ ts_punctuations`) second-round stack
+    /// array based on `punctuation`, then forwards to [`apply_dicts_2`].
     #[inline]
     fn apply_ts_round_2(
         &self,
@@ -697,6 +761,11 @@ impl OpenCC {
         }
     }
 
+    /// Applies a shared S2T-style first round with optional punctuation maps.
+    ///
+    /// This helper selects either the 2-dictionary (`st_phrases`,
+    /// `st_characters`) or 3-dictionary (`+ st_punctuations`) first-round stack
+    /// array based on `punctuation`, then forwards to [`apply_dicts_2`].
     #[inline]
     fn apply_st_round_2(
         &self,
