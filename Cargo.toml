@@ -22,7 +22,7 @@ keywords = ["opencc", "chinese", "nlp", "text-processing", "unicode"]
 categories = ["text-processing", "localization", "command-line-utilities", "parser-implementations"]
 include = [
     "Cargo.toml",
-    "LICENSE",
+    "/LICENSE",
     # All source code
     "src/**/*.rs",
     "src/dictionary_lib/dicts/*.zstd",
