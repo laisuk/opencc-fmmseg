@@ -9,9 +9,9 @@ def get_native_info() -> Tuple[str, str]:
     Return (platform_arch, library_filename).
 
     platform_arch examples:
-    - windows-x64
-    - windows-x86
-    - windows-arm64
+    - win-x64
+    - win-x86
+    - win-arm64
     - linux-x64
     - linux-arm64
     - macos-x64
@@ -30,7 +30,7 @@ def get_native_info() -> Tuple[str, str]:
         raise OSError(f"Unsupported architecture: {machine}")
 
     if system == "Windows":
-        platform_name = "windows"
+        platform_name = "win"
         lib_file = "opencc_fmmseg_capi.dll"
     elif system == "Darwin":
         platform_name = "macos"

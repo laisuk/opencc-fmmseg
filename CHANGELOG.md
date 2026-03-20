@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.9.1-beta1] - 2026-03-20
+## [0.9.1-beta1] - 2026-03-21
 
 ### Changed
 
@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Update dictionary
 - Python demo package optimization
 - Micro-optimization for `dictionary_lib`
+- Improved core conversion performance by reducing heap memory allocations.
 
 ---
 
