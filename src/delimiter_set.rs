@@ -124,4 +124,3 @@ pub static FULL_DELIMITER_SET: Lazy<DelimiterSet> = Lazy::new(|| {
 pub fn is_delimiter(c: char) -> bool {
     FULL_DELIMITER_SET.contains(c)
 }
-

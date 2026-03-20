@@ -156,4 +156,3 @@ pub fn find_max_utf8_len_bytes(bytes: &[u8], max: usize) -> usize {
     }
     i
 }
-

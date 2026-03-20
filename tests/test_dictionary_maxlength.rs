@@ -2,11 +2,13 @@
 mod tests {
     use opencc_fmmseg::dictionary_lib::{DictMaxLen, DictionaryMaxlength};
     use std::fs;
-    use std::io::{Cursor};
+    use std::io::Cursor;
     use std::path::Path;
 
     // Minimal file-based loader mirroring `from_zstd()` (no crate-specific error type needed here)
-    fn load_from_zstd_file<P: AsRef<Path>>(p: P) -> Result<DictionaryMaxlength, Box<dyn std::error::Error>> {
+    fn load_from_zstd_file<P: AsRef<Path>>(
+        p: P,
+    ) -> Result<DictionaryMaxlength, Box<dyn std::error::Error>> {
         let bytes = fs::read(p)?;
         let decompressed = zstd::stream::decode_all(Cursor::new(bytes))?;
         let dicts: DictionaryMaxlength = serde_cbor::from_slice(&decompressed)?;
@@ -14,7 +16,10 @@ mod tests {
     }
 
     // Minimal file-based saver: DictionaryMaxlength -> CBOR -> Zstd
-    fn save_to_zstd_file<P: AsRef<Path>>(dicts: &DictionaryMaxlength, p: P) -> Result<(), Box<dyn std::error::Error>> {
+    fn save_to_zstd_file<P: AsRef<Path>>(
+        dicts: &DictionaryMaxlength,
+        p: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let cbor = serde_cbor::to_vec(dicts)?;
         let compressed = zstd::stream::encode_all(Cursor::new(cbor), 3)?; // level 3 is usually fine
         fs::write(p, compressed)?;
@@ -24,14 +29,24 @@ mod tests {
     // Helper to collect all DictMaxLen refs (keeps count logic in one place)
     fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 18] {
         [
-            &d.st_characters, &d.st_phrases,
-            &d.ts_characters, &d.ts_phrases,
-            &d.tw_phrases, &d.tw_phrases_rev,
-            &d.tw_variants, &d.tw_variants_rev, &d.tw_variants_rev_phrases,
-            &d.hk_variants, &d.hk_variants_rev, &d.hk_variants_rev_phrases,
-            &d.jps_characters, &d.jps_phrases,
-            &d.jp_variants, &d.jp_variants_rev,
-            &d.st_punctuations, &d.ts_punctuations,
+            &d.st_characters,
+            &d.st_phrases,
+            &d.ts_characters,
+            &d.ts_phrases,
+            &d.tw_phrases,
+            &d.tw_phrases_rev,
+            &d.tw_variants,
+            &d.tw_variants_rev,
+            &d.tw_variants_rev_phrases,
+            &d.hk_variants,
+            &d.hk_variants_rev,
+            &d.hk_variants_rev_phrases,
+            &d.jps_characters,
+            &d.jps_phrases,
+            &d.jp_variants,
+            &d.jp_variants_rev,
+            &d.st_punctuations,
+            &d.ts_punctuations,
         ]
     }
 
@@ -47,7 +62,8 @@ mod tests {
 
         // 2) Load DictionaryMaxlength from DISK (file-based zstd)
         let dicts_from_disk = load_from_zstd_file(&src_path)?;
-        let dicts_from_disks = DictionaryMaxlength::from_dicts().unwrap_or(DictionaryMaxlength::default());
+        let dicts_from_disks =
+            DictionaryMaxlength::from_dicts().unwrap_or(DictionaryMaxlength::default());
 
         // 3) Save to a DIFFERENT compressed zstd filename
         save_to_zstd_file(&dicts_from_disks, &dst_path)?;
@@ -74,7 +90,10 @@ mod tests {
         // The counts should match after round-trip
         assert_eq!(t1, t2, "total DictMaxLen count mismatched after round-trip");
         assert_eq!(t3, t3, "total DictMaxLen count mismatched after round-trip");
-        assert_eq!(n1, n2, "non-empty DictMaxLen count mismatched after round-trip");
+        assert_eq!(
+            n1, n2,
+            "non-empty DictMaxLen count mismatched after round-trip"
+        );
 
         // Cleanup temp files (best-effort)
         let _ = fs::remove_file(&src_path);

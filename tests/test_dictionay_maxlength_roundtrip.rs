@@ -30,14 +30,24 @@ mod tests {
     /// Fixed order view over the 18 DictMaxLen tables.
     fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 18] {
         [
-            &d.st_characters, &d.st_phrases,
-            &d.ts_characters, &d.ts_phrases,
-            &d.tw_phrases, &d.tw_phrases_rev,
-            &d.tw_variants, &d.tw_variants_rev, &d.tw_variants_rev_phrases,
-            &d.hk_variants, &d.hk_variants_rev, &d.hk_variants_rev_phrases,
-            &d.jps_characters, &d.jps_phrases,
-            &d.jp_variants, &d.jp_variants_rev,
-            &d.st_punctuations, &d.ts_punctuations,
+            &d.st_characters,
+            &d.st_phrases,
+            &d.ts_characters,
+            &d.ts_phrases,
+            &d.tw_phrases,
+            &d.tw_phrases_rev,
+            &d.tw_variants,
+            &d.tw_variants_rev,
+            &d.tw_variants_rev_phrases,
+            &d.hk_variants,
+            &d.hk_variants_rev,
+            &d.hk_variants_rev_phrases,
+            &d.jps_characters,
+            &d.jps_phrases,
+            &d.jp_variants,
+            &d.jp_variants_rev,
+            &d.st_punctuations,
+            &d.ts_punctuations,
         ]
     }
 
@@ -68,7 +78,9 @@ mod tests {
         for (i, dm) in all_dicts(d).iter().enumerate() {
             assert!(
                 dm.min_len <= dm.max_len,
-                "Dict[{i}]: min_len {} > max_len {}", dm.min_len, dm.max_len
+                "Dict[{i}]: min_len {} > max_len {}",
+                dm.min_len,
+                dm.max_len
             );
             // If mask is present (and within representable range), boundaries must be set.
             if dm.key_length_mask != 0 {
@@ -130,16 +142,16 @@ mod tests {
 
         // per-slot pair counts should match exactly for internal→internal round-trip
         let pairs_disk: Vec<_> = s_disk.iter().map(|s| s.pairs).collect();
-        let pairs_rt:   Vec<_> = s_rt.iter().map(|s| s.pairs).collect();
+        let pairs_rt: Vec<_> = s_rt.iter().map(|s| s.pairs).collect();
         assert_eq!(pairs_disk, pairs_rt, "per-dict pair counts mismatch");
 
         // min/max/mask should also be stable under internal round-trip
         let bounds_disk: Vec<_> = s_disk.iter().map(|s| (s.min_len, s.max_len)).collect();
-        let bounds_rt:   Vec<_> = s_rt.iter().map(|s| (s.min_len, s.max_len)).collect();
+        let bounds_rt: Vec<_> = s_rt.iter().map(|s| (s.min_len, s.max_len)).collect();
         assert_eq!(bounds_disk, bounds_rt, "per-dict min/max mismatch");
 
         let masks_disk: Vec<_> = s_disk.iter().map(|s| s.mask).collect();
-        let masks_rt:   Vec<_> = s_rt.iter().map(|s| s.mask).collect();
+        let masks_rt: Vec<_> = s_rt.iter().map(|s| s.mask).collect();
         assert_eq!(masks_disk, masks_rt, "per-dict key_length_mask mismatch");
 
         // 6) Cleanup ( the best effort)

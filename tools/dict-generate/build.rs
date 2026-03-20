@@ -7,17 +7,25 @@ fn main() {
         use winres::{VersionInfo, WindowsResource};
 
         // --- Version from Cargo (SemVer: major.minor.patch) ---
-        let major: u16 = env::var("CARGO_PKG_VERSION_MAJOR").unwrap().parse().unwrap();
-        let minor: u16 = env::var("CARGO_PKG_VERSION_MINOR").unwrap().parse().unwrap();
-        let patch: u16 = env::var("CARGO_PKG_VERSION_PATCH").unwrap().parse().unwrap();
+        let major: u16 = env::var("CARGO_PKG_VERSION_MAJOR")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let minor: u16 = env::var("CARGO_PKG_VERSION_MINOR")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let patch: u16 = env::var("CARGO_PKG_VERSION_PATCH")
+            .unwrap()
+            .parse()
+            .unwrap();
         let revision: u16 = 0; // implicit 4th digit
 
         // Pack into Windows FIXEDFILEINFO format
-        let packed: u64 =
-            ((major as u64) << 48)
-                | ((minor as u64) << 32)
-                | ((patch as u64) << 16)
-                | (revision as u64);
+        let packed: u64 = ((major as u64) << 48)
+            | ((minor as u64) << 32)
+            | ((patch as u64) << 16)
+            | (revision as u64);
 
         // String forms
         let ver_dots = format!("{major}.{minor}.{patch}.{revision}");
@@ -26,9 +34,8 @@ fn main() {
         // Other Cargo metadata
         let name = env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "dict-generate".into());
         let authors = env::var("CARGO_PKG_AUTHORS").unwrap_or_else(|_| "Laisuk".into());
-        let desc = env::var("CARGO_PKG_DESCRIPTION").unwrap_or_else(|_| {
-            "Opencc-Fmmseg dictionary generator tool".into()
-        });
+        let desc = env::var("CARGO_PKG_DESCRIPTION")
+            .unwrap_or_else(|_| "Opencc-Fmmseg dictionary generator tool".into());
 
         let mut res = WindowsResource::new();
         res.set_icon("assets/icon.ico");

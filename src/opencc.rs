@@ -28,7 +28,7 @@ use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
 use rustc_hash::FxHashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// Thread-safe holder for the last error message (if any).
 static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
@@ -268,12 +268,13 @@ impl OpenCC {
             if ranges.len() <= chunk_ranges {
                 let mut out = String::with_capacity(text.len() + (text.len() >> 6));
                 for r in ranges {
-                    out.push_str(&self.convert_by_union(
+                    self.convert_by_union_into(
                         &chars[r.start..r.end],
                         dictionaries,
                         max_word_length,
                         union,
-                    ));
+                        &mut out,
+                    );
                 }
                 return out;
             }
@@ -285,12 +286,13 @@ impl OpenCC {
                     let cap: usize = chunk.iter().map(|r| r.end - r.start).sum();
                     let mut s = String::with_capacity(cap);
                     for r in chunk {
-                        s.push_str(&self.convert_by_union(
+                        self.convert_by_union_into(
                             &chars[r.start..r.end],
                             dictionaries,
                             max_word_length,
                             union,
-                        ));
+                            &mut s,
+                        );
                     }
                     s
                 })
@@ -300,12 +302,13 @@ impl OpenCC {
         } else {
             let mut out = String::with_capacity(text.len() + (text.len() >> 6));
             for r in ranges {
-                out.push_str(&self.convert_by_union(
+                self.convert_by_union_into(
                     &chars[r.start..r.end],
                     dictionaries,
                     max_word_length,
                     union,
-                ));
+                    &mut out,
+                );
             }
             out
         }
@@ -381,18 +384,38 @@ impl OpenCC {
         max_word_length: usize,
         union: &StarterUnion,
     ) -> String {
+        let mut result = String::with_capacity(text_chars.len() * 4);
+        self.convert_by_union_into(
+            text_chars,
+            dictionaries,
+            max_word_length,
+            union,
+            &mut result,
+        );
+        result
+    }
+
+    #[inline(always)]
+    fn convert_by_union_into(
+        &self,
+        text_chars: &[char],
+        dictionaries: &[&DictMaxLen],
+        max_word_length: usize,
+        union: &StarterUnion,
+        result: &mut String,
+    ) {
         if text_chars.is_empty() {
-            return String::new();
+            return;
         }
 
         let text_length = text_chars.len();
         if text_length == 1 && is_delimiter(text_chars[0]) {
-            return text_chars[0].to_string();
+            result.push(text_chars[0]);
+            return;
         }
 
         let is_multi_dicts = dictionaries.len() > 1;
         // const CAP_BIT: usize = 63;
-        let mut result = String::with_capacity(text_length * 4);
         let mut start_pos = 0;
 
         while start_pos < text_length {
@@ -472,8 +495,6 @@ impl OpenCC {
                 start_pos += 1;
             }
         }
-
-        result
     }
 
     /// Converts text using the given dictionaries with **greedy maximum-match**,
@@ -511,16 +532,29 @@ impl OpenCC {
         dictionaries: &[&DictMaxLen],
         max_word_length: usize,
     ) -> String {
+        let mut result = String::with_capacity(text_chars.len() * 4);
+        self.convert_by_into(text_chars, dictionaries, max_word_length, &mut result);
+        result
+    }
+
+    #[inline]
+    fn convert_by_into(
+        &self,
+        text_chars: &[char],
+        dictionaries: &[&DictMaxLen],
+        max_word_length: usize,
+        result: &mut String,
+    ) {
         if text_chars.is_empty() {
-            return String::new();
+            return;
         }
 
         let text_length = text_chars.len();
         if text_length == 1 && is_delimiter(text_chars[0]) {
-            return text_chars[0].to_string();
+            result.push(text_chars[0]);
+            return;
         }
 
-        let mut result = String::with_capacity(text_length * 4);
         let mut start_pos = 0;
 
         while start_pos < text_length {
@@ -558,8 +592,6 @@ impl OpenCC {
             result.push_str(best_match);
             start_pos += best_match_length;
         }
-
-        result
     }
 
     /// Returns whether parallel segment conversion is currently enabled.
@@ -601,6 +633,92 @@ impl OpenCC {
         self.is_parallel = is_parallel;
     }
 
+    #[inline]
+    fn apply_dicts_1(&self, input: &str, round_1: &[&DictMaxLen], u1: Arc<StarterUnion>) -> String {
+        DictRefs::new(round_1, u1).apply_segment_replace(input, |input, refs, max_len, union| {
+            self.segment_replace_with_union(input, refs, max_len, union)
+        })
+    }
+
+    #[inline]
+    fn apply_dicts_2(
+        &self,
+        input: &str,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+        round_2: &[&DictMaxLen],
+        u2: Arc<StarterUnion>,
+    ) -> String {
+        DictRefs::new(round_1, u1)
+            .with_round_2(round_2, u2)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            })
+    }
+
+    #[inline]
+    fn apply_dicts_3(
+        &self,
+        input: &str,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+        round_2: &[&DictMaxLen],
+        u2: Arc<StarterUnion>,
+        round_3: &[&DictMaxLen],
+        u3: Arc<StarterUnion>,
+    ) -> String {
+        DictRefs::new(round_1, u1)
+            .with_round_2(round_2, u2)
+            .with_round_3(round_3, u3)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            })
+    }
+
+    #[inline]
+    fn apply_ts_round_2(
+        &self,
+        input: &str,
+        punctuation: bool,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+        u2: Arc<StarterUnion>,
+    ) -> String {
+        if punctuation {
+            let round_2 = [
+                &self.dictionary.ts_phrases,
+                &self.dictionary.ts_characters,
+                &self.dictionary.ts_punctuations,
+            ];
+            self.apply_dicts_2(input, round_1, u1, &round_2, u2)
+        } else {
+            let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+            self.apply_dicts_2(input, round_1, u1, &round_2, u2)
+        }
+    }
+
+    #[inline]
+    fn apply_st_round_2(
+        &self,
+        input: &str,
+        punctuation: bool,
+        u1: Arc<StarterUnion>,
+        round_2: &[&DictMaxLen],
+        u2: Arc<StarterUnion>,
+    ) -> String {
+        if punctuation {
+            let round_1 = [
+                &self.dictionary.st_phrases,
+                &self.dictionary.st_characters,
+                &self.dictionary.st_punctuations,
+            ];
+            self.apply_dicts_2(input, &round_1, u1, round_2, u2)
+        } else {
+            let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
+            self.apply_dicts_2(input, &round_1, u1, round_2, u2)
+        }
+    }
+
     /// Converts Simplified Chinese text to Traditional Chinese.
     ///
     /// This function performs dictionary-based segment replacement using two levels of dictionaries:
@@ -630,23 +748,21 @@ impl OpenCC {
     /// assert_eq!(result, "漢字轉換測試");
     /// ```
     pub fn s2t(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&DictMaxLen> =
-            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
-
-        if punctuation {
-            round_1.push(&self.dictionary.st_punctuations);
-        }
-
         let union = self
             .dictionary
             .union_for(UnionKey::S2T { punct: punctuation });
 
-        DictRefs::new(&round_1, union).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        )
+        if punctuation {
+            let round_1 = [
+                &self.dictionary.st_phrases,
+                &self.dictionary.st_characters,
+                &self.dictionary.st_punctuations,
+            ];
+            self.apply_dicts_1(input, &round_1, union)
+        } else {
+            let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
+            self.apply_dicts_1(input, &round_1, union)
+        }
     }
 
     /// Converts Traditional Chinese text to Simplified Chinese (T2S).
@@ -674,23 +790,21 @@ impl OpenCC {
     ///
     /// Simplified Chinese text obtained after applying all mappings.
     pub fn t2s(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&DictMaxLen> =
-            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-
-        if punctuation {
-            round_1.push(&self.dictionary.ts_punctuations);
-        }
-
         let union = self
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
 
-        DictRefs::new(&round_1, union).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        )
+        if punctuation {
+            let round_1 = [
+                &self.dictionary.ts_phrases,
+                &self.dictionary.ts_characters,
+                &self.dictionary.ts_punctuations,
+            ];
+            self.apply_dicts_1(input, &round_1, union)
+        } else {
+            let round_1 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+            self.apply_dicts_1(input, &round_1, union)
+        }
     }
 
     /// Converts Simplified Chinese text to Taiwanese Traditional (S → T → Tw).
@@ -723,24 +837,13 @@ impl OpenCC {
     /// Taiwanese Traditional Chinese text after applying both S2T and
     /// Taiwanese variant mappings.
     pub fn s2tw(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&DictMaxLen> =
-            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
-
-        if punctuation {
-            round_1.push(&self.dictionary.st_punctuations);
-        }
-
         let u1 = self
             .dictionary
             .union_for(UnionKey::S2T { punct: punctuation });
         let round_2 = [&self.dictionary.tw_variants];
         let u2 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
 
-        DictRefs::new(&round_1, u1)
-            .with_round_2(&round_2, u2)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            })
+        self.apply_st_round_2(input, punctuation, u1, &round_2, u2)
     }
 
     /// Converts Taiwanese Traditional text to Simplified Chinese (Tw → T → S).
@@ -774,29 +877,21 @@ impl OpenCC {
     /// Simplified Chinese text after normalizing Taiwanese variants and
     /// applying T2S mappings.
     pub fn tw2s(&self, input: &str, punctuation: bool) -> String {
-        let mut round_2: Vec<&DictMaxLen> =
-            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-
-        if punctuation {
-            round_2.push(&self.dictionary.ts_punctuations);
-        }
-
         let u1 = self.dictionary.union_for(UnionKey::TwRevPair);
         let u2 = self
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
 
-        DictRefs::new(
+        self.apply_ts_round_2(
+            input,
+            punctuation,
             &[
                 &self.dictionary.tw_variants_rev_phrases,
                 &self.dictionary.tw_variants_rev,
             ],
             u1,
+            u2,
         )
-        .with_round_2(&round_2, u2)
-        .apply_segment_replace(input, |input, refs, max_len, union| {
-            self.segment_replace_with_union(input, refs, max_len, union)
-        })
     }
 
     /// Converts Simplified Chinese text to Taiwanese Traditional with idioms (S → T → Tw-phrases → Tw).
@@ -834,14 +929,6 @@ impl OpenCC {
     ///
     /// Taiwanese Traditional Chinese text with idioms and variants applied.
     pub fn s2twp(&self, input: &str, punctuation: bool) -> String {
-        // Create bindings for each round of dictionary references
-        let mut round_1: Vec<&DictMaxLen> =
-            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
-
-        if punctuation {
-            round_1.push(&self.dictionary.st_punctuations);
-        }
-
         let u1 = self
             .dictionary
             .union_for(UnionKey::S2T { punct: punctuation });
@@ -852,13 +939,17 @@ impl OpenCC {
         let round_3 = [&self.dictionary.tw_variants];
         let u3 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
 
-        // Use the DictRefs struct to handle 3 rounds
-        DictRefs::new(&round_1, u1)
-            .with_round_2(&round_2, u2)
-            .with_round_3(&round_3, u3)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            })
+        if punctuation {
+            let round_1 = [
+                &self.dictionary.st_phrases,
+                &self.dictionary.st_characters,
+                &self.dictionary.st_punctuations,
+            ];
+            self.apply_dicts_3(input, &round_1, u1, &round_2, u2, &round_3, u3)
+        } else {
+            let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
+            self.apply_dicts_3(input, &round_1, u1, &round_2, u2, &round_3, u3)
+        }
     }
 
     /// Converts Taiwanese Traditional text with idioms to Simplified Chinese (Tw-phrases → T → S).
@@ -901,21 +992,11 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::Tw2SpR1TwRevTriple);
-        let mut round_2: Vec<&DictMaxLen> =
-            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-
-        if punctuation {
-            round_2.push(&self.dictionary.ts_punctuations);
-        }
         let u2 = self
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
 
-        DictRefs::new(&round_1, u1)
-            .with_round_2(&round_2, u2)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            })
+        self.apply_ts_round_2(input, punctuation, &round_1, u1, u2)
     }
 
     /// Converts Simplified Chinese text to Hong Kong Traditional (S → T → HK).
@@ -948,22 +1029,12 @@ impl OpenCC {
     /// Hong Kong Traditional Chinese text after applying S2T and HK variant
     /// mappings.
     pub fn s2hk(&self, input: &str, punctuation: bool) -> String {
-        let mut round_1: Vec<&DictMaxLen> =
-            vec![&self.dictionary.st_phrases, &self.dictionary.st_characters];
-
-        if punctuation {
-            round_1.push(&self.dictionary.st_punctuations);
-        }
         let u1 = self
             .dictionary
             .union_for(UnionKey::S2T { punct: punctuation });
         let round_2 = [&self.dictionary.hk_variants];
         let u2 = self.dictionary.union_for(UnionKey::HkVariantsOnly);
-        DictRefs::new(&round_1, u1)
-            .with_round_2(&round_2, u2)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            })
+        self.apply_st_round_2(input, punctuation, u1, &round_2, u2)
     }
 
     /// Converts Hong Kong Traditional text to Simplified Chinese (HK → T → S).
@@ -1002,20 +1073,10 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::HkRevPair);
-        let mut round_2: Vec<&DictMaxLen> =
-            vec![&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-
-        if punctuation {
-            round_2.push(&self.dictionary.ts_punctuations);
-        }
         let u2 = self
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
-        DictRefs::new(&round_1, u1)
-            .with_round_2(&round_2, u2)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            })
+        self.apply_ts_round_2(input, punctuation, &round_1, u1, u2)
     }
 
     /// Converts general Traditional Chinese text to Taiwanese Traditional variants (T → Tw).
@@ -1040,14 +1101,7 @@ impl OpenCC {
     pub fn t2tw(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.tw_variants];
         let u1 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
-        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        );
-
-        output
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// Converts general Traditional Chinese text to Taiwanese Traditional with idioms (T → Tw-phrases → Tw).
@@ -1079,13 +1133,7 @@ impl OpenCC {
         let u1 = self.dictionary.union_for(UnionKey::TwPhrasesOnly);
         let round_2 = [&self.dictionary.tw_variants];
         let u2 = self.dictionary.union_for(UnionKey::TwVariantsOnly);
-        let output = DictRefs::new(&round_1, u1)
-            .with_round_2(&round_2, u2)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            });
-
-        output
+        self.apply_dicts_2(input, &round_1, u1, &round_2, u2)
     }
 
     /// Converts Taiwanese Traditional text to general Traditional (Tw → T).
@@ -1114,14 +1162,7 @@ impl OpenCC {
         ];
         let u1 = self.dictionary.union_for(UnionKey::TwRevPair);
 
-        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        );
-
-        output
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// This method performs a two-round dictionary-based normalization:
@@ -1159,13 +1200,7 @@ impl OpenCC {
         let round_2 = [&self.dictionary.tw_phrases_rev];
         let u2 = self.dictionary.union_for(UnionKey::TwPhrasesRevOnly);
 
-        let output = DictRefs::new(&round_1, u1)
-            .with_round_2(&round_2, u2)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            });
-
-        output
+        self.apply_dicts_2(input, &round_1, u1, &round_2, u2)
     }
 
     /// Converts general Traditional Chinese text to Hong Kong Traditional variants (T → HK).
@@ -1190,14 +1225,7 @@ impl OpenCC {
     pub fn t2hk(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.hk_variants];
         let u1 = self.dictionary.union_for(UnionKey::HkVariantsOnly);
-        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        );
-
-        output
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// Converts Hong Kong Traditional text to general Traditional (HK → T).
@@ -1225,14 +1253,7 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::HkRevPair);
-        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        );
-
-        output
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// Converts Japanese Kyūjitai (traditional kanji forms) to Shinjitai.
@@ -1257,14 +1278,7 @@ impl OpenCC {
     pub fn t2jp(&self, input: &str) -> String {
         let round_1 = [&self.dictionary.jp_variants];
         let u1 = self.dictionary.union_for(UnionKey::JpVariantsOnly);
-        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        );
-
-        output
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// Converts Japanese Shinjitai to Kyūjitai (modern → traditional kanji forms).
@@ -1295,14 +1309,7 @@ impl OpenCC {
             &self.dictionary.jp_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::JpRevTriple);
-        let output = DictRefs::new(&round_1, u1).apply_segment_replace(
-            input,
-            |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            },
-        );
-
-        output
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// Converts Chinese text using a configuration name (`&str`, case-insensitive).
