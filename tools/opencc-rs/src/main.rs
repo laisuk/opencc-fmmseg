@@ -2,18 +2,13 @@ mod office_converter;
 
 use office_converter::OfficeConverter;
 
-use clap::{Arg, ArgMatches, Command};
+use clap::{builder::{StringValueParser, TypedValueParser, ValueParser}, Arg, ArgMatches, Command};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use opencc_fmmseg::OpenCC;
+use opencc_fmmseg::{OpenCC, OpenccConfig};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
-
-const CONFIG_LIST: [&str; 16] = [
-    "s2t", "t2s", "s2tw", "tw2s", "s2twp", "tw2sp", "s2hk", "hk2s", "t2tw", "t2twp", "t2hk",
-    "tw2t", "tw2tp", "hk2t", "t2jp", "jp2t",
-];
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("opencc-rs")
@@ -70,6 +65,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+fn config_value_parser() -> ValueParser {
+    ValueParser::new(StringValueParser::new().try_map(|s| {
+        OpenccConfig::try_from(s.as_str())
+            .map(OpenccConfig::as_str)
+            .map(str::to_owned)
+            .map_err(|_| format!("invalid config: {s}"))
+    }))
+}
+
 fn common_args() -> Vec<Arg> {
     vec![
         Arg::new("input")
@@ -86,7 +90,7 @@ fn common_args() -> Vec<Arg> {
             .short('c')
             .long("config")
             .required(true)
-            .value_parser(CONFIG_LIST)
+            .value_parser(config_value_parser())
             .help("Conversion configuration"),
         Arg::new("punct")
             .short('p')
