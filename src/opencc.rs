@@ -706,33 +706,6 @@ impl OpenCC {
             })
     }
 
-    /// Applies a shared T2S-style second round with optional punctuation maps.
-    ///
-    /// This helper selects either the 2-dictionary (`ts_phrases`,
-    /// `ts_characters`) or 3-dictionary (`+ ts_punctuations`) second-round stack
-    /// array based on `punctuation`, then forwards to [`apply_dicts_2`].
-    #[inline]
-    fn apply_ts_round_2(
-        &self,
-        input: &str,
-        punctuation: bool,
-        round_1: &[&DictMaxLen],
-        u1: Arc<StarterUnion>,
-        u2: Arc<StarterUnion>,
-    ) -> String {
-        if punctuation {
-            let round_2 = [
-                &self.dictionary.ts_phrases,
-                &self.dictionary.ts_characters,
-                &self.dictionary.ts_punctuations,
-            ];
-            self.apply_dicts_2(input, round_1, u1, &round_2, u2)
-        } else {
-            let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
-            self.apply_dicts_2(input, round_1, u1, &round_2, u2)
-        }
-    }
-
     /// Applies a shared S2T-style first round with optional punctuation maps.
     ///
     /// This helper selects either the 2-dictionary (`st_phrases`,
@@ -757,6 +730,33 @@ impl OpenCC {
         } else {
             let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
             self.apply_dicts_2(input, &round_1, u1, round_2, u2)
+        }
+    }
+
+    /// Applies a shared T2S-style second round with optional punctuation maps.
+    ///
+    /// This helper selects either the 2-dictionary (`ts_phrases`,
+    /// `ts_characters`) or 3-dictionary (`+ ts_punctuations`) second-round stack
+    /// array based on `punctuation`, then forwards to [`apply_dicts_2`].
+    #[inline]
+    fn apply_ts_round_2(
+        &self,
+        input: &str,
+        punctuation: bool,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+        u2: Arc<StarterUnion>,
+    ) -> String {
+        if punctuation {
+            let round_2 = [
+                &self.dictionary.ts_phrases,
+                &self.dictionary.ts_characters,
+                &self.dictionary.ts_punctuations,
+            ];
+            self.apply_dicts_2(input, round_1, u1, &round_2, u2)
+        } else {
+            let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+            self.apply_dicts_2(input, round_1, u1, &round_2, u2)
         }
     }
 
