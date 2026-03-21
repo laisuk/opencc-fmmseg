@@ -141,7 +141,7 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     };
 
     let mut buffer = read_input(&mut *input, is_console)?;
-    if in_enc == "UTF-8" && out_enc != "UTF-8" {
+    if in_enc.eq_ignore_ascii_case("UTF-8") && !out_enc.eq_ignore_ascii_case("UTF-8") {
         remove_utf8_bom(&mut buffer);
     }
 
@@ -277,7 +277,7 @@ fn read_input(input: &mut dyn Read, is_console: bool) -> io::Result<Vec<u8>> {
 }
 
 fn decode_input(buffer: &[u8], enc: &str) -> io::Result<String> {
-    if enc == "UTF-8" {
+    if enc.eq_ignore_ascii_case("UTF-8") {
         return Ok(String::from_utf8_lossy(buffer).into_owned());
     }
     let encoding = Encoding::for_label(enc.as_bytes()).ok_or_else(|| {
