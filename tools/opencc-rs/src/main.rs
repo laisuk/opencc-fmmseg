@@ -295,7 +295,7 @@ fn decode_input(buffer: &[u8], enc: &str) -> io::Result<String> {
 }
 
 fn encode_and_write_output(output_str: &str, enc: &str, output: &mut dyn Write) -> io::Result<()> {
-    if enc == "UTF-8" {
+    if enc.eq_ignore_ascii_case("UTF-8") {
         write!(output, "{}", output_str)
     } else {
         let encoding = Encoding::for_label(enc.as_bytes()).ok_or_else(|| {
