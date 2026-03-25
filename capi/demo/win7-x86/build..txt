@@ -19,3 +19,5 @@ cl /I. use_opencc_fmmseg_c.c /link /OUT:use_opencc_fmmseg_c.exe opencc_fmmseg_ca
 cl /EHsc /I. use_opencc_fmmseg_cpp.cpp /link /OUT:use_opencc_fmmseg_cpp.exe opencc_fmmseg_capi.dll.lib
 
 g++ -std=c++17 UseOpenccFmmsegHelper.cpp -I . -L . -lopencc_fmmseg_capi -o UseOpenccFmmsegHelper
+g++ -std=c++17 UseOpenccFmmsegHelper.cpp -I . -L . -lopencc_fmmseg_capi -static-libgcc -static-libstdc++ -o UseOpenccFmmsegHelper
+cl /std:c++17 /EHsc /utf-8 /I. UseOpenccFmmsegHelper.cpp /link /LIBPATH:. opencc_fmmseg_capi.dll.lib /OUT:UseOpenccFmmsegHelper-msvc.exe
