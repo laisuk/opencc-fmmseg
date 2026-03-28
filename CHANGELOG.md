@@ -6,11 +6,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.9.2-beta1] - 2026-03-26
+## [0.9.2-beta1] - 2026-03-29
 
 ### Changed
 
-- Update dictionary
+- Updated dictionary data.
+- C API:
+  - Added `opencc_convert_cfg_mem_len()` for explicit-length UTF-8 input.
+  - Improved buffer-based conversion for high-performance interop scenarios.
+  - Retained `opencc_convert_cfg_mem()` for backward compatibility.
+  - No C ABI break.
 
 ---
 

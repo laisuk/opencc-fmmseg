@@ -157,6 +157,10 @@ pub extern "C" fn opencc_convert_cfg(
 ///
 /// Writes the converted UTF-8 output into a caller-provided buffer.
 ///
+/// This legacy memory API accepts a NUL-terminated UTF-8 input string.
+/// For high-throughput interop scenarios that already know the input byte length,
+/// prefer [`opencc_convert_cfg_mem_len`], which avoids the native input scan.
+///
 /// Contract:
 /// - `out_required` must be non-NULL
 /// - `*out_required` is always set to the required size in bytes, including trailing `\0`
@@ -196,31 +200,79 @@ pub extern "C" fn opencc_convert_cfg_mem(
         }
     };
 
-    let cfg = match OpenccConfig::from_ffi(config) {
-        Some(c) => c,
-        None => {
-            let msg = format!("Invalid config: {}", config);
-            return fail_with_buffer_msg(&msg, out_buf, out_cap, out_required);
+    convert_cfg_mem_core(
+        instance,
+        input_str,
+        config,
+        punctuation,
+        out_buf,
+        out_cap,
+        out_required,
+    )
+}
+
+/// C API function `opencc_convert_cfg_mem_len`.
+///
+/// Available since **v0.9.1.1**.
+///
+/// Writes the converted UTF-8 output into a caller-provided buffer using an
+/// explicit input byte length.
+///
+/// This is the preferred allocation-minimizing buffer API for interop callers
+/// that already have UTF-8 bytes and know the exact input length. Unlike
+/// [`opencc_convert_cfg_mem`], the input does not need to be NUL-terminated.
+///
+/// Contract:
+/// - `out_required` must be non-NULL
+/// - `input` must point to exactly `input_len` bytes of valid UTF-8
+/// - `*out_required` is always set to the required size in bytes, including trailing `\0`
+/// - If `out_buf` is NULL or `out_cap == 0`, this acts as a size-query
+/// - Returns `true` on success, `false` on failure
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
+#[no_mangle]
+pub extern "C" fn opencc_convert_cfg_mem_len(
+    instance: *const OpenCC,
+    input: *const u8,
+    input_len: usize,
+    config: u32,
+    punctuation: bool,
+    out_buf: *mut c_char,
+    out_cap: usize,
+    out_required: *mut usize,
+) -> bool {
+    if out_required.is_null() {
+        return false;
+    }
+
+    if instance.is_null() || input.is_null() {
+        return fail_with_buffer_msg(
+            "Invalid argument: instance or input is NULL",
+            out_buf,
+            out_cap,
+            out_required,
+        );
+    }
+
+    let input_bytes = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let input_str = match std::str::from_utf8(input_bytes) {
+        Ok(s) => s,
+        Err(_) => {
+            return fail_with_buffer_msg("Invalid UTF-8 input", out_buf, out_cap, out_required);
         }
     };
 
-    let opencc = unsafe { &*instance };
-    let output = opencc.convert_with_config(input_str, cfg, punctuation);
-
-    if output.as_bytes().contains(&0) {
-        return fail_with_buffer_msg("Output contains NUL byte", out_buf, out_cap, out_required);
-    }
-
-    match unsafe { write_output_bytes(output.as_bytes(), out_buf, out_cap, out_required) } {
-        Ok(()) => {
-            OpenCC::clear_last_error();
-            true
-        }
-        Err(()) => {
-            OpenCC::set_last_error("Output buffer too small");
-            false
-        }
-    }
+    convert_cfg_mem_core(
+        instance,
+        input_str,
+        config,
+        punctuation,
+        out_buf,
+        out_cap,
+        out_required,
+    )
 }
 
 #[deprecated(note = "Use `opencc_convert()` or `opencc_convert_cfg()` instead")]
@@ -488,6 +540,43 @@ where
 }
 
 #[inline]
+fn convert_cfg_mem_core(
+    instance: *const OpenCC,
+    input_str: &str,
+    config: u32,
+    punctuation: bool,
+    out_buf: *mut c_char,
+    out_cap: usize,
+    out_required: *mut usize,
+) -> bool {
+    let cfg = match OpenccConfig::from_ffi(config) {
+        Some(c) => c,
+        None => {
+            let msg = format!("Invalid config: {}", config);
+            return fail_with_buffer_msg(&msg, out_buf, out_cap, out_required);
+        }
+    };
+
+    let opencc = unsafe { &*instance };
+    let output = opencc.convert_with_config(input_str, cfg, punctuation);
+
+    if output.as_bytes().contains(&0) {
+        return fail_with_buffer_msg("Output contains NUL byte", out_buf, out_cap, out_required);
+    }
+
+    match unsafe { write_output_bytes(output.as_bytes(), out_buf, out_cap, out_required) } {
+        Ok(()) => {
+            OpenCC::clear_last_error();
+            true
+        }
+        Err(()) => {
+            OpenCC::set_last_error("Output buffer too small");
+            false
+        }
+    }
+}
+
+#[inline]
 unsafe fn write_output_bytes(
     bytes: &[u8],
     out_buf: *mut c_char,
@@ -710,6 +799,68 @@ mod tests {
             result,
             "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。"
         );
+    }
+
+    #[test]
+    fn test_opencc_convert_cfg_mem_len_size_query_and_write() {
+        let opencc = OpenCC::new();
+        let input = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+        let input_bytes = input.as_bytes();
+        let mut required = 0usize;
+
+        let ok_query = opencc_convert_cfg_mem_len(
+            &opencc as *const OpenCC,
+            input_bytes.as_ptr(),
+            input_bytes.len(),
+            OpenccConfig::S2twp.to_ffi(),
+            true,
+            ptr::null_mut(),
+            0,
+            &mut required,
+        );
+
+        assert!(ok_query);
+        assert!(required > 0);
+
+        let mut out = vec![0u8; required];
+        let ok_write = opencc_convert_cfg_mem_len(
+            &opencc as *const OpenCC,
+            input_bytes.as_ptr(),
+            input_bytes.len(),
+            OpenccConfig::S2twp.to_ffi(),
+            true,
+            out.as_mut_ptr() as *mut c_char,
+            out.len(),
+            &mut required,
+        );
+
+        assert!(ok_write);
+        assert_eq!(
+            &out[..required - 1],
+            "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。".as_bytes()
+        );
+        assert_eq!(out[required - 1], 0);
+    }
+
+    #[test]
+    fn test_opencc_convert_cfg_mem_len_invalid_utf8() {
+        let opencc = OpenCC::new();
+        let input_bytes = [0xFFu8, 0x00u8];
+        let mut required = 0usize;
+
+        let ok = opencc_convert_cfg_mem_len(
+            &opencc as *const OpenCC,
+            input_bytes.as_ptr(),
+            input_bytes.len(),
+            OpenccConfig::S2t.to_ffi(),
+            false,
+            ptr::null_mut(),
+            0,
+            &mut required,
+        );
+
+        assert!(!ok);
+        assert!(read_and_free(opencc_last_error()).contains("Invalid UTF-8 input"));
     }
 
     #[test]
