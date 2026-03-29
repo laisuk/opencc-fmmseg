@@ -275,8 +275,9 @@ pub extern "C" fn opencc_convert_cfg_mem_len(
     )
 }
 
-#[deprecated(note = "Use `opencc_convert()` or `opencc_convert_cfg()` instead")]
 /// C API function `opencc_convert_len`.
+///
+/// Converts a UTF-8 input buffer with explicit byte length using a string config.
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
@@ -289,18 +290,10 @@ pub extern "C" fn opencc_convert_len(
     config: *const c_char,
     punctuation: bool,
 ) -> *mut c_char {
-    if instance.is_null() || input.is_null() || config.is_null() {
-        OpenCC::set_last_error("Invalid argument: instance/input/config is NULL");
+    if config.is_null() {
+        OpenCC::set_last_error("Invalid argument: config is NULL");
         return ptr::null_mut();
     }
-
-    let opencc = unsafe { &*instance };
-    let input_bytes = unsafe { std::slice::from_raw_parts(input as *const u8, input_len) };
-
-    let input_str = match std::str::from_utf8(input_bytes) {
-        Ok(s) => s,
-        Err(_) => return fail_c_string("Invalid UTF-8 input"),
-    };
 
     let config_str = match unsafe { CStr::from_ptr(config) }.to_str() {
         Ok(s) => s,
@@ -312,15 +305,30 @@ pub extern "C" fn opencc_convert_len(
         Err(_) => return fail_c_string(&format!("Invalid config: {}", config_str)),
     };
 
-    let result = opencc.convert_with_config(input_str, cfg, punctuation);
+    convert_len_core(instance, input, input_len, cfg, punctuation)
+}
 
-    match CString::new(result) {
-        Ok(cstr) => {
-            OpenCC::clear_last_error();
-            cstr.into_raw()
-        }
-        Err(_) => fail_c_string("Output contains NUL byte"),
-    }
+/// C API function `opencc_convert_cfg_len`.
+///
+/// Converts a UTF-8 input buffer with explicit byte length using a numeric config.
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
+#[no_mangle]
+pub extern "C" fn opencc_convert_cfg_len(
+    instance: *const OpenCC,
+    input: *const c_char,
+    input_len: usize,
+    config: u32,
+    punctuation: bool,
+) -> *mut c_char {
+    let cfg = match OpenccConfig::from_ffi(config) {
+        Some(c) => c,
+        None => return fail_c_string(&format!("Invalid config: {}", config)),
+    };
+
+    convert_len_core(instance, input, input_len, cfg, punctuation)
 }
 
 // ============================================================================
@@ -526,6 +534,38 @@ where
     let cfg = match resolve_cfg() {
         Ok(c) => c,
         Err(msg) => return fail_c_string(&msg),
+    };
+
+    let result = opencc.convert_with_config(input_str, cfg, punctuation);
+
+    match CString::new(result) {
+        Ok(cstr) => {
+            OpenCC::clear_last_error();
+            cstr.into_raw()
+        }
+        Err(_) => fail_c_string("Output contains NUL byte"),
+    }
+}
+
+#[inline]
+fn convert_len_core(
+    instance: *const OpenCC,
+    input: *const c_char,
+    input_len: usize,
+    cfg: OpenccConfig,
+    punctuation: bool,
+) -> *mut c_char {
+    if instance.is_null() || input.is_null() {
+        OpenCC::set_last_error("Invalid argument: instance/input is NULL");
+        return ptr::null_mut();
+    }
+
+    let opencc = unsafe { &*instance };
+    let input_bytes = unsafe { std::slice::from_raw_parts(input as *const u8, input_len) };
+
+    let input_str = match std::str::from_utf8(input_bytes) {
+        Ok(s) => s,
+        Err(_) => return fail_c_string("Invalid UTF-8 input"),
     };
 
     let result = opencc.convert_with_config(input_str, cfg, punctuation);
@@ -786,6 +826,111 @@ mod tests {
         let result_ptr = opencc_convert_cfg(
             &opencc as *const OpenCC,
             input.as_ptr(),
+            OpenccConfig::S2twp.to_ffi(),
+            true,
+        );
+
+        let result = unsafe { CStr::from_ptr(result_ptr) }
+            .to_string_lossy()
+            .into_owned();
+        opencc_string_free(result_ptr);
+
+        assert_eq!(
+            result,
+            "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。"
+        );
+    }
+
+    #[test]
+    fn test_opencc_convert_len() {
+        let opencc = OpenCC::new();
+        let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+        let input = CString::new(input_str).unwrap();
+        let config = CString::new("s2twp").unwrap();
+
+        let result_ptr = opencc_convert_len(
+            &opencc as *const OpenCC,
+            input.as_ptr(),
+            input_str.len(), // explicit length (no '\0' scan)
+            config.as_ptr(),
+            true,
+        );
+
+        let result = unsafe { CStr::from_ptr(result_ptr) }
+            .to_string_lossy()
+            .into_owned();
+        opencc_string_free(result_ptr);
+
+        assert_eq!(
+            result,
+            "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。"
+        );
+    }
+
+    #[test]
+    fn test_opencc_convert_cfg_len() {
+        let opencc = OpenCC::new();
+        let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+        let input = CString::new(input_str).unwrap();
+
+        let result_ptr = opencc_convert_cfg_len(
+            &opencc as *const OpenCC,
+            input.as_ptr(),
+            input_str.len(), // explicit length
+            OpenccConfig::S2twp.to_ffi(),
+            true,
+        );
+
+        let result = unsafe { CStr::from_ptr(result_ptr) }
+            .to_string_lossy()
+            .into_owned();
+        opencc_string_free(result_ptr);
+
+        assert_eq!(
+            result,
+            "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。"
+        );
+    }
+
+    #[test]
+    fn test_opencc_convert_len_no_null() {
+        let opencc = OpenCC::new();
+
+        let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+        let input_bytes = input_str.as_bytes(); // NOT null-terminated
+
+        let config = CString::new("s2twp").unwrap();
+
+        let result_ptr = opencc_convert_len(
+            &opencc as *const OpenCC,
+            input_bytes.as_ptr() as *const c_char,
+            input_bytes.len(), // exact length, no '\0'
+            config.as_ptr(),
+            true,
+        );
+
+        let result = unsafe { CStr::from_ptr(result_ptr) }
+            .to_string_lossy()
+            .into_owned();
+        opencc_string_free(result_ptr);
+
+        assert_eq!(
+            result,
+            "義大利羅浮宮裡收藏的「蒙娜麗莎的微笑」畫像是曠世之作。"
+        );
+    }
+
+    #[test]
+    fn test_opencc_convert_cfg_len_no_null() {
+        let opencc = OpenCC::new();
+
+        let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+        let input_bytes = input_str.as_bytes(); // raw buffer
+
+        let result_ptr = opencc_convert_cfg_len(
+            &opencc as *const OpenCC,
+            input_bytes.as_ptr() as *const c_char,
+            input_bytes.len(),
             OpenccConfig::S2twp.to_ffi(),
             true,
         );
