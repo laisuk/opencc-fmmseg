@@ -181,6 +181,7 @@ pub extern "C" fn opencc_convert_cfg_mem(
     out_required: *mut usize,
 ) -> bool {
     if out_required.is_null() {
+        OpenCC::set_last_error("Invalid argument: out_required is NULL");
         return false;
     }
 
@@ -244,6 +245,7 @@ pub extern "C" fn opencc_convert_cfg_mem_len(
     out_required: *mut usize,
 ) -> bool {
     if out_required.is_null() {
+        OpenCC::set_last_error("Invalid argument: out_required is NULL");
         return false;
     }
 
@@ -1006,6 +1008,55 @@ mod tests {
 
         assert!(!ok);
         assert!(read_and_free(opencc_last_error()).contains("Invalid UTF-8 input"));
+    }
+
+    #[test]
+    fn test_opencc_convert_cfg_mem_null_out_required_sets_last_error() {
+        OpenCC::clear_last_error();
+
+        let opencc = OpenCC::new();
+        let input = CString::new("你好，世界").unwrap();
+
+        let ok = opencc_convert_cfg_mem(
+            &opencc as *const OpenCC,
+            input.as_ptr(),
+            OpenccConfig::S2t.to_ffi(),
+            false,
+            ptr::null_mut(),
+            0,
+            ptr::null_mut(),
+        );
+
+        assert!(!ok);
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid argument: out_required is NULL"
+        );
+    }
+
+    #[test]
+    fn test_opencc_convert_cfg_mem_len_null_out_required_sets_last_error() {
+        OpenCC::clear_last_error();
+
+        let opencc = OpenCC::new();
+        let input = "你好，世界";
+
+        let ok = opencc_convert_cfg_mem_len(
+            &opencc as *const OpenCC,
+            input.as_bytes().as_ptr(),
+            input.len(),
+            OpenccConfig::S2t.to_ffi(),
+            false,
+            ptr::null_mut(),
+            0,
+            ptr::null_mut(),
+        );
+
+        assert!(!ok);
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid argument: out_required is NULL"
+        );
     }
 
     #[test]
