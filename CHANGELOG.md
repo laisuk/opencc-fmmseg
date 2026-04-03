@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Updated dictionary data.
+- Replaced `once_cell` with std `OnceLock`.
 - C API:
   - Added `opencc_convert_cfg_mem_len()` for explicit-length UTF-8 input.
   - Improved buffer-based conversion for high-performance interop scenarios.

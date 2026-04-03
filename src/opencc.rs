@@ -23,20 +23,27 @@ use crate::delimiter_set::is_delimiter;
 use crate::dictionary_lib::dictionary_maxlength::UnionKey;
 use crate::dictionary_lib::{DictMaxLen, DictionaryMaxlength, StarterUnion};
 use crate::{find_max_utf8_length, for_each_len_dec, DictRefs, OpenccConfig};
-use once_cell::sync::Lazy;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
 use rustc_hash::FxHashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// Thread-safe holder for the last error message (if any).
-static LAST_ERROR: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
+static LAST_ERROR: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 // const DELIMITERS: &'static str = " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 /// Regular expression used to normalize or strip punctuation from input.
-static STRIP_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_著]").unwrap());
+static STRIP_REGEX: OnceLock<Regex> = OnceLock::new();
 
+#[inline]
+fn last_error_slot() -> &'static Mutex<Option<String>> {
+    LAST_ERROR.get_or_init(|| Mutex::new(None))
+}
+
+#[inline]
+fn strip_regex() -> &'static Regex {
+    STRIP_REGEX.get_or_init(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_著]").unwrap())
+}
 /// Central interface for performing OpenCC-based conversion with segmentation.
 ///
 /// The `OpenCC` struct manages dictionary loading, segmentation, and multi-round text transformation.
@@ -1560,7 +1567,7 @@ impl OpenCC {
         // pick the smaller of (1000, stripped length)
         let check_len = find_max_utf8_length(input, 1000);
 
-        let _strip_text = STRIP_REGEX.replace_all(&input[..check_len], "");
+        let _strip_text = strip_regex().replace_all(&input[..check_len], "");
         let max_bytes = find_max_utf8_length(&_strip_text, 200);
         let strip_text = &_strip_text[..max_bytes];
 
@@ -1643,7 +1650,7 @@ impl OpenCC {
     /// OpenCC::set_last_error("Failed to load dictionary.");
     /// ```
     pub fn set_last_error(err_msg: &str) {
-        let mut last_error = LAST_ERROR.lock().unwrap();
+        let mut last_error = last_error_slot().lock().unwrap();
         *last_error = Some(err_msg.to_string());
     }
 
@@ -1663,7 +1670,7 @@ impl OpenCC {
     /// }
     /// ```
     pub fn get_last_error() -> Option<String> {
-        let last_error = LAST_ERROR.lock().unwrap();
+        let last_error = last_error_slot().lock().unwrap();
         last_error.clone()
     }
 
@@ -1710,7 +1717,8 @@ impl OpenCC {
     ///
     /// Available since **v0.8.4**.
     pub fn clear_last_error() {
-        let mut last_error = LAST_ERROR.lock().unwrap();
+        let mut last_error = last_error_slot().lock().unwrap();
         *last_error = None;
     }
 }
+

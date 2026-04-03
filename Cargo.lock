@@ -617,7 +617,6 @@ dependencies = [
 name = "opencc-fmmseg"
 version = "0.9.1"
 dependencies = [
- "once_cell",
  "rayon",
  "rayon-core",
  "regex",

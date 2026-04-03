@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::OnceLock;
 
 /// Full delimiter set used for text segmentation, matching the C# implementation.
 ///
@@ -9,13 +9,13 @@ const FULL_DELIMITERS: &str =
     " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 
 /// Convenience helper for hot paths: tests if a [`char`] is a delimiter using
-/// the global [`FULL_DELIMITER_SET`].
+/// the global delimiter set.
 ///
 /// This is equivalent to:
 /// ```
-/// use opencc_fmmseg::{is_delimiter, FULL_DELIMITER_SET};
+/// use opencc_fmmseg::is_delimiter;
 /// let c = '！';
-/// assert_eq!(is_delimiter(c), FULL_DELIMITER_SET.contains(c));
+/// assert!(is_delimiter(c));
 /// ```
 /// Compact, hot-path friendly delimiter set optimized for per-character membership tests.
 ///
@@ -66,7 +66,7 @@ impl DelimiterSet {
 /// Global static instance of the [`DelimiterSet`] constructed from
 /// [`FULL_DELIMITERS`].
 ///
-/// This structure is initialized once at runtime using [`Lazy`], after
+/// This structure is initialized once at runtime using [`OnceLock`], after
 /// which all lookups are **lock-free** and **O(1)**.
 ///
 /// The generated `DelimiterSet` contains:
@@ -80,32 +80,37 @@ impl DelimiterSet {
 ///
 /// This static is used internally by [`is_delimiter`] and all segmentation
 /// functions that operate on delimiter boundaries.
-pub static FULL_DELIMITER_SET: Lazy<DelimiterSet> = Lazy::new(|| {
-    let mut ascii: u128 = 0;
-    let mut bmp = [0u64; 1024];
+static FULL_DELIMITER_SET: OnceLock<DelimiterSet> = OnceLock::new();
 
-    for ch in FULL_DELIMITERS.chars() {
-        let u = ch as u32;
-        if u <= 0x7F {
-            ascii |= 1u128 << u;
-        }
-        if u <= 0xFFFF {
-            let i = (u >> 6) as usize;
-            let b = u & 63;
-            bmp[i] |= 1u64 << b;
-        }
-    }
+#[inline]
+fn full_delimiter_set() -> &'static DelimiterSet {
+    FULL_DELIMITER_SET.get_or_init(|| {
+        let mut ascii: u128 = 0;
+        let mut bmp = [0u64; 1024];
 
-    DelimiterSet {
-        ascii_mask: ascii,
-        bmp_bits: bmp,
-    }
-});
+        for ch in FULL_DELIMITERS.chars() {
+            let u = ch as u32;
+            if u <= 0x7F {
+                ascii |= 1u128 << u;
+            }
+            if u <= 0xFFFF {
+                let i = (u >> 6) as usize;
+                let b = u & 63;
+                bmp[i] |= 1u64 << b;
+            }
+        }
+
+        DelimiterSet {
+            ascii_mask: ascii,
+            bmp_bits: bmp,
+        }
+    })
+}
 
 /// Checks whether a character is treated as a segmentation delimiter.
 ///
 /// This function tests whether the given character belongs to the
-/// preconfigured `FULL_DELIMITER_SET`, which includes whitespace,
+/// preconfigured internal delimiter set, which includes whitespace,
 /// punctuation, and other characters that should act as boundaries during
 /// text segmentation.
 ///
@@ -122,5 +127,6 @@ pub static FULL_DELIMITER_SET: Lazy<DelimiterSet> = Lazy::new(|| {
 /// `true` if the character is a delimiter, otherwise `false`.
 #[inline]
 pub fn is_delimiter(c: char) -> bool {
-    FULL_DELIMITER_SET.contains(c)
+    full_delimiter_set().contains(c)
 }
+
