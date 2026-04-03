@@ -191,10 +191,13 @@ void opencc_set_parallel(const void* instance, bool is_parallel);
  *     A newly allocated null-terminated UTF-8 string containing the converted
  *     output. The returned string must be freed using `opencc_string_free()`.
  *
- *     Returns NULL only if `instance` or `input` is NULL, or if allocation fails.
- *     On other conversion/config errors, this function returns an allocated
- *     error message string and also stores the same message internally for
+ *     Returns NULL if `instance`, `input`, or `config` is NULL, or if allocation
+ *     fails. In those cases the function records a human-readable message for
  *     retrieval via `opencc_last_error()`.
+ *
+ *     On UTF-8/config/conversion errors after argument validation, this function
+ *     returns an allocated error message string and also stores the same message
+ *     internally for retrieval via `opencc_last_error()`.
  */
 char* opencc_convert(const void* instance, const char* input, const char* config, bool punctuation);
 
@@ -226,24 +229,16 @@ char* opencc_convert(const void* instance, const char* input, const char* config
 char* opencc_convert_cfg(const void* instance, const char* input, opencc_config_t config, bool punctuation);
 
 /**
+ * @deprecated Planned for removal. Prefer `opencc_convert()` or `opencc_convert_cfg()`.
+ *
  * Converts a UTF-8 input buffer with explicit byte length using a string config name.
  *
- * This is the explicit-length companion to `opencc_convert()`. It avoids scanning
- * `input` for a terminating `'\0'`, making it suitable for interop scenarios where
- * the input length is already known.
- *
- * The input buffer does not need to be null-terminated.
- *
- * For new code using numeric configs, consider `opencc_convert_cfg()`.
- * For caller-managed output buffers, see `opencc_convert_cfg_mem()` and
- * `opencc_convert_cfg_mem_len()`.
- *
  * @param instance
- *     A pointer to the OpenCC instance created by `opencc_new()`.
+ *     A pointer to the OpenCC instance.
  * @param input
- *     Pointer to the input UTF-8 bytes.
+ *     The input UTF-8 bytes. The buffer does not need to be null-terminated.
  * @param input_len
- *     Number of bytes in `input`.
+ *     The number of bytes in `input`.
  * @param config
  *     The config name (for example `"s2t"`).
  * @param punctuation
@@ -253,50 +248,15 @@ char* opencc_convert_cfg(const void* instance, const char* input, opencc_config_
  *     A newly allocated null-terminated UTF-8 string containing the converted
  *     output. The returned string must be freed using `opencc_string_free()`.
  *
- * @note
- *     This function performs a single-pass conversion. While it avoids input
- *     length scanning, it is not guaranteed to be faster than
- *     `opencc_convert()` or `opencc_convert_cfg()` in all scenarios.
+ *     Returns NULL if `config` is NULL, or if allocation fails. In those cases
+ *     the function records a human-readable message for retrieval via
+ *     `opencc_last_error()`.
  */
 char* opencc_convert_len(
     const void* instance,
     const char* input,
     size_t input_len,
     const char* config,
-    bool punctuation);
-
-/**
- * Converts a UTF-8 input buffer with explicit byte length using a numeric OpenCC config.
- *
- * This is the explicit-length companion to `opencc_convert_cfg()`. It avoids
- * scanning `input` for a terminating `'\0'` and is useful for interop callers
- * that already know the input byte length.
- *
- * The input buffer does not need to be null-terminated.
- *
- * @param instance
- *     A pointer to the OpenCC instance.
- * @param input
- *     The input UTF-8 bytes. The buffer does not need to be null-terminated.
- * @param input_len
- *     The number of bytes in `input`.
- * @param config
- *     The numeric OpenCC config value.
- * @param punctuation
- *     Whether to convert punctuation (`true` = convert).
- *
- * @return
- *     A newly allocated null-terminated UTF-8 string containing the converted
- *     output. The returned string must be freed using `opencc_string_free()`.
- *
- * @since
- *     Available since v0.9.2.
- */
-char* opencc_convert_cfg_len(
-    const void* instance,
-    const char* input,
-    size_t input_len,
-    opencc_config_t config,
     bool punctuation);
 
 // ============================================================================
@@ -327,7 +287,8 @@ char* opencc_convert_cfg_len(
  * Output contract:
  * - `out_required` must not be NULL.
  * - `*out_required` is always set to the required size in bytes, including the
- *   trailing `'\0'`, even when the function returns `false`.
+ *   trailing `'\0'`, even when the function returns `false`, except when
+ *   `out_required` itself is NULL.
  * - If this function returns `true`, the output is valid UTF-8 and null-terminated.
  *
  * @param instance
@@ -357,7 +318,8 @@ char* opencc_convert_cfg_len(
  *     - `out_cap` is too small when `out_buf` is provided
  *
  * Error behavior:
- * - On failure, this function sets `opencc_last_error()` to a human-readable message.
+ * - On failure, this function sets `opencc_last_error()` to a human-readable
+ *   message, including when `out_required` is NULL.
  * - If the caller provides a buffer, the function may also attempt to write an error
  *   message into `out_buf` if the buffer is large enough.
  * - If the buffer is too small, the function returns `false`, sets `*out_required`,
@@ -405,7 +367,8 @@ bool opencc_convert_cfg_mem(
  * Output contract:
  * - `out_required` must not be NULL.
  * - `*out_required` is always set to the required size in bytes, including the
- *   trailing `'\0'`, even when the function returns `false`.
+ *   trailing `'\0'`, even when the function returns `false`, except when
+ *   `out_required` itself is NULL.
  * - If this function returns `true`, the output is valid UTF-8 and null-terminated.
  *
  * @param instance
@@ -436,7 +399,9 @@ bool opencc_convert_cfg_mem(
  *     - output contains an interior NUL byte
  *     - `out_cap` is too small when `out_buf` is provided
  *
- * Error behavior and ownership are the same as `opencc_convert_cfg_mem()`.
+ * Error behavior and ownership are the same as `opencc_convert_cfg_mem()`,
+ * including recording `"Invalid argument: out_required is NULL"` when
+ * `out_required` is NULL.
  *
  * @since
  *     Available since v0.9.1.1.

@@ -8,8 +8,23 @@
 #include <string_view>
 #include <utility>
 
+// RAII convenience wrapper around the opencc-fmmseg C API.
+//
+// This helper owns exactly one native OpenCC instance and releases it with
+// `opencc_delete()` in the destructor. It favors ergonomic C++ defaults over
+// exposing every low-level C contract directly:
+// - Invalid config ids or names fall back to `OPENCC_CONFIG_S2T`.
+// - Empty input returns an empty `std::string` without calling the C API.
+// - Conversion methods return the native result as a `std::string`; if the
+//   underlying C API returns an allocated error string, that message is
+//   returned as ordinary text rather than throwing.
+// - If the underlying C API returns `NULL` (for example allocation failure),
+//   the helper returns an empty `std::string`.
 class OpenccFmmsegHelper {
 public:
+    // Creates a new native OpenCC instance.
+    //
+    // Throws `std::runtime_error` only if `opencc_new()` fails.
     OpenccFmmsegHelper()
         : opencc_(opencc_new()) {
         if (!opencc_)
@@ -38,16 +53,21 @@ public:
 
     ~OpenccFmmsegHelper() noexcept { cleanup(); }
 
+    // Stores the active numeric config for the stateful overloads.
+    // Invalid ids are normalized to `OPENCC_CONFIG_S2T`.
     void setConfigId(const opencc_config_t configId) noexcept {
         configId_ = isValidConfigId(configId) ? configId : OPENCC_CONFIG_S2T;
     }
 
     [[nodiscard]] opencc_config_t getConfigId() const noexcept { return configId_; }
 
+    // Stores the active config by canonical name for the stateful overloads.
+    // Unknown names are normalized to `OPENCC_CONFIG_S2T`.
     void setConfig(const std::string_view cfgName) {
         configId_ = configNameToId(cfgName);
     }
 
+    // Stores the punctuation-conversion flag for the stateful overloads.
     void setPunctuation(const bool enable) noexcept { punctuationEnabled_ = enable; }
     [[nodiscard]] bool punctuationEnabled() const noexcept { return punctuationEnabled_; }
 
@@ -55,6 +75,12 @@ public:
     // Easy/default APIs
     // ---------------------------
 
+    // Converts using an explicit numeric config.
+    //
+    // Returns an empty string when `input` is empty. Otherwise this returns the
+    // UTF-8 text produced by `opencc_convert_cfg()`. If the native C API
+    // reports an error via an allocated error string, that message is returned
+    // as ordinary text.
     [[nodiscard]] std::string convert_cfg(const std::string_view input,
                                           const opencc_config_t configId,
                                           const bool punctuation = false) const {
@@ -62,11 +88,14 @@ public:
         return convertByCfg(input, configId, punctuation);
     }
 
+    // Converts using the stored config id and punctuation flag.
     [[nodiscard]] std::string convert_cfg(const std::string_view input) const {
         if (input.empty()) return {};
         return convertByCfg(input, configId_, punctuationEnabled_);
     }
 
+    // Converts using an explicit config name.
+    // Unknown names are normalized to `OPENCC_CONFIG_S2T`.
     [[nodiscard]] std::string convert(const std::string_view input,
                                       const std::string_view configName,
                                       const bool punctuation = false) const {
@@ -74,6 +103,7 @@ public:
         return convertByCfg(input, configNameToId(configName), punctuation);
     }
 
+    // Converts using the stored config/punctuation state.
     [[nodiscard]] std::string convert(const std::string_view input) const {
         return convert_cfg(input);
     }
@@ -102,12 +132,14 @@ public:
     }
 
     // Stateful version (uses stored config/punctuation).
+    // Returns an empty string for empty input or when the native call returns `NULL`.
     [[nodiscard]] std::string convert_cfg_mem_len(const std::string_view input) const {
         if (input.empty()) return {};
         return convertByCfgMemLen(input, configId_, punctuationEnabled_);
     }
 
-    // Convenience overload using config name.
+    // Convenience overload using a config name.
+    // Unknown names are normalized to `OPENCC_CONFIG_S2T`.
     [[nodiscard]] std::string convert_mem_len(
         const std::string_view input,
         const std::string_view configName,
@@ -117,12 +149,17 @@ public:
         return convertByCfgMemLen(input, configNameToId(configName), punctuation);
     }
 
+    // Checks whether the input appears simplified or traditional.
+    // Returns 0 for empty input without calling the C API.
     [[nodiscard]] int zhoCheck(const std::string_view input) const {
         if (input.empty()) return 0;
         const std::string tmp(input);
         return opencc_zho_check(opencc_, tmp.c_str());
     }
 
+    // Returns the current native last-error string.
+    // This mirrors `opencc_last_error()`: when no error is recorded, the result
+    // is typically "No error".
     [[nodiscard]] static std::string lastError() {
         char *err = opencc_last_error();
         if (!err) return {};
@@ -131,15 +168,20 @@ public:
         return result;
     }
 
+    // Clears the native last-error state.
     static void clearLastError() noexcept {
         opencc_clear_last_error();
     }
 
+    // Converts a config name to a numeric id using the helper's forgiving
+    // normalization rules. Unknown names fall back to `OPENCC_CONFIG_S2T`.
     [[nodiscard]] static opencc_config_t
     config_name_to_id(const std::string_view name) noexcept {
         return configNameToId(name);
     }
 
+    // Converts a numeric config id to its canonical lowercase name.
+    // Unknown ids fall back to "s2t".
     [[nodiscard]] static std::string_view
     config_id_to_name(const opencc_config_t configId) noexcept {
         return configIdToName(configId);
@@ -212,6 +254,8 @@ private:
         }
     }
 
+    // Low-level bridge used by the string-returning conversion helpers.
+    // The returned string may be converted text or a native error message.
     [[nodiscard]] std::string convertByCfg(const std::string_view input,
                                            const opencc_config_t cfg,
                                            const bool punctuation) const {
@@ -224,6 +268,9 @@ private:
         return result;
     }
 
+    // Low-level bridge for the explicit-length buffer API.
+    // The helper performs a size query followed by a write call and returns an
+    // empty string if either native step fails.
     [[nodiscard]] std::string convertByCfgMemLen(
         const std::string_view input,
         const opencc_config_t cfg,

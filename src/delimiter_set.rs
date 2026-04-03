@@ -8,33 +8,27 @@ use std::sync::OnceLock;
 const FULL_DELIMITERS: &str =
     " \t\n\r!\"#$%&'()*+,-./:;<=>?@[\\]^_{}|~＝、。﹁﹂—－（）《》〈〉？！…／＼︒︑︔︓︿﹀︹︺︙︐［﹇］﹈︕︖︰︳︴︽︾︵︶｛︷｝︸﹃﹄【︻】︼　～．，；：";
 
-/// Convenience helper for hot paths: tests if a [`char`] is a delimiter using
-/// the global delimiter set.
-///
-/// This is equivalent to:
-/// ```
-/// use opencc_fmmseg::is_delimiter;
-/// let c = '！';
-/// assert!(is_delimiter(c));
-/// ```
-/// Compact, hot-path friendly delimiter set optimized for per-character membership tests.
+/// Compact, hot-path-friendly delimiter set optimized for per-character
+/// membership tests.
 ///
 /// # Design
 ///
-/// * **ASCII fast path**: all code points `U+0000..=U+007F` are stored in a single
-///   [`u128`] mask. Testing membership is a single shift and bitwise AND.
+/// * **ASCII fast path**: all code points `U+0000..=U+007F` are stored in a
+///   single [`u128`] mask. Testing membership is a single shift and bitwise AND.
 /// * **BMP fast path**: all code points `U+0000..=U+FFFF` are stored in a
 ///   65,536-bit table (`[u64; 1024]`, ~8 KB). Each character maps to one bit,
 ///   making lookup a constant-time O(1) operation with predictable branch-free code.
-/// * **Astral characters**: `U+10000..` are always reported as non-delimiters, since
-///   no delimiters exist in that range for this project.
+/// * **Astral characters**: `U+10000..` are always reported as non-delimiters,
+///   since no delimiters exist in that range for this project.
 ///
 /// This design avoids the hashing overhead of a `HashSet<char>` and is especially
 /// effective in hot loops that scan millions of characters.
 #[derive(Copy, Clone)]
 pub struct DelimiterSet {
-    ascii_mask: u128,      // bits 0..=127
-    bmp_bits: [u64; 1024], // 0x0000..=0xFFFF
+    /// Bitmask for ASCII delimiter membership (`U+0000..=U+007F`).
+    ascii_mask: u128,
+    /// Bitmap covering delimiter membership for the Unicode BMP (`U+0000..=U+FFFF`).
+    bmp_bits: [u64; 1024],
 }
 
 impl DelimiterSet {
@@ -43,7 +37,7 @@ impl DelimiterSet {
     /// # Examples
     ///
     /// ```
-    /// use opencc_fmmseg::{is_delimiter};
+    /// use opencc_fmmseg::is_delimiter;
     /// assert!(is_delimiter('。'));
     /// assert!(!is_delimiter('你'));
     /// ```
@@ -67,21 +61,29 @@ impl DelimiterSet {
 /// [`FULL_DELIMITERS`].
 ///
 /// This structure is initialized once at runtime using [`OnceLock`], after
-/// which all lookups are **lock-free** and **O(1)**.
+/// which all lookups are lock-free and O(1).
 ///
-/// The generated `DelimiterSet` contains:
+/// The generated [`DelimiterSet`] contains:
 ///
-/// - A 128-bit ASCII bitmap (`ascii_mask`) for fast checks of ASCII delimiters
-/// - A 1024-entry bitmap (`bmp_bits`) covering the entire Unicode BMP
+/// - a 128-bit ASCII bitmap (`ascii_mask`) for fast checks of ASCII delimiters
+/// - a 1024-entry bitmap (`bmp_bits`) covering the entire Unicode BMP
 ///
 /// These bitmaps allow delimiter detection via simple bit operations,
-/// avoiding hash lookups and enabling extremely fast segmentation when
+/// avoiding hash lookups and enabling very fast segmentation when
 /// processing large texts.
 ///
-/// This static is used internally by [`is_delimiter`] and all segmentation
-/// functions that operate on delimiter boundaries.
+/// This static is used internally by [`is_delimiter`] and other segmentation
+/// helpers that operate on delimiter boundaries.
 static FULL_DELIMITER_SET: OnceLock<DelimiterSet> = OnceLock::new();
 
+/// Returns the lazily initialized global [`DelimiterSet`].
+///
+/// The set is constructed once from [`FULL_DELIMITERS`] on first use, then
+/// reused for all subsequent delimiter checks.
+///
+/// # Returns
+///
+/// A reference to the global [`DelimiterSet`].
 #[inline]
 fn full_delimiter_set() -> &'static DelimiterSet {
     FULL_DELIMITER_SET.get_or_init(|| {
@@ -120,7 +122,7 @@ fn full_delimiter_set() -> &'static DelimiterSet {
 ///
 /// # Arguments
 ///
-/// * `c` – The character to test.
+/// * `c` - The character to test.
 ///
 /// # Returns
 ///
@@ -129,4 +131,3 @@ fn full_delimiter_set() -> &'static DelimiterSet {
 pub fn is_delimiter(c: char) -> bool {
     full_delimiter_set().contains(c)
 }
-

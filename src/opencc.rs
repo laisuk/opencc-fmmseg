@@ -35,15 +35,35 @@ static LAST_ERROR: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 /// Regular expression used to normalize or strip punctuation from input.
 static STRIP_REGEX: OnceLock<Regex> = OnceLock::new();
 
+/// Returns a thread-safe reference to the global last-error storage.
+///
+/// This helper lazily initializes the internal [`Mutex`] holding an optional
+/// error message. It is used by C API functions to record and retrieve
+/// the most recent error across threads.
+///
+/// # Returns
+///
+/// A reference to a [`Mutex<Option<String>>`] storing the last error message.
 #[inline]
 fn last_error_slot() -> &'static Mutex<Option<String>> {
     LAST_ERROR.get_or_init(|| Mutex::new(None))
 }
 
+/// Returns a lazily initialized regular expression for stripping characters.
+///
+/// This regex is used to normalize or filter input text by removing
+/// ASCII punctuation, digits, Latin letters, whitespace, and selected
+/// symbols. It is primarily used in preprocessing steps such as
+/// segmentation or heuristic checks.
+///
+/// # Returns
+///
+/// A reference to a compiled [`Regex`] instance.
 #[inline]
 fn strip_regex() -> &'static Regex {
     STRIP_REGEX.get_or_init(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_著]").unwrap())
 }
+
 /// Central interface for performing OpenCC-based conversion with segmentation.
 ///
 /// The `OpenCC` struct manages dictionary loading, segmentation, and multi-round text transformation.
