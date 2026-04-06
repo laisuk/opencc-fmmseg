@@ -41,7 +41,7 @@ impl DelimiterSet {
     /// assert!(is_delimiter('。'));
     /// assert!(!is_delimiter('你'));
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn contains(&self, c: char) -> bool {
         let u = c as u32;
         if u <= 0x7F {
@@ -84,7 +84,7 @@ static FULL_DELIMITER_SET: OnceLock<DelimiterSet> = OnceLock::new();
 /// # Returns
 ///
 /// A reference to the global [`DelimiterSet`].
-#[inline]
+#[inline(always)]
 fn full_delimiter_set() -> &'static DelimiterSet {
     FULL_DELIMITER_SET.get_or_init(|| {
         let mut ascii: u128 = 0;
@@ -127,7 +127,7 @@ fn full_delimiter_set() -> &'static DelimiterSet {
 /// # Returns
 ///
 /// `true` if the character is a delimiter, otherwise `false`.
-#[inline]
+#[inline(always)]
 pub fn is_delimiter(c: char) -> bool {
     full_delimiter_set().contains(c)
 }
