@@ -84,7 +84,7 @@ static FULL_DELIMITER_SET: OnceLock<DelimiterSet> = OnceLock::new();
 /// # Returns
 ///
 /// A reference to the global [`DelimiterSet`].
-#[inline(always)]
+#[inline]
 fn full_delimiter_set() -> &'static DelimiterSet {
     FULL_DELIMITER_SET.get_or_init(|| {
         let mut ascii: u128 = 0;
