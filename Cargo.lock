@@ -259,7 +259,7 @@ dependencies = [
 
 [[package]]
 name = "dict-generate"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "clap",
  "opencc-fmmseg",
@@ -606,7 +606,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "opencc-clip"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "clap",
  "copypasta",
@@ -615,7 +615,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-fmmseg"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "rayon",
  "rayon-core",
@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-fmmseg-capi"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "opencc-fmmseg",
  "toml 0.8.23",
@@ -639,7 +639,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-rs"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "clap",
  "encoding_rs",
