@@ -165,17 +165,24 @@ impl StarterUnion {
                     continue;
                 }
 
-                let cap = DictMaxLen::max_len_from_mask(mask).unwrap_or(0) as u8;
                 let cp = c0 as u32;
 
                 if cp <= 0xFFFF {
                     let i = cp as usize;
                     bmp_mask[i] |= mask;
+                    let cap = d.first_char_max_len.get(i).copied().unwrap_or(0);
                     if cap > bmp_cap[i] {
                         bmp_cap[i] = cap;
                     }
                 } else {
                     *astral_mask.entry(c0).or_insert(0) |= mask;
+                    let cap = d
+                        .map
+                        .keys()
+                        .filter(|key| key.first().copied() == Some(c0))
+                        .map(|key| u8::try_from(key.len()).unwrap_or(u8::MAX))
+                        .max()
+                        .unwrap_or_else(|| DictMaxLen::max_len_from_mask(mask).unwrap_or(0) as u8);
                     astral_cap
                         .entry(c0)
                         .and_modify(|m| {
@@ -186,6 +193,41 @@ impl StarterUnion {
                         .or_insert(cap);
                 }
             }
+
+            // `starter_len_mask` only encodes exact lengths up to 64, so do a
+            // second pass for long keys to preserve both the 64+ bucket and the
+            // true per-starter cap in the merged union.
+            if d.max_len > 64 {
+                for key in d.map.keys() {
+                    let Some(&c0) = key.first() else {
+                        continue;
+                    };
+                    if key.len() <= 64 {
+                        continue;
+                    }
+
+                    let cap = u8::try_from(key.len()).unwrap_or(u8::MAX);
+                    let cp = c0 as u32;
+
+                    if cp <= 0xFFFF {
+                        let i = cp as usize;
+                        bmp_mask[i] |= 1u64 << 63;
+                        if cap > bmp_cap[i] {
+                            bmp_cap[i] = cap;
+                        }
+                    } else {
+                        *astral_mask.entry(c0).or_insert(0) |= 1u64 << 63;
+                        astral_cap
+                            .entry(c0)
+                            .and_modify(|m| {
+                                if cap > *m {
+                                    *m = cap
+                                }
+                            })
+                            .or_insert(cap);
+                    }
+                }
+            }
         }
 
         Self {
@@ -194,5 +236,21 @@ impl StarterUnion {
             astral_mask,
             astral_cap,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StarterUnion;
+    use crate::dictionary_lib::DictMaxLen;
+
+    #[test]
+    fn build_preserves_long_bmp_caps() {
+        let key = "中".repeat(80);
+        let dict = DictMaxLen::build_from_pairs(vec![(key, "長".to_string())]);
+        let union = StarterUnion::build(&[&dict]);
+
+        assert_eq!(union.bmp_cap['中' as usize] as usize, 80);
+        assert_ne!(union.bmp_mask['中' as usize] & (1u64 << 63), 0);
     }
 }

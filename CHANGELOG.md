@@ -13,10 +13,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Updated conversion dictionary data to v1.3.0.
 - Replaced `once_cell` with Rust std `OnceLock`.
 - C API:
-  - Added `opencc_convert_cfg_mem_len()` for explicit-length UTF-8 input.
-  - Improved buffer-based conversion for high-performance interop scenarios.
-  - Retained `opencc_convert_cfg_mem()` for backward compatibility.
-  - No C ABI break.
+    - Added `opencc_convert_cfg_mem_len()` for explicit-length UTF-8 input.
+    - Improved buffer-based conversion for high-performance interop scenarios.
+    - Retained `opencc_convert_cfg_mem()` for backward compatibility.
+    - No C ABI break.
+
+### Fixed
+
+- Rust API: successful conversions now clear stale `OpenCC` last-error state, so `convert()`, `convert_with_config()`,
+  and direct conversion helpers no longer leave a previous error visible after a later successful call.
+- Rust API internals: `StarterUnion` now preserves true per-starter caps for custom dictionary entries longer than 64
+  characters, keeping public `dictionary_lib` behavior consistent with `DictMaxLen` metadata and avoiding unreachable
+  long-key matches.
 
 ---
 
@@ -35,20 +43,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.9.0] - 2026-02-09
 
 ### Breaking changes
+
 - Removed the embedded `dictionary_maxlength.cbor` from the published crate
 - `from_cbor()` no longer loads an embedded dictionary and now requires an external CBOR file
 - Applications relying on implicit embedded CBOR must migrate to `from_zstd()` or explicit CBOR loading
 
 ### Changed
+
 - Updated built-in dictionary to **v1.2.0**
 - The crate now ships **only** `dictionary_maxlength.zstd`
   (Zstd-compressed CBOR) as the default dictionary artifact
 
 ### Added
+
 - `from_zstd()` as the recommended default dictionary loader for non-custom usage
 - Detailed migration guidance in API documentation
 
 ### Improved
+
 - Crate size significantly reduced by eliminating redundant embedded artifacts
 - Packaging and distribution behavior made explicit and deterministic
 
@@ -372,4 +384,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ---
 
 ## [Unreleased]
+
+
+
 

@@ -1,6 +1,9 @@
 extern crate copypasta;
 
-use clap::{builder::{StringValueParser, TypedValueParser, ValueParser}, Arg, ArgAction, Command};
+use clap::{
+    builder::{StringValueParser, TypedValueParser, ValueParser},
+    Arg, ArgAction, Command,
+};
 use copypasta::{ClipboardContext, ClipboardProvider};
 use opencc_fmmseg::{find_max_utf8_length, OpenCC, OpenccConfig};
 

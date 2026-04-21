@@ -683,6 +683,7 @@ impl OpenCC {
     /// `segment_replace_with_union` closure.
     #[inline]
     fn apply_dicts_1(&self, input: &str, round_1: &[&DictMaxLen], u1: Arc<StarterUnion>) -> String {
+        Self::clear_last_error();
         DictRefs::new(round_1, u1).apply_segment_replace(input, |input, refs, max_len, union| {
             self.segment_replace_with_union(input, refs, max_len, union)
         })
@@ -702,6 +703,7 @@ impl OpenCC {
         round_2: &[&DictMaxLen],
         u2: Arc<StarterUnion>,
     ) -> String {
+        Self::clear_last_error();
         DictRefs::new(round_1, u1)
             .with_round_2(round_2, u2)
             .apply_segment_replace(input, |input, refs, max_len, union| {
@@ -725,6 +727,7 @@ impl OpenCC {
         round_3: &[&DictMaxLen],
         u3: Arc<StarterUnion>,
     ) -> String {
+        Self::clear_last_error();
         DictRefs::new(round_1, u1)
             .with_round_2(round_2, u2)
             .with_round_3(round_3, u3)
@@ -1742,3 +1745,39 @@ impl OpenCC {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::OpenCC;
+    use crate::OpenccConfig;
+
+    #[test]
+    fn convert_clears_stale_last_error_on_success() {
+        let cc = OpenCC::new();
+
+        let invalid = cc.convert("汉字", "invalid", false);
+        assert_eq!(invalid, "Invalid config: invalid");
+        assert_eq!(
+            OpenCC::get_last_error().as_deref(),
+            Some("Invalid config: invalid")
+        );
+
+        let converted = cc.convert("汉字", "s2t", false);
+        assert_eq!(converted, "漢字");
+        assert!(OpenCC::get_last_error().is_none());
+    }
+
+    #[test]
+    fn direct_conversion_clears_stale_last_error_on_success() {
+        let cc = OpenCC::new();
+
+        OpenCC::set_last_error("stale error");
+        let converted = cc.convert_with_config("汉字", OpenccConfig::S2t, false);
+        assert_eq!(converted, "漢字");
+        assert!(OpenCC::get_last_error().is_none());
+
+        OpenCC::set_last_error("stale error");
+        let converted = cc.s2t("汉字", false);
+        assert_eq!(converted, "漢字");
+        assert!(OpenCC::get_last_error().is_none());
+    }
+}
