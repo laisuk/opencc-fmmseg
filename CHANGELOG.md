@@ -25,6 +25,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Rust API internals: `StarterUnion` now preserves true per-starter caps for custom dictionary entries longer than 64
   characters, keeping public `dictionary_lib` behavior consistent with `DictMaxLen` metadata and avoiding unreachable
   long-key matches.
+- C API / C++ RAII helper: invalid config ids and names are now surfaced as native `Invalid config: ...` errors instead
+  of being silently normalized to `s2t` in `OpenccFmmsegHelper.hpp`.
+- C++ RAII helper: native conversion failures are now returned as last-error text instead of collapsing to empty
+  strings, making wrapper behavior consistent with the underlying C API.
+- C API headers: moved canonical public headers to `capi/include/` for clearer packaging and user-facing include
+  layout.
+- C API header: corrected `opencc_set_parallel` to accept a mutable instance pointer in `opencc_fmmseg_capi.h`,
+  matching the actual mutating behavior and Rust implementation.
 
 ---
 
@@ -384,6 +392,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ---
 
 ## [Unreleased]
+
+
 
 
 

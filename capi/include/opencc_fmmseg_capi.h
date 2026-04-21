@@ -169,7 +169,7 @@ bool opencc_get_parallel(const void* instance);
  * @param is_parallel
  *     Set to `true` to enable parallel processing, or `false` to disable it.
  */
-void opencc_set_parallel(const void* instance, bool is_parallel);
+void opencc_set_parallel(void* instance, bool is_parallel);
 
 // ============================================================================
 // Conversion API (allocated return)
@@ -542,3 +542,4 @@ const char* opencc_config_id_to_name(opencc_config_t id);
 #endif
 
 #endif // OPENCC_FMMSEG_CAPI_H
+

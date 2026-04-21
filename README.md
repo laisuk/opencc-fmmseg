@@ -336,8 +336,8 @@ You can also use `opencc-fmmseg` via a **C API** for integration with **C/C++ pr
 The zip includes:
 
 - {lib}`opencc_fmmseg_capi.`{so,dylib,dll}
-- C API: `opencc_fmmseg_capi.h`
-- Header-only C++ helper: `OpenccFmmsegHelper.hpp`
+- C API: `include/opencc_fmmseg_capi.h`
+- Header-only C++ helper: `include/OpenccFmmsegHelper.hpp`
 
 ### C++ RAII Helper (Recommended)
 
@@ -577,3 +577,4 @@ ultra-stable parallel throughput across large text corpora.
 
 - Issues and pull requests are welcome.
 - If you find this tool useful, please ⭐ star the repo or fork it.
+

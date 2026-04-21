@@ -293,8 +293,8 @@ jobs:
           cp "${OUT_DIR}/dict-generate${{ matrix.bin_ext }}" dist/bin/
 
           # Headers
-          cp capi/opencc_fmmseg_capi.h dist/include/
-          cp capi/OpenccFmmsegHelper.hpp dist/include/
+          cp capi/include/opencc_fmmseg_capi.h dist/include/
+          cp capi/include/OpenccFmmsegHelper.hpp dist/include/
 
           # C API shared lib
           cp "${OUT_DIR}/${{ matrix.dll_name }}" dist/lib/

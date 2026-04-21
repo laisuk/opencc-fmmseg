@@ -291,8 +291,8 @@ jobs:
           cp "${OUT_DIR}/${{ matrix.dll_name }}" dist/lib/
 
           # Headers
-          cp capi/opencc_fmmseg_capi.h dist/include/
-          cp capi/OpenccFmmsegHelper.hpp dist/include/
+          cp capi/include/opencc_fmmseg_capi.h dist/include/
+          cp capi/include/OpenccFmmsegHelper.hpp dist/include/
 
           # Optional: Windows import library if produced
           if [ "${{ matrix.platform }}" = "windows" ]; then
@@ -319,3 +319,4 @@ jobs:
         with:
           name: opencc-fmmseg-capi-run${{ github.run_id }}-${{ matrix.name }}
           path: opencc-fmmseg-capi-run${{ github.run_id }}-${{ matrix.name }}.zip
+
