@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
+checksum = "0e78417baa3b3114dc0e95e7357389a249c4da97c3c2b540700079db6171bfd7"
 
 [[package]]
 name = "clipboard-win"
@@ -609,6 +609,7 @@ name = "opencc-clip"
 version = "0.9.2"
 dependencies = [
  "clap",
+ "clap_lex",
  "copypasta",
  "opencc-fmmseg",
 ]
@@ -642,6 +643,7 @@ name = "opencc-rs"
 version = "0.9.2"
 dependencies = [
  "clap",
+ "clap_lex",
  "encoding_rs",
  "encoding_rs_io",
  "opencc-fmmseg",

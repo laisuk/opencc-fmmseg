@@ -16,6 +16,7 @@ regex = "1.12"
 zip = { version = "=3.0", default-features = false, features = ["deflate"] }
 
 # For toolchain 1.75.0 compatibility:
+clap_lex="=1.0"
 # indexmap = "=2.11.4"
 # crc= "=3.3.0"
 # time = "=0.3.41"
