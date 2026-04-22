@@ -6,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-opencc-fmmseg = {path = "../.."}
+opencc-fmmseg = { path = "../.." }
 copypasta = "0.10"
 clap = "=4.5"
-clap_lex="=1.0"
-#smithay-clipboard = "=0.7.2"
+
+# Exact dependency pins to preserve MSRV (rustc 1.75.0):
+# clap_lex@1.0.1
+clap_lex = "=1.0"

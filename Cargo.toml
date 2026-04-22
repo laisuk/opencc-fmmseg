@@ -34,7 +34,7 @@ include = [
 
 [dependencies]
 # Exact dependency pins to preserve MSRV (rustc 1.75.0):
-# rayon@1.10.0, rayon-core@1.12.1
+# rayon@1.10.0, rayon-core@1.12.1, rustc-hash@2.1.1
 rayon = "=1.10"
 rayon-core = "=1.12"
 regex = "1.12"
