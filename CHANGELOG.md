@@ -6,11 +6,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.9.3-beta1] - 2026-05-01
+
+### Changed
+
+- Update conversion dictionary data.
+
+---
+
 ## [0.9.2] - 2026-04-22
 
 ### Changed
 
-- Updated conversion dictionary data to v1.3.0.
+- Updated conversion dictionary data.
 - Replaced `once_cell` with Rust std `OnceLock`.
 - C API:
     - Added `opencc_convert_cfg_mem_len()` for explicit-length UTF-8 input.
