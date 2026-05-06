@@ -519,35 +519,36 @@ Last Error: No error
 
 ## 🚀 Benchmark Results: `opencc-fmmseg` Conversion Speed
 
-Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on 1.2 million characters with  
-punctuation disabled (`punctuation = false`), built in **release mode** with **Rayon enabled**.
+Tested using [Criterion.rs](https://bheisler.github.io/criterion.rs/book/) on up to 1 million
+characters with punctuation disabled (`punctuation = false`), built in **release mode** with
+**Rayon enabled** via `cargo +stable bench --bench opencc_fmmseg_bench`.
 
-Results from **v0.8.3**:
+Results from **v0.9.2**:
 
 | Input Size | s2t Mean Time | t2s Mean Time |
 |------------|--------------:|--------------:|
-| 100        |       3.62 µs |       2.05 µs |
-| 1,000      |      38.06 µs |      33.50 µs |
-| 10,000     |     202.66 µs |     130.58 µs |
-| 100,000    |      1.096 ms |      0.686 ms |
-| 1,000,000  |     12.822 ms |      9.089 ms |
+| 100        |       2.51 µs |       1.04 µs |
+| 1,000      |      34.67 µs |      28.45 µs |
+| 10,000     |     164.30 µs |      99.48 µs |
+| 100,000    |      0.982 ms |      0.574 ms |
+| 1,000,000  |     11.294 ms |      7.571 ms |
 
 ---
 
 📊 **Throughput Interpretation**
 
-- **t2s:** ≈ 110 million chars/sec
-- **s2t:** ≈ 78 million chars/sec
-- Equivalent to **~150–200 MB/s** UTF-8 text throughput
-- ≈ **200 full-length novels** (500 k chars each) per second
-- ≈ **1 GB of text** converted in under **7 seconds**
+- **t2s:** ≈ 132 million chars/sec
+- **s2t:** ≈ 89 million chars/sec
+- Equivalent to **~265–396 MB/s** UTF-8 Chinese text throughput
+- ≈ **177–264 full-length novels** (500 k chars each) per second
+- ≈ **1 GB of text** converted in under **4 seconds**
 
 At this level, CPU saturation is negligible — **I/O or interop overhead** (file/clipboard/network) now dominates
 runtime.  
 The new **mask-first gating** (`key_length_mask` + `starter_len_mask`) delivers perfect **O(n)** scaling and
 ultra-stable parallel throughput across large text corpora.
 
-![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_083.png)
+![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_092.png)
 
 ### 🏅 Highlights
 
