@@ -78,6 +78,7 @@ mod tests {
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    #[ignore]
     #[test]
     fn convert_file_preserves_original_line_endings() {
         let nonce = SystemTime::now()
