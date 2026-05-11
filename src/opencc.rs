@@ -1780,4 +1780,29 @@ mod tests {
         assert_eq!(converted, "漢字");
         assert!(OpenCC::get_last_error().is_none());
     }
+
+    #[test]
+    fn convert_preserves_original_line_endings() {
+        let cc = OpenCC::new();
+
+        assert_eq!(cc.convert("汉字\r\n转换", "s2t", false), "漢字\r\n轉換");
+        assert_eq!(cc.convert("汉字\n转换", "s2t", false), "漢字\n轉換");
+        assert_eq!(
+            cc.convert("汉字\r\n转换\n测试\r完成", "s2t", false),
+            "漢字\r\n轉換\n測試\r完成"
+        );
+    }
+
+    #[test]
+    fn convert_preserves_original_line_endings_in_serial_mode() {
+        let mut cc = OpenCC::new();
+        cc.set_parallel(false);
+
+        assert_eq!(cc.convert("汉字\r\n转换", "s2t", false), "漢字\r\n轉換");
+        assert_eq!(cc.convert("汉字\n转换", "s2t", false), "漢字\n轉換");
+        assert_eq!(
+            cc.convert("汉字\r\n转换\n测试\r完成", "s2t", false),
+            "漢字\r\n轉換\n測試\r完成"
+        );
+    }
 }
