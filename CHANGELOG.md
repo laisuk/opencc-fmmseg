@@ -6,11 +6,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.9.3-beta1] - 2026-05-07
+## [0.9.3-beta1] - 2026-05-10
 
 ### Changed
 
 - Update conversion dictionary data.
+- Added regression coverage to ensure `OpenCC::convert()` and the `opencc-rs convert` file-to-file path preserve the
+  caller's original line endings (`CRLF`, `LF`, or mixed input) instead of normalizing by platform. This is important
+  for cross-platform use cases where converted text must keep stable diffs, checksums, generated files, and repository
+  line ending policy intact.
 
 ---
 

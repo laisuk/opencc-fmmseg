@@ -15,7 +15,17 @@ use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
 use std::sync::OnceLock;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let matches = Command::new("opencc-rs")
+    let matches = build_cli().get_matches();
+
+    match matches.subcommand() {
+        Some(("convert", sub)) => handle_convert(sub),
+        Some(("office", sub)) => handle_office(sub),
+        _ => unreachable!(),
+    }
+}
+
+fn build_cli() -> Command {
+    Command::new("opencc-rs")
         .about("OpenCC Rust: Command Line Open Chinese Converter")
         .subcommand_required(true)
         .arg_required_else_help(true)
@@ -60,12 +70,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .help("Infer format from file extension"),
                 ),
         )
-        .get_matches();
+}
 
-    match matches.subcommand() {
-        Some(("convert", sub)) => handle_convert(sub),
-        Some(("office", sub)) => handle_office(sub),
-        _ => unreachable!(),
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn convert_file_preserves_original_line_endings() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let temp_dir = std::env::temp_dir();
+        let input_path = temp_dir.join(format!("opencc-rs-newline-{nonce}.in.txt"));
+        let output_path = temp_dir.join(format!("opencc-rs-newline-{nonce}.out.txt"));
+
+        fs::write(&input_path, "汉字\r\n转换\n测试\r完成").unwrap();
+
+        let matches = build_cli()
+            .try_get_matches_from([
+                "opencc-rs",
+                "convert",
+                "-i",
+                input_path.to_str().unwrap(),
+                "-o",
+                output_path.to_str().unwrap(),
+                "-c",
+                "s2t",
+            ])
+            .unwrap();
+        let (_, convert_matches) = matches.subcommand().unwrap();
+
+        handle_convert(convert_matches).unwrap();
+
+        let output = fs::read_to_string(&output_path).unwrap();
+        assert_eq!(output, "漢字\r\n轉換\n測試\r完成");
+
+        let _ = fs::remove_file(input_path);
+        let _ = fs::remove_file(output_path);
     }
 }
 
