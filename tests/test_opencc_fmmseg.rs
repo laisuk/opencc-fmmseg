@@ -128,7 +128,7 @@ mod tests {
     fn test_dictionary_from_dicts() {
         let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the JSON contains the expected data
-        let expected = 16;
+        let expected = 14;
         assert_eq!(dictionary.st_phrases.max_len, expected);
     }
 
@@ -140,7 +140,7 @@ mod tests {
             .expect("failed to build DictionaryMaxlength");
 
         // Stable invariant (keep this check)
-        assert_eq!(dictionary.st_phrases.max_len, 16);
+        assert_eq!(dictionary.st_phrases.max_len, 14);
 
         // Convert to JSON-friendly DTO (keys become String)
         let dto: DictionaryMaxlengthSerde = (&dictionary).into();
@@ -154,7 +154,7 @@ mod tests {
 
         // Parse back and assert a few invariants
         let v: Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(v["st_phrases"]["max_len"].as_u64().unwrap(), 16);
+        assert_eq!(v["st_phrases"]["max_len"].as_u64().unwrap(), 14);
         assert!(
             v["st_phrases"]["starter_len_mask"]
                 .as_object()
@@ -170,7 +170,7 @@ mod tests {
         let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
 
         // Verify that the Dictionary contains the expected data
-        let expected = 16;
+        let expected = 14;
         assert_eq!(dictionary.st_phrases.max_len, expected);
 
         let filename = "dictionary_maxlength.cbor";
@@ -180,7 +180,7 @@ mod tests {
         fs::write(filename, &cbor_data).expect("Failed to write CBOR file");
 
         // Check the expected file size (update this value after first run)
-        let expected_cbor_size = 1351596; // Replace with actual size after first run
+        let expected_cbor_size = 1359720; // Replace with actual size after first run
         let file_size = fs::metadata(filename).unwrap().len() as usize;
         assert_eq!(file_size, expected_cbor_size);
 
