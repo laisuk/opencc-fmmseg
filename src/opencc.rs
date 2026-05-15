@@ -27,6 +27,7 @@ use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
 use rustc_hash::FxHashMap;
+use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 
 /// Thread-safe holder for the last error message (if any).
@@ -101,15 +102,11 @@ impl OpenCC {
     /// ```
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new().unwrap_or_else(|err| {
-            Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+            Self::set_last_error(&format!("Failed to create dictionary: {err}"));
             DictionaryMaxlength::default()
         });
-        let is_parallel = true;
 
-        OpenCC {
-            dictionary,
-            is_parallel,
-        }
+        Self::from_dictionary(dictionary)
     }
 
     /// Creates an `OpenCC` instance using in-memory JSON dictionary objects.
@@ -135,12 +132,8 @@ impl OpenCC {
             Self::set_last_error(&format!("Failed to create dictionary: {}", err));
             DictionaryMaxlength::default()
         });
-        let is_parallel = true;
 
-        OpenCC {
-            dictionary,
-            is_parallel,
-        }
+        Self::from_dictionary(dictionary)
     }
 
     /// Creates an `OpenCC` instance by loading dictionaries from an external CBOR file.
@@ -168,17 +161,63 @@ impl OpenCC {
     ///     println!("{}", cc.convert("汉字", "s2t", false));
     /// }
     /// ```
-    pub fn from_cbor(filename: &str) -> Self {
+    pub fn from_cbor<P: AsRef<Path>>(filename: P) -> Self {
         let dictionary =
             DictionaryMaxlength::deserialize_from_cbor(filename).unwrap_or_else(|err| {
-                Self::set_last_error(&format!("Failed to create dictionary: {}", err));
+                Self::set_last_error(&format!("Failed to load CBOR dictionary: {err}"));
                 DictionaryMaxlength::default()
             });
-        let is_parallel = true;
 
-        OpenCC {
+        Self::from_dictionary(dictionary)
+    }
+
+    /// Creates an `OpenCC` instance from an existing [`DictionaryMaxlength`].
+    ///
+    /// This is the low-level constructor for advanced users who want to build,
+    /// load, modify, or generate dictionary data themselves before creating an
+    /// [`OpenCC`] converter.
+    ///
+    /// Most users should prefer [`OpenCC::new()`], which loads the built-in
+    /// dictionaries bundled with the crate. This method is useful when you already
+    /// have a prepared [`DictionaryMaxlength`] instance, for example one loaded
+    /// from CBOR/JSON, generated from plaintext dictionaries, or assembled with
+    /// custom dictionary slots.
+    ///
+    /// # Arguments
+    ///
+    /// * `dictionary` - A fully prepared [`DictionaryMaxlength`] value used by the
+    ///   converter for maximum-matching Chinese text conversion.
+    ///
+    /// # Returns
+    ///
+    /// An [`OpenCC`] instance using the provided dictionary and with parallel
+    /// conversion enabled by default.
+    ///
+    /// # Notes
+    ///
+    /// This method takes ownership of the dictionary. The caller is responsible for
+    /// ensuring that the dictionary is internally consistent, including its maximum
+    /// phrase-length metadata and any derived lookup structures.
+    ///
+    /// Higher-level constructors such as [`OpenCC::new()`], [`OpenCC::from_dicts()`],
+    /// and CBOR/JSON loading helpers may delegate to this method after constructing
+    /// the dictionary.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{OpenCC, DictionaryMaxlength};
+    ///
+    /// let dictionary = DictionaryMaxlength::new().unwrap();
+    /// let cc = OpenCC::from_dictionary(dictionary);
+    ///
+    /// let converted = cc.convert("汉字", "s2t", false);
+    /// assert_eq!(converted, "漢字");
+    /// ```
+    pub fn from_dictionary(dictionary: DictionaryMaxlength) -> Self {
+        Self {
             dictionary,
-            is_parallel,
+            is_parallel: true,
         }
     }
 
