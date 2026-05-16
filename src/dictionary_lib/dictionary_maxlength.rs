@@ -9,10 +9,9 @@
 //! advanced users may access it for custom loading, serialization, or optimization.
 
 use crate::dictionary_lib::DictMaxLen;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
-use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
@@ -23,7 +22,7 @@ use zstd::{Decoder, Encoder};
 
 mod union_cache;
 pub(crate) use union_cache::UnionKey;
-// so callers can say `UnionKey::S2T { punct: .. }`
+// so callers can say `UnionKey::S2T { punct: ... }`
 
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -353,80 +352,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// - [`populate_all`](#method.populate_all) — rebuilds starter indexes after bulk edits.
     /// - [`finish`](#method.finish) — chaining version of `populate_all` after deserialization.
     pub fn from_dicts() -> Result<Self, DictionaryError> {
-        let base_dir = "dicts";
-
-        // upfront check for base_dir existence
-        if !Path::new(base_dir).exists() {
-            let msg = format!("Base directory not found: {}", base_dir);
-            Self::set_last_error(&msg);
-            // Wrap as real io::Error
-            return Err(DictionaryError::IoError(io::Error::new(
-                io::ErrorKind::NotFound,
-                msg,
-            )));
-        }
-
-        fn load_dict(base_dir: &str, filename: &str) -> Result<DictMaxLen, DictionaryError> {
-            let path = Path::new(base_dir).join(filename);
-            let path_str = path.display().to_string();
-            let file = File::open(&path)?;
-            let reader = BufReader::new(file);
-
-            let mut pairs: Vec<(String, String)> = Vec::new();
-            let mut saw_data_line = false;
-
-            for (lineno, raw_line) in reader.lines().enumerate() {
-                let raw_line = raw_line?;
-                let mut line = raw_line.trim_end();
-
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-
-                if !saw_data_line {
-                    if let Some(rest) = line.strip_prefix('\u{FEFF}') {
-                        line = rest;
-                    }
-                    saw_data_line = true;
-                }
-
-                let Some((k, v)) = line.split_once('\t') else {
-                    return Err(DictionaryError::LoadFileError {
-                        path: path_str.clone(),
-                        lineno: lineno + 1,
-                        message: "missing TAB separator".to_string(),
-                    });
-                };
-
-                let first_value = v.split_whitespace().next().unwrap_or("");
-                pairs.push((k.to_owned(), first_value.to_owned()));
-            }
-
-            Ok(DictMaxLen::build_from_pairs(pairs))
-        }
-
-        Ok(DictionaryMaxlength {
-            st_characters: load_dict(base_dir, "STCharacters.txt")?,
-            st_phrases: load_dict(base_dir, "STPhrases.txt")?,
-            ts_characters: load_dict(base_dir, "TSCharacters.txt")?,
-            ts_phrases: load_dict(base_dir, "TSPhrases.txt")?,
-            tw_phrases: load_dict(base_dir, "TWPhrases.txt")?,
-            tw_phrases_rev: load_dict(base_dir, "TWPhrasesRev.txt")?,
-            tw_variants: load_dict(base_dir, "TWVariants.txt")?,
-            tw_variants_rev: load_dict(base_dir, "TWVariantsRev.txt")?,
-            tw_variants_rev_phrases: load_dict(base_dir, "TWVariantsRevPhrases.txt")?,
-            hk_variants: load_dict(base_dir, "HKVariants.txt")?,
-            hk_variants_rev: load_dict(base_dir, "HKVariantsRev.txt")?,
-            hk_variants_rev_phrases: load_dict(base_dir, "HKVariantsRevPhrases.txt")?,
-            jps_characters: load_dict(base_dir, "JPShinjitaiCharacters.txt")?,
-            jps_phrases: load_dict(base_dir, "JPShinjitaiPhrases.txt")?,
-            jp_variants: load_dict(base_dir, "JPVariants.txt")?,
-            jp_variants_rev: load_dict(base_dir, "JPVariantsRev.txt")?,
-            st_punctuations: load_dict(base_dir, "STPunctuations.txt")?,
-            ts_punctuations: load_dict(base_dir, "TSPunctuations.txt")?,
-            // runtime-only cache (serde-skipped)
-            unions: Default::default(),
-        })
+        Self::from_dicts_custom(&[])
     }
 
     /// Populates starter indexes for all inner [`DictMaxLen`] tables in this structure.
@@ -576,7 +502,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// This method is mainly intended for debugging, verification, and for users
     /// who want access to the raw dictionary data in plain text form.
     pub fn to_dicts(&self, base_dir: &str) -> Result<(), Box<dyn Error>> {
-        let dict_map: HashMap<&str, &FxHashMap<Box<[char]>, Box<str>>> = [
+        let dict_map: FxHashMap<&str, &FxHashMap<Box<[char]>, Box<str>>> = [
             ("STCharacters.txt", &self.st_characters.map),
             ("STPhrases.txt", &self.st_phrases.map),
             ("TSCharacters.txt", &self.ts_characters.map),
@@ -620,6 +546,472 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
         Ok(())
     }
+
+    // ------ Custom Dictionary Start -----
+
+    /// Loads all dictionaries from plaintext `.txt` lexicon files in the default
+    /// `dicts/` directory and applies optional custom dictionary overrides.
+    ///
+    /// This is the core constructor for building a [`DictionaryMaxlength`] from
+    /// OpenCC-compatible plaintext dictionary files.
+    ///
+    /// Custom dictionary pairs are merged before internal starter indexes and
+    /// maximum phrase lengths are rebuilt.
+    ///
+    /// # Base directory
+    ///
+    /// The default base directory is:
+    ///
+    /// ```text
+    /// dicts/
+    /// ```
+    ///
+    /// relative to the current process working directory.
+    ///
+    /// # Custom dictionary behavior
+    ///
+    /// Custom dictionaries are merged into the selected [`DictSlot`] using
+    /// [`CustomDictMode::Append`] or [`CustomDictMode::Override`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{
+    ///     CustomDictMode,
+    ///     CustomDictSpec,
+    ///     DictSlot,
+    ///     DictionaryMaxlength,
+    /// };
+    ///
+    /// let dictionary = DictionaryMaxlength::from_dicts_custom(&[
+    ///     CustomDictSpec {
+    ///         slot: DictSlot::STPhrases,
+    ///         pairs: vec![
+    ///             ("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string()),
+    ///         ],
+    ///         mode: CustomDictMode::Override,
+    ///     }
+    /// ]).unwrap();
+    ///
+    /// assert!(dictionary.st_phrases.is_populated());
+    /// ```
+    ///
+    /// # Notes
+    ///
+    /// This method internally delegates to:
+    ///
+    /// - [`DictionaryMaxlength::from_dicts_custom_at()`]
+    ///
+    /// using the default `"dicts"` directory.
+    ///
+    /// # Errors
+    ///
+    /// - [`DictionaryError::IoError`] if a dictionary file cannot be read.
+    /// - [`DictionaryError::LoadFileError`] if a data line is malformed.
+    ///
+    /// # See Also
+    ///
+    /// - [`DictionaryMaxlength::from_dicts()`]
+    /// - [`DictionaryMaxlength::from_dicts_custom_files()`]
+    /// - [`CustomDictSpec`]
+    /// - [`CustomDictMode`]
+    /// - [`DictSlot`]
+    pub fn from_dicts_custom(specs: &[CustomDictSpec]) -> Result<Self, DictionaryError> {
+        Self::from_dicts_custom_at("dicts", specs)
+    }
+
+    /// Loads custom dictionaries from one or more OpenCC-style plaintext files.
+    ///
+    /// This is a convenience wrapper around
+    /// [`DictionaryMaxlength::from_dicts_custom()`].
+    ///
+    /// Each file is parsed using the standard OpenCC dictionary format:
+    ///
+    /// ```text
+    /// source<TAB>target
+    /// ```
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use opencc_fmmseg::{
+    ///     CustomDictFilesSpec,
+    ///     CustomDictMode,
+    ///     DictSlot,
+    ///     DictionaryMaxlength,
+    /// };
+    ///
+    /// let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
+    ///     CustomDictFilesSpec {
+    ///         slot: DictSlot::STPhrases,
+    ///         files: vec!["./my_terms.txt"],
+    ///         mode: CustomDictMode::Override,
+    ///     }
+    /// ]).unwrap();
+    ///
+    /// assert!(dictionary.st_phrases.is_populated());
+    /// ```
+    ///
+    /// # Multiple files
+    ///
+    /// Multiple files may be provided for the same slot:
+    ///
+    /// ```rust,no_run
+    /// use opencc_fmmseg::{
+    ///     CustomDictFilesSpec,
+    ///     CustomDictMode,
+    ///     DictSlot,
+    ///     DictionaryMaxlength,
+    /// };
+    ///
+    /// let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
+    ///     CustomDictFilesSpec {
+    ///         slot: DictSlot::STPhrases,
+    ///         files: vec![
+    ///             "./brand_terms.txt",
+    ///             "./product_terms.txt",
+    ///         ],
+    ///         mode: CustomDictMode::Append,
+    ///     }
+    /// ]).unwrap();
+    ///
+    /// assert!(dictionary.st_phrases.is_populated());
+    /// ```
+    ///
+    /// Files are loaded sequentially in the provided order.
+    ///
+    /// # Errors
+    ///
+    /// - [`DictionaryError::IoError`] if a file cannot be read.
+    /// - [`DictionaryError::LoadFileError`] if a line is malformed.
+    ///
+    /// # See Also
+    ///
+    /// - [`DictionaryMaxlength::from_dicts_custom()`]
+    /// - [`CustomDictFilesSpec`]
+    /// - [`CustomDictMode`]
+    /// - [`DictSlot`]
+    pub fn from_dicts_custom_files<P>(
+        specs: &[CustomDictFilesSpec<P>],
+    ) -> Result<Self, DictionaryError>
+    where
+        P: AsRef<Path>,
+    {
+        let pair_specs = specs
+            .iter()
+            .map(|spec| {
+                let mut pairs = Vec::new();
+
+                for file in &spec.files {
+                    pairs.extend(Self::load_pairs_from_path(file)?);
+                }
+
+                Ok(CustomDictSpec {
+                    slot: spec.slot,
+                    pairs,
+                    mode: spec.mode,
+                })
+            })
+            .collect::<Result<Vec<_>, DictionaryError>>()?;
+
+        Self::from_dicts_custom(&pair_specs)
+    }
+
+    /// Loads dictionaries from an alternate base directory.
+    ///
+    /// This behaves similarly to [`DictionaryMaxlength::from_dicts()`], except
+    /// the OpenCC plaintext dictionary files are loaded from the specified
+    /// directory instead of the default `dicts/`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use opencc_fmmseg::DictionaryMaxlength;
+    ///
+    /// let dictionary = DictionaryMaxlength::from_dicts_at("./my_opencc_dicts")
+    ///     .unwrap();
+    ///
+    /// assert!(dictionary.st_phrases.is_populated());
+    /// ```
+    ///
+    /// # Expected structure
+    ///
+    /// The provided directory should contain the standard OpenCC dictionary files:
+    ///
+    /// ```text
+    /// STCharacters.txt
+    /// STPhrases.txt
+    /// TSCharacters.txt
+    /// TSPhrases.txt
+    /// ...
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - [`DictionaryError::IoError`] if a dictionary file cannot be read.
+    /// - [`DictionaryError::LoadFileError`] if a line is malformed.
+    ///
+    /// # See Also
+    ///
+    /// - [`DictionaryMaxlength::from_dicts()`]
+    /// - [`DictionaryMaxlength::from_dicts_custom()`]
+    pub fn from_dicts_at<P: AsRef<Path>>(base_dir: P) -> Result<Self, DictionaryError> {
+        Self::from_dicts_custom_at(base_dir, &[])
+    }
+
+    /// Core plaintext dictionary constructor used by all `from_dicts*` loaders.
+    ///
+    /// This method loads the standard OpenCC-style `.txt` dictionary files from
+    /// `base_dir`, applies optional custom dictionary specs at the raw pair level,
+    /// and then builds each [`DictMaxLen`] slot from the final merged pairs.
+    ///
+    /// Custom entries are merged before [`DictMaxLen::build_from_pairs`] is called,
+    /// so max phrase lengths and starter indexes are rebuilt from the complete
+    /// final dictionary data.
+    ///
+    /// Public wrappers:
+    ///
+    /// - [`DictionaryMaxlength::from_dicts`]
+    /// - [`DictionaryMaxlength::from_dicts_at`]
+    /// - [`DictionaryMaxlength::from_dicts_custom`]
+    /// - [`DictionaryMaxlength::from_dicts_custom_files`]
+    ///
+    /// # Merge flow
+    ///
+    /// ```text
+    /// base .txt file
+    ///   -> raw Vec<(String, String)>
+    ///   -> apply custom append/override pairs for the matching DictSlot
+    ///   -> DictMaxLen::build_from_pairs(...)
+    ///   -> populated dictionary slot
+    /// ```
+    ///
+    /// # Notes
+    ///
+    /// This function intentionally rebuilds every slot from pairs instead of
+    /// mutating existing [`DictMaxLen`] values. This keeps starter indexes,
+    /// max-length metadata, and runtime lookup structures consistent.
+    ///
+    /// `unions` is initialized with [`Default::default`] because it is a runtime-only
+    /// cache and should be rebuilt lazily by conversion logic when needed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DictionaryError::IoError`] if `base_dir` does not exist or a
+    /// dictionary file cannot be opened/read.
+    ///
+    /// Returns [`DictionaryError::LoadFileError`] if a dictionary line is malformed.
+    fn from_dicts_custom_at<P: AsRef<Path>>(
+        base_dir: P,
+        specs: &[CustomDictSpec],
+    ) -> Result<Self, DictionaryError> {
+        let base_dir = base_dir.as_ref();
+
+        if !base_dir.exists() {
+            let msg = format!("Base directory not found: {}", base_dir.display());
+            Self::set_last_error(&msg);
+            return Err(DictionaryError::IoError(io::Error::new(
+                io::ErrorKind::NotFound,
+                msg,
+            )));
+        }
+
+        fn load_slot(
+            base_dir: &Path,
+            filename: &str,
+            specs: &[CustomDictSpec],
+            slot: DictSlot,
+        ) -> Result<DictMaxLen, DictionaryError> {
+            let pairs = DictionaryMaxlength::load_pairs(base_dir, filename)?;
+            let pairs = apply_custom_pairs(pairs, specs, slot);
+            Ok(DictMaxLen::build_from_pairs(pairs))
+        }
+
+        Ok(DictionaryMaxlength {
+            st_characters: load_slot(base_dir, "STCharacters.txt", specs, DictSlot::STCharacters)?,
+            st_phrases: load_slot(base_dir, "STPhrases.txt", specs, DictSlot::STPhrases)?,
+            ts_characters: load_slot(base_dir, "TSCharacters.txt", specs, DictSlot::TSCharacters)?,
+            ts_phrases: load_slot(base_dir, "TSPhrases.txt", specs, DictSlot::TSPhrases)?,
+
+            tw_phrases: load_slot(base_dir, "TWPhrases.txt", specs, DictSlot::TWPhrases)?,
+            tw_phrases_rev: load_slot(base_dir, "TWPhrasesRev.txt", specs, DictSlot::TWPhrasesRev)?,
+            tw_variants: load_slot(base_dir, "TWVariants.txt", specs, DictSlot::TWVariants)?,
+            tw_variants_rev: load_slot(
+                base_dir,
+                "TWVariantsRev.txt",
+                specs,
+                DictSlot::TWVariantsRev,
+            )?,
+            tw_variants_rev_phrases: load_slot(
+                base_dir,
+                "TWVariantsRevPhrases.txt",
+                specs,
+                DictSlot::TWVariantsRevPhrases,
+            )?,
+
+            hk_variants: load_slot(base_dir, "HKVariants.txt", specs, DictSlot::HKVariants)?,
+            hk_variants_rev: load_slot(
+                base_dir,
+                "HKVariantsRev.txt",
+                specs,
+                DictSlot::HKVariantsRev,
+            )?,
+            hk_variants_rev_phrases: load_slot(
+                base_dir,
+                "HKVariantsRevPhrases.txt",
+                specs,
+                DictSlot::HKVariantsRevPhrases,
+            )?,
+
+            jps_characters: load_slot(
+                base_dir,
+                "JPShinjitaiCharacters.txt",
+                specs,
+                DictSlot::JPShinjitaiCharacters,
+            )?,
+            jps_phrases: load_slot(
+                base_dir,
+                "JPShinjitaiPhrases.txt",
+                specs,
+                DictSlot::JPShinjitaiPhrases,
+            )?,
+            jp_variants: load_slot(base_dir, "JPVariants.txt", specs, DictSlot::JPVariants)?,
+            jp_variants_rev: load_slot(
+                base_dir,
+                "JPVariantsRev.txt",
+                specs,
+                DictSlot::JPVariantsRev,
+            )?,
+
+            st_punctuations: load_slot(
+                base_dir,
+                "STPunctuations.txt",
+                specs,
+                DictSlot::STPunctuations,
+            )?,
+            ts_punctuations: load_slot(
+                base_dir,
+                "TSPunctuations.txt",
+                specs,
+                DictSlot::TSPunctuations,
+            )?,
+
+            unions: Default::default(),
+        })
+    }
+
+    /// Loads raw dictionary pairs from a file inside a base directory.
+    ///
+    /// This is a small convenience wrapper around
+    /// [`DictionaryMaxlength::load_pairs_from_path`] that joins
+    /// `base_dir` and `filename`.
+    ///
+    /// # Notes
+    ///
+    /// The returned pairs are not yet converted into [`DictMaxLen`].
+    /// Callers typically pass the result into:
+    ///
+    /// - [`apply_custom_pairs`]
+    /// - [`DictMaxLen::build_from_pairs`]
+    ///
+    /// # File format
+    ///
+    /// Expected format:
+    ///
+    /// ```text
+    /// source<TAB>target
+    /// ```
+    ///
+    /// Comment lines starting with `#` and empty lines are ignored.
+    fn load_pairs<P: AsRef<Path>>(
+        base_dir: P,
+        filename: &str,
+    ) -> Result<Vec<(String, String)>, DictionaryError> {
+        let path = base_dir.as_ref().join(filename);
+        Self::load_pairs_from_path(path)
+    }
+
+    /// Loads raw `(source, target)` dictionary pairs from an OpenCC-style
+    /// plaintext dictionary file.
+    ///
+    /// This parser is shared by:
+    ///
+    /// - [`DictionaryMaxlength::from_dicts`]
+    /// - [`DictionaryMaxlength::from_dicts_at`]
+    /// - [`DictionaryMaxlength::from_dicts_custom`]
+    /// - [`DictionaryMaxlength::from_dicts_custom_files`]
+    ///
+    /// # Supported format
+    ///
+    /// ```text
+    /// # comment
+    /// 你好<TAB>您好
+    /// 世界<TAB>世間
+    /// ```
+    ///
+    /// # Parsing behavior
+    ///
+    /// - Empty lines are ignored.
+    /// - Lines starting with `#` are ignored.
+    /// - Trailing `\r` and whitespace are stripped automatically.
+    /// - UTF-8 BOM (`\u{FEFF}`) is stripped from the first data line if present.
+    /// - The first whitespace-separated token after the TAB is used as the value.
+    /// - Additional tokens after the first value are ignored.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DictionaryError::LoadFileError`] if a non-comment line is missing
+    /// a TAB separator.
+    ///
+    /// Returns [`DictionaryError::IoError`] if the file cannot be opened or read.
+    ///
+    /// # Notes
+    ///
+    /// This function only parses raw pairs and does not populate starter indexes
+    /// or build [`DictMaxLen`] structures.
+    fn load_pairs_from_path<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<Vec<(String, String)>, DictionaryError> {
+        let path = path.as_ref();
+        let path_str = path.display().to_string();
+
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+
+        let mut pairs = Vec::new();
+        let mut saw_data_line = false;
+
+        for (lineno, raw_line) in reader.lines().enumerate() {
+            let raw_line = raw_line?;
+            let mut line = raw_line.trim_end();
+
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+
+            if !saw_data_line {
+                if let Some(rest) = line.strip_prefix('\u{FEFF}') {
+                    line = rest;
+                }
+                saw_data_line = true;
+            }
+
+            let Some((k, v)) = line.split_once('\t') else {
+                return Err(DictionaryError::LoadFileError {
+                    path: path_str.clone(),
+                    lineno: lineno + 1,
+                    message: "missing TAB separator".to_string(),
+                });
+            };
+
+            let first_value = v.split_whitespace().next().unwrap_or("");
+            pairs.push((k.to_owned(), first_value.to_owned()));
+        }
+
+        Ok(pairs)
+    }
+
+    // ------ Custom Dictionary End -----
 
     /// Serializes this dictionary to a CBOR file.
     ///
@@ -946,6 +1338,282 @@ impl From<serde_cbor::Error> for DictionaryError {
     }
 }
 
+// Custom Dictionary
+
+/// Identifies a dictionary slot inside [`DictionaryMaxlength`].
+///
+/// Each slot corresponds to a specific OpenCC conversion dictionary.
+/// Custom dictionaries can be appended to or override entries inside
+/// these slots when using:
+///
+/// - [`DictionaryMaxlength::from_dicts_custom()`]
+/// - [`DictionaryMaxlength::from_dicts_custom_files()`]
+///
+/// # Notes
+///
+/// OpenCC conversion behavior depends heavily on choosing the correct slot.
+/// For example:
+///
+/// - [`DictSlot::STPhrases`] affects Simplified → Traditional phrase conversion.
+/// - [`DictSlot::TSPhrases`] affects Traditional → Simplified phrase conversion.
+/// - [`DictSlot::TWVariants`] affects Taiwan regional variants.
+/// - [`DictSlot::HKVariants`] affects Hong Kong regional variants.
+///
+/// # See Also
+///
+/// - [`CustomDictSpec`]
+/// - [`CustomDictFilesSpec`]
+/// - [`CustomDictMode`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DictSlot {
+    /// Simplified → Traditional character mappings.
+    STCharacters,
+
+    /// Simplified → Traditional phrase mappings.
+    STPhrases,
+
+    /// Traditional → Simplified character mappings.
+    TSCharacters,
+
+    /// Traditional → Simplified phrase mappings.
+    TSPhrases,
+
+    /// Traditional → Taiwan phrase mappings.
+    TWPhrases,
+
+    /// Taiwan → Traditional reverse phrase mappings.
+    TWPhrasesRev,
+
+    /// Traditional → Taiwan regional variant mappings.
+    TWVariants,
+
+    /// Taiwan → Traditional reverse variant mappings.
+    TWVariantsRev,
+
+    /// Taiwan → Traditional reverse phrase variant mappings.
+    TWVariantsRevPhrases,
+
+    /// Traditional → Hong Kong regional variant mappings.
+    HKVariants,
+
+    /// Hong Kong → Traditional reverse variant mappings.
+    HKVariantsRev,
+
+    /// Hong Kong → Traditional reverse phrase variant mappings.
+    HKVariantsRevPhrases,
+
+    /// Japanese Shinjitai character mappings.
+    JPShinjitaiCharacters,
+
+    /// Japanese Shinjitai phrase mappings.
+    JPShinjitaiPhrases,
+
+    /// Traditional → Japanese variant mappings.
+    JPVariants,
+
+    /// Japanese → Traditional reverse variant mappings.
+    JPVariantsRev,
+
+    /// Simplified → Traditional punctuation mappings.
+    STPunctuations,
+
+    /// Traditional → Simplified punctuation mappings.
+    TSPunctuations,
+}
+
+/// Controls how custom dictionary entries are merged into a slot.
+///
+/// Used by [`CustomDictSpec`] and [`CustomDictFilesSpec`].
+///
+/// # Modes
+///
+/// - [`CustomDictMode::Append`] keeps existing built-in entries and only
+///   inserts new keys.
+/// - [`CustomDictMode::Override`] replaces existing values when keys conflict.
+///
+/// # Example
+///
+/// ```rust
+/// use opencc_fmmseg::{
+///     CustomDictMode,
+///     CustomDictSpec,
+///     DictSlot,
+///     DictionaryMaxlength,
+/// };
+///
+/// let dictionary = DictionaryMaxlength::from_dicts_custom(&[
+///     CustomDictSpec {
+///         slot: DictSlot::STPhrases,
+///         pairs: vec![
+///             ("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string()),
+///         ],
+///         mode: CustomDictMode::Override,
+///     }
+/// ]).unwrap();
+///
+/// assert!(dictionary.st_phrases.max_len > 0);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CustomDictMode {
+    /// Add custom entries only when the key does not already exist.
+    ///
+    /// Existing built-in dictionary values remain unchanged.
+    Append,
+
+    /// Add custom entries and replace existing values when keys conflict.
+    ///
+    /// Custom dictionary values take precedence over built-in entries.
+    Override,
+}
+
+/// Pair-based custom dictionary injection.
+///
+/// This is the core no-I/O path for custom dictionaries and is suitable for:
+///
+/// - `include_str!()`
+/// - dynamically generated dictionaries
+/// - database-loaded pairs
+/// - testing
+/// - embedded applications
+/// - WebAssembly environments
+///
+/// # Notes
+///
+/// Custom pairs are merged into the selected [`DictSlot`] before
+/// internal starter indexes and maximum phrase lengths are rebuilt.
+///
+/// # Example
+///
+/// ```rust
+/// use opencc_fmmseg::{
+///     CustomDictMode,
+///     CustomDictSpec,
+///     DictSlot,
+///     DictionaryMaxlength,
+/// };
+///
+/// let dictionary = DictionaryMaxlength::from_dicts_custom(&[
+///     CustomDictSpec {
+///         slot: DictSlot::STPhrases,
+///         pairs: vec![
+///             ("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string()),
+///         ],
+///         mode: CustomDictMode::Override,
+///     }
+/// ]).unwrap();
+///
+/// assert!(dictionary.st_phrases.max_len > 0);
+/// ```
+#[derive(Debug, Clone)]
+pub struct CustomDictSpec {
+    /// Target dictionary slot.
+    pub slot: DictSlot,
+
+    /// Key-value dictionary pairs.
+    ///
+    /// Each pair follows standard OpenCC semantics:
+    ///
+    /// `(source, target)`
+    pub pairs: Vec<(String, String)>,
+
+    /// Merge behavior for conflicting keys.
+    pub mode: CustomDictMode,
+}
+
+/// File-based custom dictionary injection.
+///
+/// This is a convenience wrapper for loading one or more OpenCC-style
+/// dictionary text files for a slot.
+///
+/// Each file should follow the standard OpenCC dictionary format:
+///
+/// ```text
+/// source<TAB>target
+/// ```
+///
+/// # Notes
+///
+/// Multiple files are loaded in order.
+///
+/// # Example
+///
+/// ```rust, no_run
+/// use opencc_fmmseg::{
+///     CustomDictFilesSpec,
+///     CustomDictMode,
+///     DictSlot,
+///     DictionaryMaxlength,
+/// };
+///
+/// let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
+///     CustomDictFilesSpec {
+///         slot: DictSlot::STPhrases,
+///         files: vec!["./my_terms.txt"],
+///         mode: CustomDictMode::Override,
+///     }
+/// ]).unwrap();
+///
+/// assert!(dictionary.st_phrases.max_len > 0);
+/// ```
+#[derive(Debug, Clone)]
+pub struct CustomDictFilesSpec<P> {
+    /// Target dictionary slot.
+    pub slot: DictSlot,
+
+    /// OpenCC-style dictionary text files.
+    ///
+    /// Files are loaded sequentially in the provided order.
+    pub files: Vec<P>,
+
+    /// Merge behavior for conflicting keys.
+    pub mode: CustomDictMode,
+}
+/// Returns custom dictionary specs targeting the given slot.
+fn specs_for_slot(
+    specs: &[CustomDictSpec],
+    slot: DictSlot,
+) -> impl Iterator<Item = &CustomDictSpec> {
+    specs.iter().filter(move |spec| spec.slot == slot)
+}
+
+/// Applies custom dictionary specs to raw dictionary pairs before building `DictMaxLen`.
+///
+/// Custom entries are merged at pair level so that `DictMaxLen::build_from_pairs()`
+/// can rebuild max lengths and starter indexes from the final merged dictionary.
+fn apply_custom_pairs(
+    mut base_pairs: Vec<(String, String)>,
+    specs: &[CustomDictSpec],
+    slot: DictSlot,
+) -> Vec<(String, String)> {
+    for spec in specs_for_slot(specs, slot) {
+        match spec.mode {
+            CustomDictMode::Append => {
+                let mut existing: FxHashSet<String> =
+                    base_pairs.iter().map(|(k, _)| k.clone()).collect();
+
+                for (k, v) in &spec.pairs {
+                    if existing.insert(k.clone()) {
+                        base_pairs.push((k.clone(), v.clone()));
+                    }
+                }
+            }
+            CustomDictMode::Override => {
+                let mut map: FxHashMap<String, String> = base_pairs.into_iter().collect();
+
+                for (k, v) in &spec.pairs {
+                    map.insert(k.clone(), v.clone());
+                }
+
+                base_pairs = map.into_iter().collect();
+            }
+        }
+    }
+
+    base_pairs
+}
+
+// ------ Tests ------
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -957,13 +1625,13 @@ mod tests {
         // Assuming you have a method `from_dicts` to create a dictionary
         let dictionary = DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the Dictionary contains the expected data
-        let expected = 16;
+        let expected = 14;
         assert_eq!(dictionary.st_phrases.max_len, expected);
 
         let filename = "dictionary_maxlength.cbor";
         dictionary.serialize_to_cbor(filename).unwrap();
         let file_contents = fs::read(filename).unwrap();
-        let expected_cbor_size = 1353038; // Update this with the actual expected size
+        let expected_cbor_size = 1359720; // Update this with the actual expected size
         assert_eq!(file_contents.len(), expected_cbor_size);
         // Clean up: Delete the test file
         fs::remove_file(filename).unwrap();
@@ -1144,5 +1812,101 @@ mod tests {
         fs::remove_dir_all(output_dir)?;
 
         Ok(())
+    }
+
+    // Custom Dictionary Tests
+
+    #[test]
+    fn test_from_dicts_custom_append_st_phrases_palantir() {
+        let dictionary = DictionaryMaxlength::from_dicts_custom(&[CustomDictSpec {
+            slot: DictSlot::STPhrases,
+            pairs: vec![("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string())],
+            mode: CustomDictMode::Append,
+        }])
+        .expect("Failed to create custom dictionary");
+
+        assert_eq!(
+            dictionary
+                .st_phrases
+                .map
+                .get("帕兰蒂尔".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"柏蘭蒂爾".into())
+        );
+    }
+
+    #[test]
+    fn test_from_dicts_custom_override_st_phrases_ai_company() {
+        let dictionary = DictionaryMaxlength::from_dicts_custom(&[CustomDictSpec {
+            slot: DictSlot::STPhrases,
+            pairs: vec![("人工智能公司".to_string(), "AI公司".to_string())],
+            mode: CustomDictMode::Override,
+        }])
+        .expect("Failed to create custom dictionary");
+
+        assert_eq!(
+            dictionary
+                .st_phrases
+                .map
+                .get("人工智能公司".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"AI公司".into())
+        );
+    }
+
+    #[test]
+    fn test_from_dicts_custom_multiple_slots() {
+        let dictionary = DictionaryMaxlength::from_dicts_custom(&[
+            CustomDictSpec {
+                slot: DictSlot::STPhrases,
+                pairs: vec![("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string())],
+                mode: CustomDictMode::Append,
+            },
+            CustomDictSpec {
+                slot: DictSlot::TSPhrases,
+                pairs: vec![("柏蘭蒂爾".to_string(), "帕兰蒂尔".to_string())],
+                mode: CustomDictMode::Append,
+            },
+        ])
+        .expect("Failed to create custom dictionary");
+
+        assert_eq!(
+            dictionary
+                .st_phrases
+                .map
+                .get("帕兰蒂尔".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"柏蘭蒂爾".into())
+        );
+        assert_eq!(
+            dictionary
+                .ts_phrases
+                .map
+                .get("柏蘭蒂爾".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"帕兰蒂尔".into())
+        );
+    }
+
+    #[test]
+    fn test_from_dicts_custom_files_st_phrases_palantir() {
+        use std::fs;
+
+        let dir = std::env::temp_dir();
+        let file_path = dir.join("opencc_fmmseg_custom_st_phrases_test.txt");
+
+        fs::write(&file_path, "帕兰蒂尔\t柏蘭蒂爾\n").expect("Failed to write custom dict file");
+
+        let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[CustomDictFilesSpec {
+            slot: DictSlot::STPhrases,
+            files: vec![file_path.clone()],
+            mode: CustomDictMode::Override,
+        }])
+        .expect("Failed to create custom dictionary from files");
+
+        let opencc = crate::OpenCC::from_dictionary(dictionary);
+
+        assert_eq!(
+            opencc.convert("帕兰蒂尔是一家人工智能公司", "s2t", false),
+            "柏蘭蒂爾是一家人工智能公司"
+        );
+
+        let _ = fs::remove_file(file_path);
     }
 }

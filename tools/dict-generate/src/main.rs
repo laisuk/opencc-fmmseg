@@ -46,15 +46,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .value_name("filename")
                 .help("Write generated dictionary to <filename>. If not specified, a default filename is used."),
         )
+        .arg(
+            Arg::new("base-dir")
+                .short('b')
+                .long("base-dir")
+                .value_name("dir")
+                .default_value("dicts")
+                .help("Base directory containing OpenCC dictionary TXT files"),
+        )
         .get_matches();
 
-    let dict_dir = Path::new("dicts");
+    let base_dir = matches
+        .get_one::<String>("base-dir")
+        .map(String::as_str)
+        .unwrap_or("dicts");
+
+    let dict_dir = Path::new(base_dir);
+
     if !dict_dir.exists() {
         eprintln!(
-            "{BLUE}Local 'dicts/' directory not found.{RESET}\n\
+            "{BLUE}Dictionary directory not found: {base_dir}{RESET}\n\
          Please place Opencc-Fmmseg dictionary files (*.txt) under this folder."
         );
-        return Ok(()); // Exit silently
+        return Ok(());
     }
 
     let dict_format = matches.get_one::<String>("format").map(String::as_str);
@@ -72,19 +86,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|s| s.as_str())
         .unwrap_or(default_output);
 
+    if let Err(err) = validate_base_dir(dict_dir) {
+        eprintln!("{BLUE}{err}{RESET}");
+        return Ok(());
+    }
+
+    let dictionary = DictionaryMaxlength::from_dicts_at(dict_dir)?;
+
     match dict_format {
         Some("zstd") => {
-            let dictionary = DictionaryMaxlength::from_dicts()?;
             DictionaryMaxlength::save_cbor_compressed(&dictionary, output_file)?;
             eprintln!("{BLUE}Dictionary saved in ZSTD format at: {output_file}{RESET}");
         }
         Some("cbor") => {
-            let dictionary = DictionaryMaxlength::from_dicts()?;
             dictionary.serialize_to_cbor(output_file)?;
             eprintln!("{BLUE}Dictionary saved in CBOR format at: {output_file}{RESET}");
         }
         Some("json") => {
-            let dictionary = DictionaryMaxlength::from_dicts()?;
             // IMPORTANT: use DTO for JSON so keys are Strings
             write_reference_json(&dictionary, output_file, /* pretty = */ pretty_json)?;
             let style = if pretty_json { "pretty" } else { "compact" };
@@ -119,4 +137,68 @@ pub fn write_reference_json(
 // Small adapter so we can stay in io::Result
 fn to_io<E: std::error::Error + Send + Sync + 'static>(e: E) -> io::Error {
     io::Error::new(io::ErrorKind::Other, e)
+}
+
+fn validate_base_dir(base_dir: &Path) -> io::Result<()> {
+    if !base_dir.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "dictionary base directory not found: {}",
+                base_dir.display()
+            ),
+        ));
+    }
+
+    if !base_dir.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "dictionary base path is not a directory: {}",
+                base_dir.display()
+            ),
+        ));
+    }
+
+    let required = [
+        "STCharacters.txt",
+        "STPhrases.txt",
+        "TSCharacters.txt",
+        "TSPhrases.txt",
+        "TWPhrases.txt",
+        "TWPhrasesRev.txt",
+        "TWVariants.txt",
+        "TWVariantsRev.txt",
+        "TWVariantsRevPhrases.txt",
+        "HKVariants.txt",
+        "HKVariantsRev.txt",
+        "HKVariantsRevPhrases.txt",
+        "JPShinjitaiCharacters.txt",
+        "JPShinjitaiPhrases.txt",
+        "JPVariants.txt",
+        "JPVariantsRev.txt",
+        "STPunctuations.txt",
+        "TSPunctuations.txt",
+    ];
+
+    let missing: Vec<_> = required
+        .iter()
+        .filter(|name| !base_dir.join(name).is_file())
+        .copied()
+        .collect();
+
+    if !missing.is_empty() {
+        let mut msg = format!(
+            "dictionary base directory '{}' is missing required files:",
+            base_dir.display()
+        );
+
+        for file in missing {
+            msg.push_str(&format!("\n  - {file}"));
+        }
+
+        return Err(io::Error::new(io::ErrorKind::NotFound, msg));
+    }
+
+    Ok(())
 }

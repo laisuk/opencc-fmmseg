@@ -1787,7 +1787,8 @@ impl OpenCC {
 #[cfg(test)]
 mod tests {
     use super::OpenCC;
-    use crate::OpenccConfig;
+    use crate::dictionary_lib::dictionary_maxlength::{CustomDictMode, CustomDictSpec, DictSlot};
+    use crate::{dictionary_lib, OpenccConfig};
 
     #[test]
     fn convert_clears_stale_last_error_on_success() {
@@ -1842,6 +1843,24 @@ mod tests {
         assert_eq!(
             cc.convert("汉字\r\n转换\n测试\r完成", "s2t", false),
             "漢字\r\n轉換\n測試\r完成"
+        );
+    }
+
+    #[test]
+    fn test_opencc_from_dictionary_custom_palantir() {
+        let dictionary =
+            dictionary_lib::DictionaryMaxlength::from_dicts_custom(&[CustomDictSpec {
+                slot: DictSlot::STPhrases,
+                pairs: vec![("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string())],
+                mode: CustomDictMode::Append,
+            }])
+            .expect("Failed to create custom dictionary");
+
+        let opencc = OpenCC::from_dictionary(dictionary);
+
+        assert_eq!(
+            opencc.convert("帕兰蒂尔是一家人工智能公司", "s2tw", false),
+            "柏蘭蒂爾是一家人工智能公司"
         );
     }
 }
