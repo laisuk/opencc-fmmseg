@@ -6,10 +6,35 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.9.3-beta1] - 2026-05-10
+## [0.9.3-beta1] - 2026-05-16
+
+### Added
+
+- Added advanced custom dictionary support for `DictionaryMaxlength`:
+    - `from_dicts_custom()` for pair-based custom dictionary injection.
+    - `from_dicts_custom_files()` for loading one or more OpenCC-style plaintext dictionary files.
+    - `from_dicts_at()` for loading dictionaries from an alternate base directory.
+- Added new public custom dictionary APIs:
+    - `CustomDictSpec`
+    - `CustomDictFilesSpec`
+    - `CustomDictMode`
+    - `DictSlot`
+- Added append/override merge modes for slot-aware custom dictionary injection.
+- Added support for multi-file custom dictionary layering per slot.
+- Added `OpenCC::from_dictionary()` for constructing an `OpenCC` instance directly from a custom `DictionaryMaxlength`.
+- Added `dict-generate -b/--base-dir` for generating CBOR/ZSTD/JSON artifacts from external OpenCC dictionary
+  directories.
+- Added regression tests covering:
+    - pair-based custom dictionary injection
+    - file-based custom dictionary injection
+    - multi-slot custom dictionary loading
+    - end-to-end conversion override behavior
 
 ### Changed
 
+- Refactored plaintext dictionary loading internals to reuse a shared OpenCC dictionary parser implementation.
+- `DictionaryMaxlength::from_dicts()` now internally delegates to the custom dictionary loading pipeline while
+  preserving backward compatibility.
 - Update conversion dictionary data.
 - Added regression coverage to ensure `OpenCC::convert()` and the `opencc-rs convert` file-to-file path preserve the
   caller's original line endings (`CRLF`, `LF`, or mixed input) instead of normalizing by platform. This is important
