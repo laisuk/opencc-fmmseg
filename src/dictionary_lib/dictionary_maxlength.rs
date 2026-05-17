@@ -1523,6 +1523,39 @@ pub enum DictSlot {
     TSPunctuations,
 }
 
+impl TryFrom<&str> for DictSlot {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "STCharacters" => Ok(Self::STCharacters),
+            "STPhrases" => Ok(Self::STPhrases),
+            "STPunctuations" => Ok(Self::STPunctuations),
+
+            "TSCharacters" => Ok(Self::TSCharacters),
+            "TSPhrases" => Ok(Self::TSPhrases),
+            "TSPunctuations" => Ok(Self::TSPunctuations),
+
+            "TWPhrases" => Ok(Self::TWPhrases),
+            "TWPhrasesRev" => Ok(Self::TWPhrasesRev),
+            "TWVariants" => Ok(Self::TWVariants),
+            "TWVariantsRev" => Ok(Self::TWVariantsRev),
+            "TWVariantsRevPhrases" => Ok(Self::TWVariantsRevPhrases),
+
+            "HKVariants" => Ok(Self::HKVariants),
+            "HKVariantsRev" => Ok(Self::HKVariantsRev),
+            "HKVariantsRevPhrases" => Ok(Self::HKVariantsRevPhrases),
+
+            "JPShinjitaiCharacters" => Ok(Self::JPShinjitaiCharacters),
+            "JPShinjitaiPhrases" => Ok(Self::JPShinjitaiPhrases),
+            "JPVariants" => Ok(Self::JPVariants),
+            "JPVariantsRev" => Ok(Self::JPVariantsRev),
+
+            _ => Err(()),
+        }
+    }
+}
+
 /// Controls how custom dictionary entries are merged into a slot.
 ///
 /// Used by [`CustomDictSpec`] and [`CustomDictFileSpec`].
