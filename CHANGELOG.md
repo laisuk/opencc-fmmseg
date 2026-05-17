@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.9.3-beta1] - 2026-05-16
+## [0.10.0-beta1] - Unreleased
 
 ### Added
 
@@ -16,7 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - `from_dicts_at()` for loading dictionaries from an alternate base directory.
 - Added new public custom dictionary APIs:
     - `CustomDictSpec`
-    - `CustomDictFilesSpec`
+    - `CustomDictFileSpec`
     - `CustomDictMode`
     - `DictSlot`
 - Added append/override merge modes for slot-aware custom dictionary injection.
@@ -29,6 +29,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - file-based custom dictionary injection
     - multi-slot custom dictionary loading
     - end-to-end conversion override behavior
+- Added post-load custom dictionary customization APIs for already loaded `DictionaryMaxlength` instances:
+    - `DictionaryMaxlength::with_custom_dicts()` for applying in-memory custom pairs after loading built-in or external
+      dictionary data.
+    - `DictionaryMaxlength::with_custom_dict_files()` for applying one or more OpenCC-style plaintext custom dictionary
+      files after loading.
+- Added dynamic `DictMaxLen` map update helpers that rebuild length metadata and starter indexes after custom pair
+  updates, keeping runtime conversion fast and immutable after `OpenCC::from_dictionary()`.
 
 ### Changed
 
@@ -40,6 +47,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   caller's original line endings (`CRLF`, `LF`, or mixed input) instead of normalizing by platform. This is important
   for cross-platform use cases where converted text must keep stable diffs, checksums, generated files, and repository
   line ending policy intact.
+- Clarified the custom dictionary workflow as:
+  `DictionaryMaxlength::from_zstd()` / `deserialize_from_cbor()` / `deserialize_from_json()` → `with_custom_dicts()` /
+  `with_custom_dict_files()` → `OpenCC::from_dictionary()`.
 
 ---
 

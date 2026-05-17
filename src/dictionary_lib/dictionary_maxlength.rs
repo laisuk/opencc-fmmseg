@@ -635,14 +635,14 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// ```rust,no_run
     /// use opencc_fmmseg::{
-    ///     CustomDictFilesSpec,
+    ///     CustomDictFileSpec,
     ///     CustomDictMode,
     ///     DictSlot,
     ///     DictionaryMaxlength,
     /// };
     ///
     /// let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
-    ///     CustomDictFilesSpec {
+    ///     CustomDictFileSpec {
     ///         slot: DictSlot::STPhrases,
     ///         files: vec!["./my_terms.txt"],
     ///         mode: CustomDictMode::Override,
@@ -658,14 +658,14 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// ```rust,no_run
     /// use opencc_fmmseg::{
-    ///     CustomDictFilesSpec,
+    ///     CustomDictFileSpec,
     ///     CustomDictMode,
     ///     DictSlot,
     ///     DictionaryMaxlength,
     /// };
     ///
     /// let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
-    ///     CustomDictFilesSpec {
+    ///     CustomDictFileSpec {
     ///         slot: DictSlot::STPhrases,
     ///         files: vec![
     ///             "./brand_terms.txt",
@@ -688,11 +688,11 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// # See Also
     ///
     /// - [`DictionaryMaxlength::from_dicts_custom()`]
-    /// - [`CustomDictFilesSpec`]
+    /// - [`CustomDictFileSpec`]
     /// - [`CustomDictMode`]
     /// - [`DictSlot`]
     pub fn from_dicts_custom_files<P>(
-        specs: &[CustomDictFilesSpec<P>],
+        specs: &[CustomDictFileSpec<P>],
     ) -> Result<Self, DictionaryError>
     where
         P: AsRef<Path>,
@@ -1209,6 +1209,108 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
         Ok(dictionary.finish())
     }
+
+    // ------ New: Update dict map pairs dynamically ------
+
+    fn slot_mut(&mut self, slot: DictSlot) -> &mut DictMaxLen {
+        match slot {
+            DictSlot::STCharacters => &mut self.st_characters,
+            DictSlot::STPhrases => &mut self.st_phrases,
+            DictSlot::TSCharacters => &mut self.ts_characters,
+            DictSlot::TSPhrases => &mut self.ts_phrases,
+
+            DictSlot::TWPhrases => &mut self.tw_phrases,
+            DictSlot::TWPhrasesRev => &mut self.tw_phrases_rev,
+            DictSlot::TWVariants => &mut self.tw_variants,
+            DictSlot::TWVariantsRev => &mut self.tw_variants_rev,
+            DictSlot::TWVariantsRevPhrases => &mut self.tw_variants_rev_phrases,
+
+            DictSlot::HKVariants => &mut self.hk_variants,
+            DictSlot::HKVariantsRev => &mut self.hk_variants_rev,
+            DictSlot::HKVariantsRevPhrases => &mut self.hk_variants_rev_phrases,
+
+            DictSlot::JPShinjitaiCharacters => &mut self.jps_characters,
+            DictSlot::JPShinjitaiPhrases => &mut self.jps_phrases,
+            DictSlot::JPVariants => &mut self.jp_variants,
+            DictSlot::JPVariantsRev => &mut self.jp_variants_rev,
+
+            DictSlot::STPunctuations => &mut self.st_punctuations,
+            DictSlot::TSPunctuations => &mut self.ts_punctuations,
+        }
+    }
+
+    fn apply_custom_pairs_to_slot(
+        slot: &mut DictMaxLen,
+        pairs: &[(String, String)],
+        mode: CustomDictMode,
+    ) {
+        match mode {
+            CustomDictMode::Append => {
+                slot.append_pairs(pairs.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+            }
+            CustomDictMode::Override => {
+                slot.replace_pairs(pairs.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+            }
+        }
+    }
+
+    /// Applies in-memory custom dictionaries to an already loaded dictionary.
+    ///
+    /// This is useful after loading built-in data with constructors such as
+    /// [`from_zstd`](Self::from_zstd), or after loading external serialized
+    /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor)
+    /// or [`deserialize_from_json`](Self::deserialize_from_json). Each spec is
+    /// applied to its selected [`DictSlot`]: append mode merges pairs with
+    /// last-wins semantics, while override mode clears the slot first.
+    ///
+    /// The affected slot metadata and starter indexes are rebuilt during
+    /// customization. The returned dictionary is ready for
+    /// [`OpenCC::from_dictionary`](crate::OpenCC::from_dictionary), and
+    /// conversion hot paths remain immutable after construction.
+    pub fn with_custom_dicts(mut self, specs: &[CustomDictSpec]) -> Result<Self, DictionaryError> {
+        for spec in specs {
+            let slot = self.slot_mut(spec.slot);
+            Self::apply_custom_pairs_to_slot(slot, &spec.pairs, spec.mode);
+        }
+
+        Ok(self)
+    }
+
+    /// Applies file-based custom dictionaries to an already loaded dictionary.
+    ///
+    /// This is the file-I/O counterpart to [`with_custom_dicts`](Self::with_custom_dicts)
+    /// and is useful after loading built-in data with constructors such as
+    /// [`from_zstd`](Self::from_zstd), or after loading external serialized
+    /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor)
+    /// or [`deserialize_from_json`](Self::deserialize_from_json). Files in each
+    /// [`CustomDictFileSpec`] are read in order, then applied to the selected
+    /// [`DictSlot`]: append mode merges pairs with last-wins semantics, while
+    /// override mode clears the slot first.
+    ///
+    /// The affected slot metadata and starter indexes are rebuilt during
+    /// customization. The returned dictionary is ready for
+    /// [`OpenCC::from_dictionary`](crate::OpenCC::from_dictionary), and
+    /// conversion hot paths remain immutable after construction.
+    pub fn with_custom_dict_files<P>(
+        mut self,
+        specs: &[CustomDictFileSpec<P>],
+    ) -> Result<Self, DictionaryError>
+    where
+        P: AsRef<Path>,
+    {
+        for spec in specs {
+            let mut pairs = Vec::new();
+
+            for file in &spec.files {
+                pairs.extend(Self::load_pairs_from_path(file)?);
+            }
+
+            let slot = self.slot_mut(spec.slot);
+            Self::apply_custom_pairs_to_slot(slot, &pairs, spec.mode);
+        }
+
+        Ok(self)
+    }
 }
 
 impl Default for DictionaryMaxlength {
@@ -1362,7 +1464,7 @@ impl From<serde_cbor::Error> for DictionaryError {
 /// # See Also
 ///
 /// - [`CustomDictSpec`]
-/// - [`CustomDictFilesSpec`]
+/// - [`CustomDictFileSpec`]
 /// - [`CustomDictMode`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DictSlot {
@@ -1423,13 +1525,13 @@ pub enum DictSlot {
 
 /// Controls how custom dictionary entries are merged into a slot.
 ///
-/// Used by [`CustomDictSpec`] and [`CustomDictFilesSpec`].
+/// Used by [`CustomDictSpec`] and [`CustomDictFileSpec`].
 ///
 /// # Modes
 ///
-/// - [`CustomDictMode::Append`] keeps existing built-in entries and only
-///   inserts new keys.
-/// - [`CustomDictMode::Override`] replaces existing values when keys conflict.
+/// In post-load customization APIs, [`CustomDictMode::Append`] merges custom
+/// entries into the selected slot with last-wins semantics, while
+/// [`CustomDictMode::Override`] clears the selected slot first.
 ///
 /// # Example
 ///
@@ -1455,14 +1557,14 @@ pub enum DictSlot {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CustomDictMode {
-    /// Add custom entries only when the key does not already exist.
+    /// Merge custom entries into the selected slot.
     ///
-    /// Existing built-in dictionary values remain unchanged.
+    /// Post-load APIs use last-wins semantics for conflicting keys.
     Append,
 
-    /// Add custom entries and replace existing values when keys conflict.
+    /// Prefer custom entries over the selected slot's existing contents.
     ///
-    /// Custom dictionary values take precedence over built-in entries.
+    /// Post-load APIs clear the slot before custom pairs are inserted.
     Override,
 }
 
@@ -1539,14 +1641,14 @@ pub struct CustomDictSpec {
 ///
 /// ```rust, no_run
 /// use opencc_fmmseg::{
-///     CustomDictFilesSpec,
+///     CustomDictFileSpec,
 ///     CustomDictMode,
 ///     DictSlot,
 ///     DictionaryMaxlength,
 /// };
 ///
 /// let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
-///     CustomDictFilesSpec {
+///     CustomDictFileSpec {
 ///         slot: DictSlot::STPhrases,
 ///         files: vec!["./my_terms.txt"],
 ///         mode: CustomDictMode::Override,
@@ -1556,7 +1658,7 @@ pub struct CustomDictSpec {
 /// assert!(dictionary.st_phrases.max_len > 0);
 /// ```
 #[derive(Debug, Clone)]
-pub struct CustomDictFilesSpec<P> {
+pub struct CustomDictFileSpec<P> {
     /// Target dictionary slot.
     pub slot: DictSlot,
 
@@ -1568,6 +1670,7 @@ pub struct CustomDictFilesSpec<P> {
     /// Merge behavior for conflicting keys.
     pub mode: CustomDictMode,
 }
+
 /// Returns custom dictionary specs targeting the given slot.
 fn specs_for_slot(
     specs: &[CustomDictSpec],
@@ -1893,7 +1996,7 @@ mod tests {
 
         fs::write(&file_path, "帕兰蒂尔\t柏蘭蒂爾\n").expect("Failed to write custom dict file");
 
-        let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[CustomDictFilesSpec {
+        let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[CustomDictFileSpec {
             slot: DictSlot::STPhrases,
             files: vec![file_path.clone()],
             mode: CustomDictMode::Override,
@@ -1908,5 +2011,120 @@ mod tests {
         );
 
         let _ = fs::remove_file(file_path);
+    }
+
+    // New: Dynamically update pairs tests
+
+    #[test]
+    fn test_with_custom_dicts_append_st_phrases_palantir() {
+        let dictionary = DictionaryMaxlength::from_zstd()
+            .expect("Failed to load default dictionary")
+            .with_custom_dicts(&[CustomDictSpec {
+                slot: DictSlot::STPhrases,
+                pairs: vec![("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string())],
+                mode: CustomDictMode::Append,
+            }])
+            .expect("Failed to apply custom dictionary");
+
+        let opencc = crate::OpenCC::from_dictionary(dictionary);
+
+        assert_eq!(
+            opencc.convert("帕兰蒂尔是一家人工智能公司", "s2t", false),
+            "柏蘭蒂爾是一家人工智能公司"
+        );
+    }
+
+    #[test]
+    fn test_with_custom_dicts_override_st_phrases_only_custom_pairs_remain() {
+        let dictionary = DictionaryMaxlength::from_zstd()
+            .expect("Failed to load default dictionary")
+            .with_custom_dicts(&[CustomDictSpec {
+                slot: DictSlot::STPhrases,
+                pairs: vec![("人工智能公司".to_string(), "AI公司".to_string())],
+                mode: CustomDictMode::Override,
+            }])
+            .expect("Failed to apply custom dictionary");
+
+        assert_eq!(
+            dictionary
+                .st_phrases
+                .map
+                .get("人工智能公司".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"AI公司".into())
+        );
+
+        assert_eq!(dictionary.st_phrases.map.len(), 1);
+    }
+
+    #[test]
+    fn test_with_custom_dicts_multiple_slots() {
+        let dictionary = DictionaryMaxlength::from_zstd()
+            .expect("Failed to load default dictionary")
+            .with_custom_dicts(&[
+                CustomDictSpec {
+                    slot: DictSlot::STPhrases,
+                    pairs: vec![
+                        ("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string()),
+                        ("人工智能公司".to_string(), "AI公司".to_string()),
+                    ],
+                    mode: CustomDictMode::Append,
+                },
+                CustomDictSpec {
+                    slot: DictSlot::TSPhrases,
+                    pairs: vec![
+                        ("柏蘭蒂爾".to_string(), "帕兰蒂尔".to_string()),
+                        ("AI公司".to_string(), "人工智能公司".to_string()),
+                    ],
+                    mode: CustomDictMode::Append,
+                },
+            ])
+            .expect("Failed to apply custom dictionaries");
+
+        assert_eq!(
+            dictionary
+                .st_phrases
+                .map
+                .get("帕兰蒂尔".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"柏蘭蒂爾".into())
+        );
+
+        assert_eq!(
+            dictionary
+                .ts_phrases
+                .map
+                .get("柏蘭蒂爾".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"帕兰蒂尔".into())
+        );
+    }
+
+    #[test]
+    fn test_with_custom_dict_files_multiple_files_later_wins() {
+        use std::fs;
+
+        let dir = std::env::temp_dir();
+        let file1 = dir.join("opencc_fmmseg_custom_file_1.txt");
+        let file2 = dir.join("opencc_fmmseg_custom_file_2.txt");
+
+        fs::write(&file1, "帕兰蒂尔\t帕蘭蒂爾\n").expect("Failed to write custom dict file 1");
+        fs::write(&file2, "帕兰蒂尔\t柏蘭蒂爾\n").expect("Failed to write custom dict file 2");
+
+        let dictionary = DictionaryMaxlength::from_zstd()
+            .expect("Failed to load default dictionary")
+            .with_custom_dict_files(&[CustomDictFileSpec {
+                slot: DictSlot::STPhrases,
+                files: vec![file1.clone(), file2.clone()],
+                mode: CustomDictMode::Append,
+            }])
+            .expect("Failed to apply custom dictionary files");
+
+        let opencc = crate::OpenCC::from_dictionary(dictionary);
+
+        assert_eq!(
+            opencc.convert("帕兰蒂尔是一家人工智能公司", "s2t", false),
+            "柏蘭蒂爾是一家人工智能公司"
+        );
+
+        let _ = fs::remove_file(file1);
+        let _ = fs::remove_file(file2);
     }
 }

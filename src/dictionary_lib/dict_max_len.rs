@@ -964,6 +964,104 @@ impl DictMaxLen {
         let m = self.get_starter_mask(starter); // reads sparse; BMP-dense won’t reach here
         ((m >> bit) & 1) != 0
     }
+
+    /// Rebuilds length metadata and starter indexes from the current map.
+    ///
+    /// Call this after mutating [`map`](Self::map) directly so lookup metadata,
+    /// dense starter masks, and maximum phrase lengths match the stored pairs.
+    pub(crate) fn rebuild_indexes_from_map(&mut self) {
+        self.max_len = 0;
+        self.min_len = 0;
+        self.key_length_mask = 0;
+        self.starter_len_mask.clear();
+
+        let mut global_min = usize::MAX;
+
+        for key in self.map.keys() {
+            let len = key.len();
+            if len == 0 {
+                continue;
+            }
+
+            self.max_len = self.max_len.max(len);
+            global_min = global_min.min(len);
+
+            Self::set_key_len_bit(&mut self.key_length_mask, len);
+
+            if let Some(&starter) = key.first() {
+                let mask = self.starter_len_mask.entry(starter).or_insert(0);
+                Self::set_key_len_bit(mask, len);
+            }
+        }
+
+        self.min_len = if global_min == usize::MAX {
+            0
+        } else {
+            global_min
+        };
+
+        self.populate_starter_indexes();
+    }
+
+    #[inline]
+    fn insert_pair_last_wins<K, V>(&mut self, key: K, value: V)
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let chars: Box<[char]> = key.as_ref().chars().collect::<Vec<_>>().into_boxed_slice();
+
+        if chars.is_empty() {
+            return;
+        }
+
+        self.map.insert(chars, Box::<str>::from(value.as_ref()));
+    }
+
+    fn apply_pairs<I, K, V>(&mut self, pairs: I, clear_first: bool)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        if clear_first {
+            self.map.clear();
+        }
+
+        for (key, value) in pairs {
+            self.insert_pair_last_wins(key, value);
+        }
+
+        self.rebuild_indexes_from_map();
+    }
+
+    /// Appends custom pairs into this dictionary slot and rebuilds indexes.
+    ///
+    /// Pairs are merged with last-wins semantics: a later custom value for the
+    /// same source key replaces the previous value. Length metadata and starter
+    /// indexes are rebuilt once after all pairs are applied.
+    pub fn append_pairs<I, K, V>(&mut self, pairs: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        self.apply_pairs(pairs, false);
+    }
+
+    /// Replaces this dictionary slot with custom pairs and rebuilds indexes.
+    ///
+    /// Existing slot contents are cleared first, then the provided pairs are
+    /// inserted with last-wins semantics. Length metadata and starter indexes
+    /// are rebuilt once after all pairs are applied.
+    pub fn replace_pairs<I, K, V>(&mut self, pairs: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        self.apply_pairs(pairs, true);
+    }
 }
 
 impl Default for DictMaxLen {

@@ -110,10 +110,11 @@ Custom entries are merged into a slot with one of two modes.
 
 ### Append
 
-`CustomDictMode::Append` inserts only missing keys. If the built-in OpenCC dictionary already has the source key, the
-built-in value remains unchanged.
+In the post-load APIs, `CustomDictMode::Append` merges custom pairs into the selected slot. If the same source key
+appears more than once, the later value wins. The construction-time `from_dicts_custom()` helper keeps existing built-in
+entries and inserts only missing custom keys.
 
-Use append when you want to extend OpenCC safely without changing existing entries.
+Use append when you want to extend OpenCC without replacing the selected slot.
 
 ```rust
 use opencc_fmmseg::{
@@ -138,9 +139,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Override
 
-`CustomDictMode::Override` inserts missing keys and replaces existing values when keys conflict.
+In the post-load APIs, `CustomDictMode::Override` clears the selected slot first, then inserts the custom pairs. The
+construction-time `from_dicts_custom()` helper applies custom values while building the standard dictionary set.
 
-Use override when your project intentionally prefers a different conversion for a term that OpenCC already knows.
+Use override when your project intentionally replaces the selected built-in slot with a custom dictionary.
 
 ```rust
 use opencc_fmmseg::{
@@ -295,16 +297,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## File-Based Custom Dictionaries
 
-Use `CustomDictFilesSpec` when your custom entries live in OpenCC-style plaintext files.
+Use `CustomDictFileSpec` when your custom entries live in OpenCC-style plaintext files.
 
 ```rust
 use opencc_fmmseg::{
-    CustomDictFilesSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
+    CustomDictFileSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
-        CustomDictFilesSpec {
+        CustomDictFileSpec {
             slot: DictSlot::STPhrases,
             files: vec!["custom_dicts/company_st_phrases.txt"],
             mode: CustomDictMode::Override,
@@ -332,12 +334,12 @@ Rust:
 
 ```rust
 use opencc_fmmseg::{
-    CustomDictFilesSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
+    CustomDictFileSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
-        CustomDictFilesSpec {
+        CustomDictFileSpec {
             slot: DictSlot::STPhrases,
             files: vec!["custom_dicts/company_st_phrases.txt"],
             mode: CustomDictMode::Override,
@@ -358,12 +360,12 @@ the target slot using the selected mode.
 
 ```rust
 use opencc_fmmseg::{
-    CustomDictFilesSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
+    CustomDictFileSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
-        CustomDictFilesSpec {
+        CustomDictFileSpec {
             slot: DictSlot::STPhrases,
             files: vec![
                 "custom_dicts/brand_terms.txt",
@@ -385,22 +387,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use opencc_fmmseg::{
-    CustomDictFilesSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
+    CustomDictFileSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dictionary = DictionaryMaxlength::from_dicts_custom_files(&[
-        CustomDictFilesSpec {
+        CustomDictFileSpec {
             slot: DictSlot::STPhrases,
             files: vec!["custom_dicts/s2t_terms.txt"],
             mode: CustomDictMode::Append,
         },
-        CustomDictFilesSpec {
+        CustomDictFileSpec {
             slot: DictSlot::TSPhrases,
             files: vec!["custom_dicts/t2s_terms.txt"],
             mode: CustomDictMode::Append,
         },
-        CustomDictFilesSpec {
+        CustomDictFileSpec {
             slot: DictSlot::TWVariants,
             files: vec!["custom_dicts/tw_variants.txt"],
             mode: CustomDictMode::Override,
@@ -478,6 +480,109 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(opencc.convert("大语言模型", "s2t", false), "大型語言模型");
     assert_eq!(opencc.convert("大型語言模型", "t2s", false), "大语言模型");
 
+    Ok(())
+}
+```
+
+## Post-Load Customization
+
+Use `with_custom_dicts()` or `with_custom_dict_files()` when you want to start from an already loaded
+`DictionaryMaxlength`, such as `from_zstd()`, `deserialize_from_cbor()`, `deserialize_from_json()`,
+`load_cbor_compressed()`, or a plaintext dictionary constructor. The returned dictionary is ready to pass into
+`OpenCC::from_dictionary()`.
+
+Custom dictionaries use OpenCC-compatible source → target semantics. The selected `DictSlot` still matters because
+custom entries affect only that slot and the conversion config path that reads it. Custom dictionaries are applied
+before runtime conversion begins.
+
+Append mode merges pairs into the selected slot. When custom pairs conflict with existing entries or with earlier
+custom pairs, the later value wins. Override mode clears the selected slot first, then inserts the custom pairs.
+
+Indexes, masks, and length metadata are rebuilt once during customization. After `OpenCC::from_dictionary()` is
+created, conversion uses the normal fast immutable lookup path.
+
+### In-Memory Post-Load Pairs
+
+```rust
+use opencc_fmmseg::{
+    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let specs = [
+        CustomDictSpec {
+            slot: DictSlot::STPhrases,
+            pairs: vec![
+                ("帕兰蒂尔".to_string(), "帕蘭蒂爾".to_string()),
+                ("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string()),
+            ],
+            mode: CustomDictMode::Append,
+        },
+    ];
+
+    let dict = DictionaryMaxlength::from_zstd()?.with_custom_dicts(&specs)?;
+    let opencc = OpenCC::from_dictionary(dict);
+
+    assert_eq!(opencc.convert("帕兰蒂尔", "s2t", false), "柏蘭蒂爾");
+    Ok(())
+}
+```
+
+### File-Based Post-Load Dictionaries
+
+```rust
+use std::fs;
+
+use opencc_fmmseg::{
+    CustomDictFileSpec, CustomDictMode, DictSlot, DictionaryMaxlength, OpenCC,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = std::env::temp_dir().join("opencc_fmmseg_custom_dict_example");
+    fs::create_dir_all(&dir)?;
+
+    let brands = dir.join("brand_terms.txt");
+    let products = dir.join("product_terms.txt");
+
+    fs::write(&brands, "帕兰蒂尔\t帕蘭蒂爾\n")?;
+    fs::write(&products, "帕兰蒂尔\t柏蘭蒂爾\n大语言模型\t大型語言模型\n")?;
+
+    let file_specs = [
+        CustomDictFileSpec {
+            slot: DictSlot::STPhrases,
+            files: vec![brands, products],
+            mode: CustomDictMode::Append,
+        },
+    ];
+
+    let dict = DictionaryMaxlength::from_zstd()?.with_custom_dict_files(&file_specs)?;
+    let opencc = OpenCC::from_dictionary(dict);
+
+    assert_eq!(opencc.convert("帕兰蒂尔的大语言模型", "s2t", false), "柏蘭蒂爾的大型語言模型");
+    Ok(())
+}
+```
+
+### Post-Load Override
+
+```rust
+use opencc_fmmseg::{
+    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let specs = [
+        CustomDictSpec {
+            slot: DictSlot::STPhrases,
+            pairs: vec![("人工智能".to_string(), "人工智慧".to_string())],
+            mode: CustomDictMode::Override,
+        },
+    ];
+
+    let dict = DictionaryMaxlength::from_zstd()?.with_custom_dicts(&specs)?;
+    let opencc = OpenCC::from_dictionary(dict);
+
+    assert_eq!(opencc.convert("人工智能", "s2t", false), "人工智慧");
     Ok(())
 }
 ```
@@ -634,18 +739,22 @@ If startup time matters, generate and deploy a Zstd or CBOR artifact.
 
 - Dictionaries are immutable after `OpenCC` construction.
 - Runtime hot-reload injection is not currently provided.
-- Prepare custom dictionaries before constructing `OpenCC`.
+- Prepare and customize dictionaries before constructing `OpenCC`.
 - Malformed dictionary lines produce errors.
-- Choosing the wrong slot may produce no effect or unexpected conversion behavior.
-- `from_zstd_custom()` and `from_cbor_custom()` are intentionally not implemented, keeping the API surface simpler and
-  maintenance manageable.
+- Choosing the wrong `DictSlot` may produce no effect or unexpected conversion behavior.
+- Prefer:
+    - `DictionaryMaxlength::from_zstd()?.with_custom_dicts(...)`
+    - `DictionaryMaxlength::from_zstd()?.with_custom_dict_files(...)`
+    - `DictionaryMaxlength::deserialize_from_cbor(path)?.with_custom_dicts(...)`
+    - `DictionaryMaxlength::deserialize_from_json(path)?.with_custom_dicts(...)`
+- Avoid proliferating loader-specific `*_custom()` constructors.
 
 If you need runtime updates, rebuild a new `DictionaryMaxlength` and create a new `OpenCC` instance.
 
 ## Best Practices
 
-- Prefer `CustomDictMode::Append` when you only need to add missing terms.
-- Use `CustomDictMode::Override` sparingly and document why the built-in behavior is being replaced.
+- Prefer `CustomDictMode::Append` when you want to add terms while keeping the selected slot intact.
+- Use `CustomDictMode::Override` sparingly and document why the selected slot is being replaced.
 - Keep enterprise, product, regional, subtitle, OCR, and test terms in separate files.
 - Keep direction-specific files separate, such as `s2t_terms.txt` and `t2s_terms.txt`.
 - Generate Zstd artifacts for production deployments.
@@ -658,12 +767,14 @@ If you need runtime updates, rebuild a new `DictionaryMaxlength` and create a ne
 | API                                              | Kind     | Purpose                                                                                 |
 |--------------------------------------------------|----------|-----------------------------------------------------------------------------------------|
 | `CustomDictSpec`                                 | Struct   | Pair-based custom dictionary spec for one `DictSlot`.                                   |
-| `CustomDictFilesSpec`                            | Struct   | File-based custom dictionary spec for one `DictSlot`.                                   |
+| `CustomDictFileSpec`                             | Struct   | File-based custom dictionary spec for one `DictSlot`.                                   |
 | `CustomDictMode`                                 | Enum     | Selects `Append` or `Override` merge behavior.                                          |
 | `DictSlot`                                       | Enum     | Identifies the OpenCC dictionary slot to customize.                                     |
 | `DictionaryMaxlength::from_dicts_custom()`       | Function | Loads the default plaintext dictionary directory and applies in-memory custom pairs.    |
 | `DictionaryMaxlength::from_dicts_custom_files()` | Function | Loads the default plaintext dictionary directory and applies custom OpenCC-style files. |
 | `DictionaryMaxlength::from_dicts_at()`           | Function | Loads a complete OpenCC-style dictionary directory from an alternate base path.         |
+| `DictionaryMaxlength::with_custom_dicts()`       | Function | Applies in-memory custom pairs to an already loaded dictionary.                         |
+| `DictionaryMaxlength::with_custom_dict_files()`  | Function | Applies custom OpenCC-style files to an already loaded dictionary.                      |
 | `OpenCC::from_dictionary()`                      | Function | Creates an `OpenCC` converter from a prepared `DictionaryMaxlength`.                    |
 
 ## Conclusion

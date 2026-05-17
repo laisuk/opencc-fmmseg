@@ -13,9 +13,11 @@ mod utils;
 
 pub use crate::delimiter_set::DelimiterSet;
 pub use crate::dict_refs::DictRefs;
+pub use crate::dictionary_lib::dictionary_maxlength::{
+    CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot,
+};
+pub use crate::dictionary_lib::{DictionaryError, DictionaryMaxlength};
 pub use crate::opencc::OpenCC;
 pub use crate::opencc_config::OpenccConfig;
-pub use crate::dictionary_lib::{DictionaryMaxlength, DictionaryError};
-pub use crate::dictionary_lib::dictionary_maxlength::{CustomDictMode, CustomDictFilesSpec, CustomDictSpec, DictSlot};
 pub use delimiter_set::*;
 pub use utils::*;
