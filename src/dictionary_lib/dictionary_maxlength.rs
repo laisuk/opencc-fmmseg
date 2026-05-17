@@ -1523,6 +1523,50 @@ pub enum DictSlot {
     TSPunctuations,
 }
 
+/// Parses a canonical OpenCC dictionary slot name into a [`DictSlot`].
+///
+/// This conversion is intentionally strict and only accepts canonical
+/// slot identifiers used by the OpenCC dictionary pipeline.
+///
+/// # Supported slot names
+///
+/// - `STCharacters`
+/// - `STPhrases`
+/// - `STPunctuations`
+/// - `TSCharacters`
+/// - `TSPhrases`
+/// - `TSPunctuations`
+/// - `TWPhrases`
+/// - `TWPhrasesRev`
+/// - `TWVariants`
+/// - `TWVariantsRev`
+/// - `TWVariantsRevPhrases`
+/// - `HKVariants`
+/// - `HKVariantsRev`
+/// - `HKVariantsRevPhrases`
+/// - `JPShinjitaiCharacters`
+/// - `JPShinjitaiPhrases`
+/// - `JPVariants`
+/// - `JPVariantsRev`
+///
+/// # Notes
+///
+/// File suffixes such as `.txt` are not accepted here.
+/// Higher-level bindings (for example Python wrappers) may provide
+/// additional normalization or compatibility handling.
+///
+/// # Examples
+///
+/// ```rust
+/// use opencc_fmmseg::DictSlot;
+///
+/// assert_eq!(
+///     DictSlot::try_from("STPhrases"),
+///     Ok(DictSlot::STPhrases)
+/// );
+///
+/// assert!(DictSlot::try_from("STPhrases.txt").is_err());
+/// ```
 impl TryFrom<&str> for DictSlot {
     type Error = ();
 
