@@ -18,7 +18,9 @@
 mod dict_max_len;
 pub mod dictionary_maxlength;
 mod starter_union;
+mod dict_slot;
 
 pub use self::dict_max_len::*;
 pub use self::dictionary_maxlength::{DictionaryError, DictionaryMaxlength};
 pub use self::starter_union::*;
+pub use self::dict_slot::*;

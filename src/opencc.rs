@@ -1787,7 +1787,7 @@ impl OpenCC {
 #[cfg(test)]
 mod tests {
     use super::OpenCC;
-    use crate::dictionary_lib::dictionary_maxlength::{CustomDictMode, CustomDictSpec, DictSlot};
+    use crate::dictionary_lib::{CustomDictMode, CustomDictSpec, DictSlot};
     use crate::{dictionary_lib, OpenccConfig};
 
     #[test]
