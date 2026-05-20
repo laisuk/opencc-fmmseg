@@ -61,10 +61,10 @@ pub enum DictSlot {
     HKVariantsRevPhrases,
 
     /// Japanese Shinjitai character mappings.
-    JPShinjitaiCharacters,
+    JPSCharacters,
 
     /// Japanese Shinjitai phrase mappings.
-    JPShinjitaiPhrases,
+    JPSPhrases,
 
     /// Traditional → Japanese variant mappings.
     JPVariants,
@@ -146,8 +146,8 @@ impl TryFrom<&str> for DictSlot {
             "HKVariantsRev" => Ok(Self::HKVariantsRev),
             "HKVariantsRevPhrases" => Ok(Self::HKVariantsRevPhrases),
 
-            "JPShinjitaiCharacters" => Ok(Self::JPShinjitaiCharacters),
-            "JPShinjitaiPhrases" => Ok(Self::JPShinjitaiPhrases),
+            "JPShinjitaiCharacters" => Ok(Self::JPSCharacters),
+            "JPShinjitaiPhrases" => Ok(Self::JPSPhrases),
             "JPVariants" => Ok(Self::JPVariants),
             "JPVariantsRev" => Ok(Self::JPVariantsRev),
 
