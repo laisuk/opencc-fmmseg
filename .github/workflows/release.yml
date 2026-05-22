@@ -5,7 +5,10 @@ on:
     tags:
       - 'v*.*.*'
       - 'v*.*.*-beta*'
-
+      
+permissions:
+  contents: write
+  
 jobs:
   build:
     name: Build (${{ matrix.name }})
