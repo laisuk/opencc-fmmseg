@@ -5,9 +5,9 @@
 //!
 //! - [`DictionaryMaxlength`] — Loader for multi-dictionary OpenCC-style
 //!   structures, each with precomputed maximum phrase lengths.
-//! - [`DictMaxLen`] — Lightweight dictionary wrapper used during
+//! - [`DictMaxLen`](DictMaxLen) — Lightweight dictionary wrapper used during
 //!   longest-match segmentation.
-//! - [`StarterUnion`] — Fast starter-character lookup tables used to
+//! - [`StarterUnion`](StarterUnion) — Fast starter-character lookup tables used to
 //!   accelerate prefix matching within conversion rounds.
 //!
 //! These types work together to support multi-round, high-performance

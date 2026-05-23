@@ -14,14 +14,14 @@ use rustc_hash::FxHashMap;
 /// Starters in the Unicode **BMP** (`0x0000..=0xFFFF`) are stored in dense
 /// fixed-size vectors:
 ///
-/// - [`bmp_mask`]: a `u64` bitmask encoding which phrase lengths exist  
-/// - [`bmp_cap`]: the maximum phrase length for that starter  
+/// - [`Self::bmp_mask`]: a `u64` bitmask encoding which phrase lengths exist
+/// - [`Self::bmp_cap`]: the maximum phrase length for that starter
 ///
 /// Starters **outside the BMP** are far less common, so they are stored
 /// sparsely:
 ///
-/// - [`astral_mask`]: maps a non-BMP starter to its length bitmask  
-/// - [`astral_cap`]: maps a non-BMP starter to its maximum phrase length  
+/// - [`Self::astral_mask`]: maps a non-BMP starter to its length bitmask
+/// - [`Self::astral_cap`]: maps a non-BMP starter to its maximum phrase length
 ///
 /// # Bit Layout (per starter)
 ///
@@ -60,7 +60,7 @@ use rustc_hash::FxHashMap;
 ///
 /// A `StarterUnion` is created once for each logical OpenCC configuration
 /// (e.g., S2T, T2S+punc, TW-variants-only) and cached inside
-/// [`DictionaryMaxlength`].  
+/// [`DictionaryMaxlength`](crate::dictionary_lib::DictionaryMaxlength).
 ///
 /// It is then reused across:
 ///
@@ -80,7 +80,7 @@ pub struct StarterUnion {
 
     /// Dense BMP per-starter maximum phrase length.
     ///
-    /// Same indexing as [`bmp_mask`]. This provides the upper bound on the
+    /// Same indexing as [`Self::bmp_mask`]. This provides the upper bound on the
     /// candidate window size during longest-match probing.
     pub bmp_cap: Vec<u8>, // size: 0x10000
 
@@ -92,7 +92,7 @@ pub struct StarterUnion {
 
     /// Sparse per-starter maximum phrase length for astral starters.
     ///
-    /// Mirrors [`astral_mask`], but stores the maximum key length instead of
+    /// Mirrors [`Self::astral_mask`], but stores the maximum key length instead of
     /// the full bitmask.
     pub astral_cap: FxHashMap<char, u8>,
 }
@@ -105,17 +105,17 @@ impl StarterUnion {
     /// segmentation, combining starter information from all dictionaries in
     /// `dicts`. It produces:
     ///
-    /// - [`bmp_mask`]: a per-BMP-codepoint bitmask where bit `n` indicates that
+    /// - [`Self::bmp_mask`]: a per-BMP-codepoint bitmask where bit `n` indicates that
     ///   *some* key of length `n + 1` starts with that character.
-    /// - [`bmp_cap`]: the maximum key length observed for each BMP starter.
-    /// - [`astral_mask`]/[`astral_cap`]: sparse equivalents for Unicode characters
+    /// - [`Self::bmp_cap`]: the maximum key length observed for each BMP starter.
+    /// - [`Self::astral_mask`]/[`Self::astral_cap`]: sparse equivalents for Unicode characters
     ///   outside the BMP.
     ///
     /// # How It Works
     ///
     /// For every provided [`DictMaxLen`] instance:
     ///
-    /// - It iterates directly over the dictionary’s [`starter_len_mask`]
+    /// - It iterates directly over the dictionary’s `starter_len_mask`
     ///   (`char → u64`).
     /// - It merges (`OR`) the per-starter bitmasks across all dictionaries.
     /// - It updates the per-starter “cap” (maximum key length) using the
@@ -145,7 +145,7 @@ impl StarterUnion {
     /// which is automatically guaranteed if it was created via:
     ///
     /// - [`DictMaxLen::build_from_pairs`]
-    /// - [`DictionaryMaxlength::finish`]
+    /// - [`DictionaryMaxlength::finish`](crate::dictionary_lib::DictionaryMaxlength::finish)
     ///
     /// # Returns
     ///

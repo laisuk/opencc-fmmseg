@@ -24,7 +24,7 @@ accurate, and deployment-friendly conversion — with **no runtime I/O required*
 
 - NLP preprocessing pipelines
 - OCR and subtitle post-processing
-- Ebook / document conversion (EPUB, PDF, Office)
+- Ebook / document conversion (EPUB and Office)
 - Cross-platform CLI tools and system integration
 
 ---
@@ -76,7 +76,7 @@ include/ # C API header + C++ helper header
   consistent O(n) scaling.
 - 🧩 **Modular integration** — Usable as a **Rust crate**, **C API (FFI)**, or **Qt/.NET/Python binding** with identical
   behavior across platforms.
-- 🛠️ **Lightweight & dependency-free** — Pure Rust core, no external runtime or I/O overhead.
+- 🛠️ **Lightweight runtime** — Pure Rust core with embedded dictionaries and no runtime dictionary I/O.
 - 📄 **Cross-platform ready** — Builds cleanly on **Windows**, **Linux**, and **macOS** (x86_64 / ARM64), with CLI and
   shared-library distributions.
 
@@ -176,7 +176,7 @@ By default, it uses **OpenCC**'s built-in lexicon paths. You can also provide yo
 
 For advanced custom dictionaries, `DictionaryMaxlength` supports pair-based and OpenCC plaintext file injection,
 append/override merge modes, alternate dictionary base directories, and direct `OpenCC::from_dictionary()` construction.
-See the [Custom Dictionary User Guide](./CUSTOM_DICT_USER_GUIDE.md).
+See the [Custom Dictionary User Guide](https://github.com/laisuk/opencc-fmmseg/blob/master/CUSTOM_DICT_USER_GUIDE.md).
 
 ---
 
@@ -187,7 +187,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.9.2"  # or latest version
+opencc-fmmseg = "0.10.0"  # or latest version
 ```
 
 Then use it in your code:
@@ -329,7 +329,7 @@ Last Error after clear: <none>
 ---
 
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.9.2/opencc_fmmseg/)
+> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.10.0/opencc_fmmseg/)
 
 ---
 
@@ -394,7 +394,7 @@ int main(void) {
 ### Example 2 (detection + conversion)
 
 ```c
-##include <stdio.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include "opencc_fmmseg_capi.h"
 
@@ -478,7 +478,6 @@ Last Error: No error
 - `opencc_string_free(...)` must be used to free strings returned by:
     - `opencc_convert(...)`
     - `opencc_convert_cfg(...)`
-    - `opencc_last_error(...)`
 
 - `opencc_error_free(...)` frees memory returned by `opencc_last_error()` **only**.
   It does **not** clear the internal error state.

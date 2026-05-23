@@ -1700,7 +1700,7 @@ impl OpenCC {
     /// Records an error message as the most recent OpenCC runtime error.
     ///
     /// This is used internally to store non-panic errors, such as failed dictionary loading
-    /// or invalid conversion configurations. It allows safe retrieval via [`get_last_error()`]
+    /// or invalid conversion configurations. It allows safe retrieval via [`Self::get_last_error()`]
     /// without throwing exceptions or returning `Result<T, E>` from core APIs.
     ///
     /// # Arguments

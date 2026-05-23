@@ -27,7 +27,7 @@
 ///
 /// # Notes
 /// - Empty mask or `cap_here == 0` yields no iterations.
-/// - This helper is typically used inside [`convert_by_union`] to drive
+/// - This helper is typically used inside `convert_by_union`-style loops to drive
 ///   the “longest-first” FMM probing loop.
 /// - Internally, it uses `leading_zeros` to walk set bits from high→low.
 ///

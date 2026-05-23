@@ -1,11 +1,11 @@
-/// Identifies a dictionary slot inside [`DictionaryMaxlength`].
+/// Identifies a dictionary slot inside [`DictionaryMaxlength`](crate::dictionary_lib::DictionaryMaxlength).
 ///
 /// Each slot corresponds to a specific OpenCC conversion dictionary.
 /// Custom dictionaries can be appended to or override entries inside
 /// these slots when using:
 ///
-/// - [`DictionaryMaxlength::from_dicts_custom()`]
-/// - [`DictionaryMaxlength::from_dicts_custom_files()`]
+/// - [`DictionaryMaxlength::from_dicts_custom()`](crate::dictionary_lib::DictionaryMaxlength::from_dicts_custom)
+/// - [`DictionaryMaxlength::from_dicts_custom_files()`](crate::dictionary_lib::DictionaryMaxlength::from_dicts_custom_files)
 ///
 /// # Notes
 ///

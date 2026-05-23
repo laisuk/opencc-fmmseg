@@ -110,9 +110,9 @@ Custom entries are merged into a slot with one of two modes.
 
 ### Append
 
-In the post-load APIs, `CustomDictMode::Append` merges custom pairs into the selected slot. If the same source key
-appears more than once, the later value wins. The construction-time `from_dicts_custom()` helper keeps existing built-in
-entries and inserts only missing custom keys.
+`CustomDictMode::Append` merges custom pairs into the selected slot. If the same source key appears more than once,
+the later value wins. The construction-time `from_dicts_custom()` helper applies the same source-key behavior while
+building each slot from the built-in OpenCC pairs plus custom pairs.
 
 Use append when you want to extend OpenCC without replacing the selected slot.
 
@@ -487,7 +487,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Post-Load Customization
 
 Use `with_custom_dicts()` or `with_custom_dict_files()` when you want to start from an already loaded
-`DictionaryMaxlength`, such as `from_zstd()`, `deserialize_from_cbor()`, `deserialize_from_json()`,
+`DictionaryMaxlength`, such as `from_zstd()`, `deserialize_from_cbor()`,
 `load_cbor_compressed()`, or a plaintext dictionary constructor. The returned dictionary is ready to pass into
 `OpenCC::from_dictionary()`.
 
@@ -586,6 +586,141 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+## Non-BMP / Tofu-Risk Character Fallbacks
+
+Some Unicode characters, especially rare CJK Extension characters outside the Basic Multilingual Plane (BMP), may render
+as tofu (`□`) or missing-glyph boxes on older platforms, browsers, embedded systems, PDF renderers, or fonts.
+
+This is primarily a font rendering problem, not a Unicode encoding problem. The text can still be valid Unicode even if
+a specific display environment cannot show one of its characters.
+
+Examples:
+
+| Traditional | Simplified | Risk                    |
+|-------------|------------|-------------------------|
+| `驂騑`        | `骖𬴂`      | `𬴂` may render as tofu |
+| `齧合`        | `啮𫜩`      | `𫜩` may render as tofu |
+
+In these situations, some applications may prefer a BMP-safe compatibility fallback for specific terms or characters.
+Instead of modifying upstream OpenCC dictionaries or maintaining duplicated extension dictionary files, use post-load
+custom dictionaries.
+
+```rust
+use opencc_fmmseg::{
+    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let dict = DictionaryMaxlength::from_zstd()?.with_custom_dicts(&[
+        CustomDictSpec {
+            slot: DictSlot::STCharacters,
+            pairs: vec![
+                ("𬴂".to_string(), "騑".to_string()),
+                ("𫜩".to_string(), "齧".to_string()),
+            ],
+            mode: CustomDictMode::Append,
+        },
+    ])?;
+
+    let opencc = OpenCC::from_dictionary(dict);
+
+    assert_eq!(opencc.convert("𬴂", "s2t", false), "騑");
+    assert_eq!(opencc.convert("𫜩", "s2t", false), "齧");
+
+    Ok(())
+}
+```
+
+For a Simplified-to-Traditional compatibility fallback, put Simplified source characters into `STCharacters` or
+`STPhrases`. For a Traditional-to-Simplified pipeline, put Traditional source characters into `TSCharacters` or
+`TSPhrases`. Choose the slot that matches the direction you want to affect.
+
+This approach:
+
+- keeps upstream OpenCC dictionaries clean
+- avoids maintaining duplicated extension dictionary files
+- preserves OpenCC-compatible conversion behavior
+- allows platform-specific compatibility fallbacks
+- can be enabled only when needed
+
+`opencc-fmmseg` intentionally avoids restructuring canonical OpenCC dictionaries solely for rendering limitations on
+specific platforms. The engine keeps the original Unicode mappings intact while allowing optional user-controlled
+fallback layers through custom dictionaries.
+
+Advanced users may selectively fall back only specific Unicode ranges or compatibility targets, such as:
+
+- CJK Extension C
+- CJK Extension D
+- known tofu-risk characters on iOS/macOS
+- legacy Windows font compatibility targets
+
+This allows preserving modern Unicode output on capable systems while still supporting older rendering environments.
+
+Notes:
+
+- Tofu (`□`) usually indicates missing font glyph support, not invalid Unicode.
+- Modern platforms continue improving Unicode coverage over time.
+- Some systems may correctly display one extension block but not another.
+- Fallback behavior is entirely optional and user-controlled.
+
+### Practical TSCharacters Fallbacks
+
+`TSCharacters` fallbacks are often the most practical tofu-avoidance layer because rare non-BMP characters may appear
+after converting Traditional Chinese to Simplified Chinese.
+
+| Traditional | Default Simplified | Risk                    |
+|-------------|--------------------|-------------------------|
+| `驂騑`        | `骖𬴂`              | `𬴂` may render as tofu |
+| `齧`         | `𫜩`               | `𫜩` may render as tofu |
+
+If your target platform has poor font support for these characters, you can intentionally prefer BMP-safe output for
+selected characters:
+
+```rust
+use opencc_fmmseg::{
+    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let dict = DictionaryMaxlength::from_zstd()?.with_custom_dicts(&[
+        CustomDictSpec {
+            slot: DictSlot::TSCharacters,
+            pairs: vec![
+                ("騑".to_string(), "騑".to_string()), // preserve BMP form; avoid 𬴂
+                ("齧".to_string(), "啮".to_string()), // BMP-safe fallback; avoid 𫜩
+            ],
+            mode: CustomDictMode::Append,
+        },
+    ])?;
+
+    let opencc = OpenCC::from_dictionary(dict);
+
+    assert_eq!(opencc.convert("騑", "t2s", false), "騑");
+    assert_eq!(opencc.convert("齧", "t2s", false), "啮");
+
+    Ok(())
+}
+```
+
+Conceptually:
+
+```text
+齧 -> 啮  (avoid 𫜩)
+騑 -> 騑  (avoid 𬴂)
+```
+
+This lets users deliberately trade some rare canonical Simplified forms for:
+
+- better font compatibility
+- reduced tofu risk
+- safer browser and mobile rendering
+- legacy platform support
+
+For `t2s`, `tw2s`, `tw2sp`, and `hk2s`, the normal T2S conversion stack probes `TSPhrases` before `TSCharacters`.
+Custom entries added to `TSCharacters` therefore affect character-level fallback behavior when no longer phrase match
+takes precedence. Within `TSCharacters` itself, append mode uses last-wins semantics, so custom fallback entries can
+override built-in character mappings in a user-controlled way.
 
 ## Alternate Dictionary Directories
 
@@ -746,7 +881,6 @@ If startup time matters, generate and deploy a Zstd or CBOR artifact.
     - `DictionaryMaxlength::from_zstd()?.with_custom_dicts(...)`
     - `DictionaryMaxlength::from_zstd()?.with_custom_dict_files(...)`
     - `DictionaryMaxlength::deserialize_from_cbor(path)?.with_custom_dicts(...)`
-    - `DictionaryMaxlength::deserialize_from_json(path)?.with_custom_dicts(...)`
 - Avoid proliferating loader-specific `*_custom()` constructors.
 
 If you need runtime updates, rebuild a new `DictionaryMaxlength` and create a new `OpenCC` instance.

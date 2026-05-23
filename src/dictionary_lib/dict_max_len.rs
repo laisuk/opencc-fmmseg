@@ -159,7 +159,7 @@ macro_rules! debug_note {
 ///
 /// # See Also
 ///
-/// - [`crate::dictionary_maxlength`] — utilities for loading and building `DictMaxLen`.
+/// - [`DictionaryMaxlength`](crate::dictionary_lib::DictionaryMaxlength) — utilities for loading and building `DictMaxLen`.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DictMaxLen {
     /// Dictionary mapping: phrase (as boxed slice of `char`) → replacement string.
@@ -238,7 +238,7 @@ pub struct DictMaxLen {
     /// Runtime-only: maximum key length per first character (Unicode BMP).
     ///
     /// Each entry stores the maximum phrase length (in characters) for the given
-    /// starter character. Parallel to [`first_len_mask64`] but stored as `u8`.
+    /// starter character. Parallel to [`Self::first_len_mask64`] but stored as `u8`.
     #[serde(skip)]
     #[serde(default)]
     pub first_char_max_len: Vec<u8>,
@@ -254,7 +254,7 @@ impl DictMaxLen {
     ///   (`max_len`, `min_len`),
     /// - Tracks the **per-starter** maximum key length,
     /// - Eagerly calls [`populate_starter_indexes`](#method.populate_starter_indexes)
-    ///   to fill runtime accelerators: [`first_len_mask64`] and [`first_char_max_len`].
+    ///   to fill runtime accelerators: [`Self::first_len_mask64`] and [`Self::first_char_max_len`].
     ///
     /// ### Duplicates
     /// If the iterator yields duplicate **keys**, **first-wins**:
@@ -301,11 +301,6 @@ impl DictMaxLen {
     /// // Equivalent fast gate via API
     /// let cap_bit = 2 - 1;
     /// assert!(dict.starter_allows_dict('你', 2, cap_bit));
-    /// ```
-    ///
-    /// // Zero-alloc style lookup using a borrowed slice:
-    /// // let input: &[char] = &['你', '好'];
-    /// // if let Some(v) = dict.map.get(input) { /* ... */ }
     /// ```
     pub fn build_from_pairs<I>(pairs: I) -> Self
     where
@@ -467,8 +462,8 @@ impl DictMaxLen {
     ///
     /// This method validates and (re)allocates the two **dense starter index arrays**:
     ///
-    /// - [`first_len_mask64`]: `Vec<u64>` — bitmask of phrase lengths per starter character.
-    /// - [`first_char_max_len`]: `Vec<u16>` — maximum phrase length per starter character.
+    /// - [`Self::first_len_mask64`]: `Vec<u64>` — bitmask of phrase lengths per starter character.
+    /// - [`Self::first_char_max_len`]: `Vec<u8>` — maximum phrase length per starter character.
     ///
     /// Both vectors are indexed by the Unicode scalar value of the starter character
     /// (restricted to the **Basic Multilingual Plane**, 0x0000–0xFFFF).
@@ -514,12 +509,12 @@ impl DictMaxLen {
     }
 
     /// (Re)builds the **Basic Multilingual Plane (BMP)** starter index arrays from
-    /// sparse data. Prefers [`starter_len_mask`] (one pass); falls back to scanning
-    /// [`map`] if the mask is empty.
+    /// sparse data. Prefers [`Self::starter_len_mask`] (one pass); falls back to scanning
+    /// [`Self::map`] if the mask is empty.
     ///
     /// This regenerates the two dense BMP arrays:
     ///
-    /// - [`first_len_mask64`]:
+    /// - [`Self::first_len_mask64`]:
     ///   - Indexed by the starter character’s Unicode scalar value (`u <= 0xFFFF`).
     ///   - Each `u64` stores a **bitmask of existing key lengths** for that starter:
     ///     - **Bit 0** → a key of length 1 exists
@@ -528,21 +523,21 @@ impl DictMaxLen {
     ///     - **Bit 63** → used when building from `map` as a “≥64” bucket if any
     ///       key length ≥ 64 is encountered (since the mask encodes up to 64).
     ///
-    /// - [`first_char_max_len`]:
+    /// - [`Self::first_char_max_len`]:
     ///   - Indexed identically (BMP only).
     ///   - Stores the **maximum key length** (in characters) observed for each starter.
     ///   - When building from `starter_len_mask`, this is derived from the mask’s
-    ///     max set bit (≤ 64). When falling back to scanning [`map`], it reflects
+    ///     max set bit (≤ 64). When falling back to scanning [`Self::map`], it reflects
     ///     the true maximum, which may exceed 64.
     ///
     /// # Behavior
     /// 1. Ensures both arrays are allocated to length `0x10000` (BMP) and zeroed.
-    /// 2. **Fast path:** if [`starter_len_mask`] is non-empty, copy each mask into
-    ///    [`first_len_mask64`] for BMP starters and derive [`first_char_max_len`]
+    /// 2. **Fast path:** if [`Self::starter_len_mask`] is non-empty, copy each mask into
+    ///    [`Self::first_len_mask64`] for BMP starters and derive [`Self::first_char_max_len`]
     ///    from the mask’s max bit (up to 64).
-    /// 3. **Fallback:** if [`starter_len_mask`] is empty, scan all keys in [`map`]
-    ///    once, setting the appropriate bit in [`first_len_mask64`] (collapsing
-    ///    `len >= 64` to bit 63) and updating [`first_char_max_len`] with the true
+    /// 3. **Fallback:** if [`Self::starter_len_mask`] is empty, scan all keys in [`Self::map`]
+    ///    once, setting the appropriate bit in [`Self::first_len_mask64`] (collapsing
+    ///    `len >= 64` to bit 63) and updating [`Self::first_char_max_len`] with the true
     ///    maximum length seen for that starter.
     /// 4. Non-BMP starters (`u > 0xFFFF`) are ignored here (dense tables are BMP-only).
     ///
@@ -669,8 +664,8 @@ impl DictMaxLen {
     ///
     /// This method returns `true` if and only if:
     ///
-    /// - [`first_len_mask64`] has length `0x10000` (65 536 entries), **and**
-    /// - [`first_char_max_len`] has length `0x10000`.
+    /// - [`Self::first_len_mask64`] has length `0x10000` (65 536 entries), **and**
+    /// - [`Self::first_char_max_len`] has length `0x10000`.
     ///
     /// This is used as a quick sanity check to determine whether the
     /// starter indexes have been built or at least allocated to cover
@@ -770,7 +765,7 @@ impl DictMaxLen {
     ///
     /// *`index_of_least_significant_set_bit + 1`*
     ///
-    /// This constant function is used by [`StarterUnion`] to determine the
+    /// This constant function is used by [`StarterUnion`](crate::dictionary_lib::StarterUnion) to determine the
     /// minimum matching span to probe during longest-match lookup.
     ///
     /// # Arguments
@@ -806,7 +801,7 @@ impl DictMaxLen {
     ///
     /// *`64 - mask.leading_zeros()`*
     ///
-    /// This constant function is used by [`StarterUnion`] to bound the upper
+    /// This constant function is used by [`StarterUnion`](crate::dictionary_lib::StarterUnion) to bound the upper
     /// limit of probe lengths during longest-match search.
     ///
     /// # Arguments
@@ -900,12 +895,12 @@ impl DictMaxLen {
     ///     2. For `length > 64`, compare against `first_char_max_len[u]` (a cap
     ///        derived at build time from per-starter masks).
     ///   - If dense arrays are **not** available, fall back to the sparse
-    ///     per-starter mask stored in [`starter_len_mask`]. Only lengths 1..=64
+    ///     per-starter mask stored in [`Self::starter_len_mask`]. Only lengths 1..=64
     ///     are representable in this mask; lengths > 64 will return `false`.
     ///
     /// - For **astral characters** (`u > 0xFFFF`), the dense BMP tables do not
     ///   apply; the method uses the sparse per-starter mask from
-    ///   [`starter_len_mask`] (again, only 1..=64 are representable).
+    ///   [`Self::starter_len_mask`] (again, only 1..=64 are representable).
     ///
     /// This method is typically used **after** filtering with
     /// [`DictMaxLen::has_key_len()`] to avoid redundant global range checks.
@@ -1067,15 +1062,15 @@ impl DictMaxLen {
 impl Default for DictMaxLen {
     /// Creates an empty [`DictMaxLen`] with all fields initialized to their defaults.
     ///
-    /// - [`map`] — empty `FxHashMap`.
-    /// - [`min_len`] — `0`.
-    /// - [`max_len`] — `0`.
-    /// - [`key_length_mask`] — `0` (no global lengths known).
-    /// - [`starter_len_mask`] — empty `FxHashMap` (no per-starter lengths known).
-    /// - [`first_len_mask64`] — empty `Vec` (call
+    /// - [`Self::map`] — empty `FxHashMap`.
+    /// - [`Self::min_len`] — `0`.
+    /// - [`Self::max_len`] — `0`.
+    /// - [`Self::key_length_mask`] — `0` (no global lengths known).
+    /// - [`Self::starter_len_mask`] — empty `FxHashMap` (no per-starter lengths known).
+    /// - [`Self::first_len_mask64`] — empty `Vec` (call
     ///   [`ensure_starter_indexes`](Self::ensure_starter_indexes) or
     ///   [`populate_starter_indexes`](Self::populate_starter_indexes) to allocate).
-    /// - [`first_char_max_len`] — empty `Vec` (same allocation note as above).
+    /// - [`Self::first_char_max_len`] — empty `Vec` (same allocation note as above).
     ///
     /// This is equivalent to:
     /// ```

@@ -59,7 +59,7 @@ fn compute_round<'a>(dicts: &'a [&'a DictMaxLen], union: Arc<StarterUnion>) -> D
 /// dictionaries, `max_len`, and prebuilt [`StarterUnion`].
 ///
 /// This struct is a small orchestrator: you assemble rounds (R1 is required,
-/// R2/R3 are optional), then call [`apply_segment_replace`] with your engine’s
+/// R2/R3 are optional), then call [`Self::apply_segment_replace`] with your engine’s
 /// segment/replace closure (e.g., a wrapper around `convert_by_union`).
 ///
 /// # Example
@@ -128,7 +128,7 @@ impl<'a> DictRefs<'a> {
     ///
     /// - Accepting a slice of dictionaries (`round_2_dicts`)
     /// - Accepting the corresponding [`StarterUnion`] (`round_2_union`)
-    /// - Constructing a [`DictRound`] via [`compute_round`]
+    /// - Constructing a `DictRound` via `compute_round`
     ///
     /// If not called, round 2 is simply omitted from the conversion pipeline.
     ///
@@ -158,7 +158,7 @@ impl<'a> DictRefs<'a> {
     ///
     /// - Accepting a slice of dictionaries (`round_3_dicts`)
     /// - Accepting the corresponding [`StarterUnion`] (`round_3_union`)
-    /// - Creating a [`DictRound`] through [`compute_round`]
+    /// - Creating a `DictRound` through `compute_round`
     ///
     /// If not called, round 3 remains unused.
     ///

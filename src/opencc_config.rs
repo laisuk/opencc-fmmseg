@@ -1,7 +1,8 @@
 /// OpenCC conversion configuration (strongly-typed).
 ///
 /// This enum represents the supported conversion “modes” (e.g. Simplified → Traditional).
-/// It is used by [`OpenCC::convert_with_config`] to avoid string parsing in hot paths.
+/// It is used by [`OpenCC::convert_with_config`](crate::OpenCC::convert_with_config)
+/// to avoid string parsing in hot paths.
 ///
 /// # ABI / FFI
 ///
@@ -14,7 +15,8 @@
 /// # String parsing
 ///
 /// For convenience and backwards compatibility, configs can also be parsed from strings
-/// via `TryFrom<&str>` (case-insensitive), which powers [`OpenCC::convert`].
+/// via `TryFrom<&str>` (case-insensitive), which powers
+/// [`OpenCC::convert`](crate::OpenCC::convert).
 ///
 /// # Variants
 ///

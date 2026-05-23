@@ -194,7 +194,6 @@ impl DictionaryMaxlength {
     ///
     /// # See also
     /// - [`from_dicts`](#method.from_dicts) — loads from plaintext `.txt` files.
-    /// - [`from_json`](#method.from_json) — loads from JSON.
     pub fn from_zstd() -> Result<Self, DictionaryError> {
         // Embedded compressed CBOR file at compile time
         let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
@@ -413,7 +412,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// [`populate_all`](Self::populate_all), ensuring that:
     ///
     /// - All `DictMaxLen` tables have accurate `max_len` values
-    /// - Starter masks used by [`StarterUnion`] are correctly computed
+    /// - Starter masks used by [`StarterUnion`](crate::dictionary_lib::StarterUnion) are correctly computed
     /// - Internal structures required for longest-match segmentation are prepared
     ///
     /// Once finalized, the dictionary instance is fully ready for high-performance
@@ -602,7 +601,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// This method internally delegates to:
     ///
-    /// - [`DictionaryMaxlength::from_dicts_custom_at()`]
+    /// - `DictionaryMaxlength::from_dicts_custom_at()`
     ///
     /// using the default `"dicts"` directory.
     ///
@@ -1087,7 +1086,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// operations such as loading, parsing, serialization, or file I/O.
     ///
     /// The message is written into the global thread-safe buffer
-    /// [`LAST_ERROR`], which is shared across FFI bindings (C, C#, Python,
+    /// `LAST_ERROR`, which is shared across FFI bindings (C, C#, Python,
     /// Java/JNI).
     ///
     /// Foreign callers that cannot rely on Rust's `Result` system can retrieve
@@ -1109,7 +1108,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
     /// Returns the most recently recorded error message, if any.
     ///
-    /// This function reads from the global error buffer [`LAST_ERROR`], which is
+    /// This function reads from the global error buffer `LAST_ERROR`, which is
     /// populated by calls to [`set_last_error`](Self::set_last_error) during
     /// dictionary loading, parsing, serialization, and external-resource I/O.
     ///
@@ -1261,7 +1260,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// This is useful after loading built-in data with constructors such as
     /// [`from_zstd`](Self::from_zstd), or after loading external serialized
     /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor)
-    /// or [`deserialize_from_json`](Self::deserialize_from_json). Each spec is
+    /// Each spec is
     /// applied to its selected [`DictSlot`]: append mode merges pairs with
     /// last-wins semantics, while override mode clears the slot first.
     ///
@@ -1284,7 +1283,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// and is useful after loading built-in data with constructors such as
     /// [`from_zstd`](Self::from_zstd), or after loading external serialized
     /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor)
-    /// or [`deserialize_from_json`](Self::deserialize_from_json). Files in each
+    /// Files in each
     /// [`CustomDictFileSpec`] are read in order, then applied to the selected
     /// [`DictSlot`]: append mode merges pairs with last-wins semantics, while
     /// override mode clears the slot first.
