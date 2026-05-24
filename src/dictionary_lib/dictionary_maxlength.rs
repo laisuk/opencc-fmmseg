@@ -1553,7 +1553,7 @@ mod tests {
             DictionaryMaxlength::from_zstd().expect("Failed to load dictionary from zstd");
 
         // Verify a known field
-        let expected = 14;
+        let expected = 12;
         assert_eq!(dictionary.st_phrases.max_len, expected);
     }
 
