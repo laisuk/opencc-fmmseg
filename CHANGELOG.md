@@ -6,6 +6,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.10.1] - Unreleased
+
+### Changed
+
+- Updated and optimized dictionary data to reduce conversion ambiguity and improve phrase consistency.
+- Improved internal last-error state handling by normalizing empty error strings (`""`) to `None`.
+- Unified Rust and C API last-error behavior for more consistent FFI error retrieval semantics.
+
+### Fixed
+
+- Fixed rare edge cases where `opencc_last_error()` could return inconsistent results between Rust and C API layers when
+  the last error state was empty.
+- Fixed ambiguous internal `Some("")` last-error states that could cause fragile unit test behavior in certain
+  scenarios.
+
+---
+
 ## [0.10.0] - 2026-05-24
 
 ### Added

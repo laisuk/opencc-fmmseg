@@ -1699,21 +1699,35 @@ impl OpenCC {
 
     /// Records an error message as the most recent OpenCC runtime error.
     ///
-    /// This is used internally to store non-panic errors, such as failed dictionary loading
-    /// or invalid conversion configurations. It allows safe retrieval via [`Self::get_last_error()`]
-    /// without throwing exceptions or returning `Result<T, E>` from core APIs.
+    /// This is used internally to store non-panic runtime errors, such as failed
+    /// dictionary loading or invalid conversion configurations. The stored message
+    /// can later be retrieved safely via [`Self::get_last_error()`] without
+    /// requiring exceptions or `Result<T, E>` propagation from core APIs.
+    ///
+    /// Passing an empty string clears the current error state instead of storing
+    /// `Some("")`. This keeps Rust and C API error retrieval behavior consistent
+    /// and avoids ambiguous empty error messages.
     ///
     /// # Arguments
-    /// * `err_msg` – A string slice containing the error message to store.
     ///
-    /// # Example (internal use)
+    /// * `err_msg` - The error message to store. Passing an empty string clears
+    ///   the current error state.
+    ///
+    /// # Example
+    ///
     /// ```rust
     /// use opencc_fmmseg::OpenCC;
+    ///
     /// OpenCC::set_last_error("Failed to load dictionary.");
     /// ```
     pub fn set_last_error(err_msg: &str) {
         let mut last_error = last_error_slot().lock().unwrap();
-        *last_error = Some(err_msg.to_string());
+
+        if err_msg.is_empty() {
+            *last_error = None;
+        } else {
+            *last_error = Some(err_msg.to_string());
+        }
     }
 
     /// Retrieves the most recently recorded error message, if any.
