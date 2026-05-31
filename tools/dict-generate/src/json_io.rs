@@ -1,10 +1,10 @@
 // json_io.rs (CLI only)
 use opencc_fmmseg::dictionary_lib::{DictMaxLen, DictionaryMaxlength};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-// stable key order for diffs
 
+// BTreeMap keeps JSON object keys deterministic for stable diffs.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DictMaxLenSerde {
     pub map: BTreeMap<String, String>,
@@ -82,15 +82,13 @@ impl DictMaxLenSerde {
             let mut m = FxHashMap::default();
             // Heuristic: starters ≤ unique first chars in map, capped at BMP
             // (reserve is optional; remove if you prefer)
-            let mut seen = FxHashSet::default();
             for (k_chars, _) in out.map.iter() {
                 if let Some(&c0) = k_chars.first() {
-                    if seen.insert(c0) { /* counting unique starters */ }
                     let len = k_chars.len();
-                    let entry = m.entry(c0).or_insert(0u64);
                     let b = len.wrapping_sub(1);
+
                     if b < 64 {
-                        *entry |= 1u64 << b;
+                        *m.entry(c0).or_insert(0u64) |= 1u64 << b;
                     }
                 }
             }
