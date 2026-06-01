@@ -6,7 +6,28 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.10.1] - Unreleased
+## [0.10.2] - Unreleased
+
+### Added
+
+- Added upstream-aligned forward regional phrase dictionaries:
+    - `TWVariantsPhrases.txt`
+    - `HKVariantsPhrases.txt`
+- Added public custom dictionary slots:
+    - `DictSlot::TWVariantsPhrases`
+    - `DictSlot::HKVariantsPhrases`
+
+### Changed
+
+- Updated and optimized dictionary data to reduce conversion ambiguity and improve phrase consistency.
+- Taiwan and Hong Kong forward regional variant conversion now applies phrase-level variant dictionaries before
+  character-level fallback:
+    - `TWVariantsPhrases` -> `TWVariants`
+    - `HKVariantsPhrases` -> `HKVariants`
+
+---
+
+## [0.10.1] - 2026-06-01
 
 ### Changed
 

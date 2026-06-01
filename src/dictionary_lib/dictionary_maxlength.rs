@@ -93,11 +93,15 @@ pub struct DictionaryMaxlength {
     #[serde(default)]
     pub tw_phrases_rev: DictMaxLen,
     #[serde(default)]
+    pub tw_variants_phrases: DictMaxLen,
+    #[serde(default)]
     pub tw_variants: DictMaxLen,
     #[serde(default)]
     pub tw_variants_rev: DictMaxLen,
     #[serde(default)]
     pub tw_variants_rev_phrases: DictMaxLen,
+    #[serde(default)]
+    pub hk_variants_phrases: DictMaxLen,
     #[serde(default)]
     pub hk_variants: DictMaxLen,
     #[serde(default)]
@@ -299,9 +303,11 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// ├── TSPhrases.txt
     /// ├── TWPhrases.txt
     /// ├── TWPhrasesRev.txt
+    /// ├── TWVariantsPhrasex.txt
     /// ├── TWVariants.txt
     /// ├── TWVariantsRev.txt
     /// ├── TWVariantsRevPhrases.txt
+    /// ├── HKVariantsPhrases.txt
     /// ├── HKVariants.txt
     /// ├── HKVariantsRev.txt
     /// ├── HKVariantsRevPhrases.txt
@@ -388,9 +394,11 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         self.ts_phrases.populate_starter_indexes();
         self.tw_phrases.populate_starter_indexes();
         self.tw_phrases_rev.populate_starter_indexes();
+        self.tw_variants_phrases.populate_starter_indexes();
         self.tw_variants.populate_starter_indexes();
         self.tw_variants_rev.populate_starter_indexes();
         self.tw_variants_rev_phrases.populate_starter_indexes();
+        self.hk_variants_phrases.populate_starter_indexes();
         self.hk_variants.populate_starter_indexes();
         self.hk_variants_rev.populate_starter_indexes();
         self.hk_variants_rev_phrases.populate_starter_indexes();
@@ -440,9 +448,11 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             &self.ts_phrases,
             &self.tw_phrases,
             &self.tw_phrases_rev,
+            &self.tw_variants_phrases,
             &self.tw_variants,
             &self.tw_variants_rev,
             &self.tw_variants_rev_phrases,
+            &self.hk_variants_phrases,
             &self.hk_variants,
             &self.hk_variants_rev,
             &self.hk_variants_rev_phrases,
@@ -510,12 +520,14 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             ("TSPhrases.txt", &self.ts_phrases.map),
             ("TWPhrases.txt", &self.tw_phrases.map),
             ("TWPhrasesRev.txt", &self.tw_phrases_rev.map),
+            ("TWVariantsPhrases.txt", &self.tw_variants_phrases.map),
             ("TWVariants.txt", &self.tw_variants.map),
             ("TWVariantsRev.txt", &self.tw_variants_rev.map),
             (
                 "TWVariantsRevPhrases.txt",
                 &self.tw_variants_rev_phrases.map,
             ),
+            ("HKVariantsPhrases.txt", &self.hk_variants_phrases.map),
             ("HKVariants.txt", &self.hk_variants.map),
             ("HKVariantsRev.txt", &self.hk_variants_rev.map),
             (
@@ -828,6 +840,22 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             Ok(DictMaxLen::build_from_pairs(pairs))
         }
 
+        fn load_optional_slot(
+            base_dir: &Path,
+            filename: &str,
+            specs: &[CustomDictSpec],
+            slot: DictSlot,
+        ) -> Result<DictMaxLen, DictionaryError> {
+            let path = base_dir.join(filename);
+            let pairs = if path.exists() {
+                DictionaryMaxlength::load_pairs_from_path(path)?
+            } else {
+                Vec::new()
+            };
+            let pairs = apply_custom_pairs(pairs, specs, slot);
+            Ok(DictMaxLen::build_from_pairs(pairs))
+        }
+
         Ok(DictionaryMaxlength {
             st_characters: load_slot(base_dir, "STCharacters.txt", specs, DictSlot::STCharacters)?,
             st_phrases: load_slot(base_dir, "STPhrases.txt", specs, DictSlot::STPhrases)?,
@@ -836,6 +864,12 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
             tw_phrases: load_slot(base_dir, "TWPhrases.txt", specs, DictSlot::TWPhrases)?,
             tw_phrases_rev: load_slot(base_dir, "TWPhrasesRev.txt", specs, DictSlot::TWPhrasesRev)?,
+            tw_variants_phrases: load_optional_slot(
+                base_dir,
+                "TWVariantsPhrases.txt",
+                specs,
+                DictSlot::TWVariantsPhrases,
+            )?,
             tw_variants: load_slot(base_dir, "TWVariants.txt", specs, DictSlot::TWVariants)?,
             tw_variants_rev: load_slot(
                 base_dir,
@@ -850,6 +884,12 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
                 DictSlot::TWVariantsRevPhrases,
             )?,
 
+            hk_variants_phrases: load_optional_slot(
+                base_dir,
+                "HKVariantsPhrases.txt",
+                specs,
+                DictSlot::HKVariantsPhrases,
+            )?,
             hk_variants: load_slot(base_dir, "HKVariants.txt", specs, DictSlot::HKVariants)?,
             hk_variants_rev: load_slot(
                 base_dir,
@@ -1222,10 +1262,12 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
             DictSlot::TWPhrases => &mut self.tw_phrases,
             DictSlot::TWPhrasesRev => &mut self.tw_phrases_rev,
+            DictSlot::TWVariantsPhrases => &mut self.tw_variants_phrases,
             DictSlot::TWVariants => &mut self.tw_variants,
             DictSlot::TWVariantsRev => &mut self.tw_variants_rev,
             DictSlot::TWVariantsRevPhrases => &mut self.tw_variants_rev_phrases,
 
+            DictSlot::HKVariantsPhrases => &mut self.hk_variants_phrases,
             DictSlot::HKVariants => &mut self.hk_variants,
             DictSlot::HKVariantsRev => &mut self.hk_variants_rev,
             DictSlot::HKVariantsRevPhrases => &mut self.hk_variants_rev_phrases,
@@ -1371,9 +1413,11 @@ impl Default for DictionaryMaxlength {
             ts_phrases: DictMaxLen::default(),
             tw_phrases: DictMaxLen::default(),
             tw_phrases_rev: DictMaxLen::default(),
+            tw_variants_phrases: DictMaxLen::default(),
             tw_variants: DictMaxLen::default(),
             tw_variants_rev: DictMaxLen::default(),
             tw_variants_rev_phrases: DictMaxLen::default(),
+            hk_variants_phrases: DictMaxLen::default(),
             hk_variants: DictMaxLen::default(),
             hk_variants_rev: DictMaxLen::default(),
             hk_variants_rev_phrases: DictMaxLen::default(),
@@ -1488,6 +1532,20 @@ mod tests {
     use super::*;
     use crate::dictionary_lib::dict_max_len::DictMaxLen;
 
+    fn dictionary_with_custom_pair(
+        slot: DictSlot,
+        key: &str,
+        value: &str,
+        mode: CustomDictMode,
+    ) -> DictionaryMaxlength {
+        DictionaryMaxlength::from_dicts_custom(&[CustomDictSpec {
+            slot,
+            pairs: vec![(key.to_string(), value.to_string())],
+            mode,
+        }])
+        .expect("Failed to create custom dictionary")
+    }
+
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_cbor() {
@@ -1555,6 +1613,101 @@ mod tests {
         // Verify a known field
         let expected = 12;
         assert_eq!(dictionary.st_phrases.max_len, expected);
+    }
+
+    #[test]
+    fn old_cbor_without_forward_variant_phrase_fields_deserializes() {
+        #[derive(serde::Serialize)]
+        struct LegacyDictionaryMaxlength {
+            st_characters: DictMaxLen,
+            st_phrases: DictMaxLen,
+            ts_characters: DictMaxLen,
+            ts_phrases: DictMaxLen,
+            tw_phrases: DictMaxLen,
+            tw_phrases_rev: DictMaxLen,
+            tw_variants: DictMaxLen,
+            tw_variants_rev: DictMaxLen,
+            tw_variants_rev_phrases: DictMaxLen,
+            hk_variants: DictMaxLen,
+            hk_variants_rev: DictMaxLen,
+            hk_variants_rev_phrases: DictMaxLen,
+            jps_characters: DictMaxLen,
+            jps_phrases: DictMaxLen,
+            jp_variants: DictMaxLen,
+            jp_variants_rev: DictMaxLen,
+            st_punctuations: DictMaxLen,
+            ts_punctuations: DictMaxLen,
+        }
+
+        let legacy = LegacyDictionaryMaxlength {
+            st_characters: DictMaxLen::default(),
+            st_phrases: DictMaxLen::default(),
+            ts_characters: DictMaxLen::default(),
+            ts_phrases: DictMaxLen::default(),
+            tw_phrases: DictMaxLen::default(),
+            tw_phrases_rev: DictMaxLen::default(),
+            tw_variants: DictMaxLen::default(),
+            tw_variants_rev: DictMaxLen::default(),
+            tw_variants_rev_phrases: DictMaxLen::default(),
+            hk_variants: DictMaxLen::default(),
+            hk_variants_rev: DictMaxLen::default(),
+            hk_variants_rev_phrases: DictMaxLen::default(),
+            jps_characters: DictMaxLen::default(),
+            jps_phrases: DictMaxLen::default(),
+            jp_variants: DictMaxLen::default(),
+            jp_variants_rev: DictMaxLen::default(),
+            st_punctuations: DictMaxLen::default(),
+            ts_punctuations: DictMaxLen::default(),
+        };
+        let bytes = serde_cbor::to_vec(&legacy).expect("legacy CBOR should serialize");
+        let dictionary: DictionaryMaxlength =
+            from_slice(&bytes).expect("legacy CBOR should deserialize");
+
+        assert!(dictionary.tw_variants_phrases.map.is_empty());
+        assert!(dictionary.hk_variants_phrases.map.is_empty());
+    }
+
+    #[test]
+    fn from_dicts_at_missing_forward_variant_phrase_files_defaults_empty() {
+        use std::fs;
+
+        let dir = std::env::temp_dir().join(format!(
+            "opencc_fmmseg_missing_variant_phrases_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("temp dict dir should be created");
+
+        for file in [
+            "STCharacters.txt",
+            "STPhrases.txt",
+            "TSCharacters.txt",
+            "TSPhrases.txt",
+            "TWPhrases.txt",
+            "TWPhrasesRev.txt",
+            "TWVariants.txt",
+            "TWVariantsRev.txt",
+            "TWVariantsRevPhrases.txt",
+            "HKVariants.txt",
+            "HKVariantsRev.txt",
+            "HKVariantsRevPhrases.txt",
+            "JPShinjitaiCharacters.txt",
+            "JPShinjitaiPhrases.txt",
+            "JPVariants.txt",
+            "JPVariantsRev.txt",
+            "STPunctuations.txt",
+            "TSPunctuations.txt",
+        ] {
+            fs::write(dir.join(file), "").expect("temp dictionary file should be written");
+        }
+
+        let dictionary =
+            DictionaryMaxlength::from_dicts_at(&dir).expect("old plaintext dict set should load");
+
+        assert!(dictionary.tw_variants_phrases.map.is_empty());
+        assert!(dictionary.hk_variants_phrases.map.is_empty());
+
+        fs::remove_dir_all(&dir).expect("temp dict dir should be removed");
     }
 
     #[test]
@@ -1647,9 +1800,11 @@ mod tests {
             ts_phrases: DictMaxLen::default(),
             tw_phrases: DictMaxLen::default(),
             tw_phrases_rev: DictMaxLen::default(),
+            tw_variants_phrases: DictMaxLen::default(),
             tw_variants: DictMaxLen::default(),
             tw_variants_rev: DictMaxLen::default(),
             tw_variants_rev_phrases: DictMaxLen::default(),
+            hk_variants_phrases: DictMaxLen::default(),
             hk_variants: DictMaxLen::default(),
             hk_variants_rev: DictMaxLen::default(),
             hk_variants_rev_phrases: DictMaxLen::default(),
@@ -1687,12 +1842,12 @@ mod tests {
 
     #[test]
     fn test_from_dicts_custom_append_st_phrases_palantir() {
-        let dictionary = DictionaryMaxlength::from_dicts_custom(&[CustomDictSpec {
-            slot: DictSlot::STPhrases,
-            pairs: vec![("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string())],
-            mode: CustomDictMode::Append,
-        }])
-        .expect("Failed to create custom dictionary");
+        let dictionary = dictionary_with_custom_pair(
+            DictSlot::STPhrases,
+            "帕兰蒂尔",
+            "柏蘭蒂爾",
+            CustomDictMode::Append,
+        );
 
         assert_eq!(
             dictionary
@@ -1751,6 +1906,80 @@ mod tests {
                 .get("柏蘭蒂爾".chars().collect::<Vec<_>>().as_slice()),
             Some(&"帕兰蒂尔".into())
         );
+    }
+
+    #[test]
+    fn test_from_dicts_custom_append_tw_variants_phrases() {
+        let dictionary = dictionary_with_custom_pair(
+            DictSlot::TWVariantsPhrases,
+            "程式碼",
+            "程式碼TW",
+            CustomDictMode::Append,
+        );
+
+        assert_eq!(
+            dictionary
+                .tw_variants_phrases
+                .map
+                .get("程式碼".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"程式碼TW".into())
+        );
+    }
+
+    #[test]
+    fn test_from_dicts_custom_override_tw_variants_phrases() {
+        let dictionary = dictionary_with_custom_pair(
+            DictSlot::TWVariantsPhrases,
+            "程式碼",
+            "程式碼TW",
+            CustomDictMode::Override,
+        );
+
+        assert_eq!(
+            dictionary
+                .tw_variants_phrases
+                .map
+                .get("程式碼".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"程式碼TW".into())
+        );
+        assert_eq!(dictionary.tw_variants_phrases.map.len(), 1);
+    }
+
+    #[test]
+    fn test_from_dicts_custom_append_hk_variants_phrases() {
+        let dictionary = dictionary_with_custom_pair(
+            DictSlot::HKVariantsPhrases,
+            "程式碼",
+            "程式碼HK",
+            CustomDictMode::Append,
+        );
+
+        assert_eq!(
+            dictionary
+                .hk_variants_phrases
+                .map
+                .get("程式碼".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"程式碼HK".into())
+        );
+    }
+
+    #[test]
+    fn test_from_dicts_custom_override_hk_variants_phrases() {
+        let dictionary = dictionary_with_custom_pair(
+            DictSlot::HKVariantsPhrases,
+            "程式碼",
+            "程式碼HK",
+            CustomDictMode::Override,
+        );
+
+        assert_eq!(
+            dictionary
+                .hk_variants_phrases
+                .map
+                .get("程式碼".chars().collect::<Vec<_>>().as_slice()),
+            Some(&"程式碼HK".into())
+        );
+        assert_eq!(dictionary.hk_variants_phrases.map.len(), 1);
     }
 
     #[test]

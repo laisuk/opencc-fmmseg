@@ -15,7 +15,9 @@
 /// - [`DictSlot::STPhrases`] affects Simplified → Traditional phrase conversion.
 /// - [`DictSlot::TSPhrases`] affects Traditional → Simplified phrase conversion.
 /// - [`DictSlot::TWVariants`] affects Taiwan regional variants.
+/// - [`DictSlot::TWVariantsPhrases`] affects Taiwan regional phrase variants.
 /// - [`DictSlot::HKVariants`] affects Hong Kong regional variants.
+/// - [`DictSlot::HKVariantsPhrases`] affects Hong Kong regional phrase variants.
 ///
 /// # See Also
 ///
@@ -45,6 +47,12 @@ pub enum DictSlot {
     /// Traditional → Taiwan regional variant mappings.
     TWVariants,
 
+    /// Traditional → Taiwan regional phrase variant mappings.
+    ///
+    /// Applied before [`DictSlot::TWVariants`] so phrase-level regional
+    /// semantics can be preserved before character-level fallback.
+    TWVariantsPhrases,
+
     /// Taiwan → Traditional reverse variant mappings.
     TWVariantsRev,
 
@@ -53,6 +61,12 @@ pub enum DictSlot {
 
     /// Traditional → Hong Kong regional variant mappings.
     HKVariants,
+
+    /// Traditional → Hong Kong regional phrase variant mappings.
+    ///
+    /// Applied before [`DictSlot::HKVariants`] so phrase-level regional
+    /// semantics can be preserved before character-level fallback.
+    HKVariantsPhrases,
 
     /// Hong Kong → Traditional reverse variant mappings.
     HKVariantsRev,
@@ -95,9 +109,11 @@ pub enum DictSlot {
 /// - `TWPhrases`
 /// - `TWPhrasesRev`
 /// - `TWVariants`
+/// - `TWVariantsPhrases`
 /// - `TWVariantsRev`
 /// - `TWVariantsRevPhrases`
 /// - `HKVariants`
+/// - `HKVariantsPhrases`
 /// - `HKVariantsRev`
 /// - `HKVariantsRevPhrases`
 /// - `JPShinjitaiCharacters`
@@ -139,10 +155,12 @@ impl TryFrom<&str> for DictSlot {
             "TWPhrases" => Ok(Self::TWPhrases),
             "TWPhrasesRev" => Ok(Self::TWPhrasesRev),
             "TWVariants" => Ok(Self::TWVariants),
+            "TWVariantsPhrases" => Ok(Self::TWVariantsPhrases),
             "TWVariantsRev" => Ok(Self::TWVariantsRev),
             "TWVariantsRevPhrases" => Ok(Self::TWVariantsRevPhrases),
 
             "HKVariants" => Ok(Self::HKVariants),
+            "HKVariantsPhrases" => Ok(Self::HKVariantsPhrases),
             "HKVariantsRev" => Ok(Self::HKVariantsRev),
             "HKVariantsRevPhrases" => Ok(Self::HKVariantsRevPhrases),
 

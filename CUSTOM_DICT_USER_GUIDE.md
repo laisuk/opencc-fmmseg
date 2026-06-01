@@ -81,10 +81,12 @@ that slot for phrase conversion.
 | `TSPhrases`            | Traditional -> Simplified phrases                | Multi-character phrase and terminology conversion for `t2s`, `tw2s`, `hk2s`, and related configs | `人工智慧 -> 人工智能`                                     |
 | `TWPhrases`            | Traditional -> Taiwan phrases                    | Taiwan phrase preferences layered onto Traditional output                                        | `滑鼠 -> 滑鼠`                                         |
 | `TWPhrasesRev`         | Taiwan -> Traditional reverse phrases            | Reverse phrase normalization from Taiwan-specific wording                                        | `-{Taiwan term}- -> -{Traditional term}-`          |
-| `TWVariants`           | Traditional -> Taiwan variants                   | Taiwan regional character or term variants                                                       | `-{Traditional variant}- -> -{Taiwan variant}-`    |
+| `TWVariants`           | Traditional -> Taiwan variants                   | Taiwan regional character variants                                                               | `-{Traditional variant}- -> -{Taiwan variant}-`    |
+| `TWVariantsPhrases`    | Traditional -> Taiwan phrase variants            | Taiwan regional phrase variants applied before character fallback                                | `-{Traditional phrase}- -> -{Taiwan phrase}-`      |
 | `TWVariantsRev`        | Taiwan -> Traditional reverse variants           | Reverse conversion from Taiwan variants                                                          | `-{Taiwan variant}- -> -{Traditional variant}-`    |
 | `TWVariantsRevPhrases` | Taiwan -> Traditional reverse phrase variants    | Reverse phrase-level Taiwan variants                                                             | `-{Taiwan phrase}- -> -{Traditional phrase}-`      |
-| `HKVariants`           | Traditional -> Hong Kong variants                | Hong Kong regional character or term variants                                                    | `-{Traditional variant}- -> -{Hong Kong variant}-` |
+| `HKVariants`           | Traditional -> Hong Kong variants                | Hong Kong regional character variants                                                            | `-{Traditional variant}- -> -{Hong Kong variant}-` |
+| `HKVariantsPhrases`    | Traditional -> Hong Kong phrase variants         | Hong Kong regional phrase variants applied before character fallback                             | `-{Traditional phrase}- -> -{Hong Kong phrase}-`   |
 | `HKVariantsRev`        | Hong Kong -> Traditional reverse variants        | Reverse conversion from Hong Kong variants                                                       | `-{Hong Kong variant}- -> -{Traditional variant}-` |
 | `HKVariantsRevPhrases` | Hong Kong -> Traditional reverse phrase variants | Reverse phrase-level Hong Kong variants                                                          | `-{Hong Kong phrase}- -> -{Traditional phrase}-`   |
 | `JPSCharacters`        | Japanese Shinjitai characters                    | Japanese Shinjitai character mappings                                                            | `-{old form}- -> -{new form}-`                     |
@@ -98,11 +100,19 @@ For most terminology customization:
 
 - Use `STPhrases` for Simplified-to-Traditional terms.
 - Use `TSPhrases` for Traditional-to-Simplified terms.
-- Use `TWVariants` or `TWPhrases` only when you specifically need Taiwan regional behavior.
-- Use `HKVariants` only when you specifically need Hong Kong regional behavior.
+- Use `TWVariantsPhrases`, `TWVariants`, or `TWPhrases` only when you specifically need Taiwan regional behavior.
+- Use `HKVariantsPhrases` or `HKVariants` only when you specifically need Hong Kong regional behavior.
 - Use punctuation slots only for punctuation conversion behavior.
 
 If a custom entry appears to do nothing, first check that it was placed in the slot used by your conversion config.
+
+### TWVariantsPhrases / HKVariantsPhrases
+
+Regional phrase-level variant retention dictionaries applied before single-character regional variant conversion.
+
+These dictionaries help preserve region-specific phrase semantics before fallback character-level conversion occurs.
+Use `TWVariantsPhrases` for Taiwan regional phrase variants and `HKVariantsPhrases` for Hong Kong regional phrase
+variants when the phrase should win over character-level `TWVariants` or `HKVariants` entries.
 
 ## Custom Dictionary Merge Modes
 
@@ -740,9 +750,11 @@ my_opencc_dicts/
   TSPhrases.txt
   TWPhrases.txt
   TWPhrasesRev.txt
+  TWVariantsPhrases.txt
   TWVariants.txt
   TWVariantsRev.txt
   TWVariantsRevPhrases.txt
+  HKVariantsPhrases.txt
   HKVariants.txt
   HKVariantsRev.txt
   HKVariantsRevPhrases.txt

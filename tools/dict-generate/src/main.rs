@@ -160,28 +160,7 @@ fn validate_base_dir(base_dir: &Path) -> io::Result<()> {
         ));
     }
 
-    let required = [
-        "STCharacters.txt",
-        "STPhrases.txt",
-        "TSCharacters.txt",
-        "TSPhrases.txt",
-        "TWPhrases.txt",
-        "TWPhrasesRev.txt",
-        "TWVariants.txt",
-        "TWVariantsRev.txt",
-        "TWVariantsRevPhrases.txt",
-        "HKVariants.txt",
-        "HKVariantsRev.txt",
-        "HKVariantsRevPhrases.txt",
-        "JPShinjitaiCharacters.txt",
-        "JPShinjitaiPhrases.txt",
-        "JPVariants.txt",
-        "JPVariantsRev.txt",
-        "STPunctuations.txt",
-        "TSPunctuations.txt",
-    ];
-
-    let missing: Vec<_> = required
+    let missing: Vec<_> = required_dictionary_files()
         .iter()
         .filter(|name| !base_dir.join(name).is_file())
         .copied()
@@ -201,4 +180,42 @@ fn validate_base_dir(base_dir: &Path) -> io::Result<()> {
     }
 
     Ok(())
+}
+
+fn required_dictionary_files() -> &'static [&'static str] {
+    &[
+        "STCharacters.txt",
+        "STPhrases.txt",
+        "TSCharacters.txt",
+        "TSPhrases.txt",
+        "TWPhrases.txt",
+        "TWPhrasesRev.txt",
+        "TWVariantsPhrases.txt",
+        "TWVariants.txt",
+        "TWVariantsRev.txt",
+        "TWVariantsRevPhrases.txt",
+        "HKVariantsPhrases.txt",
+        "HKVariants.txt",
+        "HKVariantsRev.txt",
+        "HKVariantsRevPhrases.txt",
+        "JPShinjitaiCharacters.txt",
+        "JPShinjitaiPhrases.txt",
+        "JPVariants.txt",
+        "JPVariantsRev.txt",
+        "STPunctuations.txt",
+        "TSPunctuations.txt",
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::required_dictionary_files;
+
+    #[test]
+    fn required_files_include_forward_regional_phrase_dictionaries() {
+        let required = required_dictionary_files();
+
+        assert!(required.contains(&"TWVariantsPhrases.txt"));
+        assert!(required.contains(&"HKVariantsPhrases.txt"));
+    }
 }

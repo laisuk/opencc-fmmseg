@@ -176,6 +176,8 @@ By default, it uses **OpenCC**'s built-in lexicon paths. You can also provide yo
 
 For advanced custom dictionaries, `DictionaryMaxlength` supports pair-based and OpenCC plaintext file injection,
 append/override merge modes, alternate dictionary base directories, and direct `OpenCC::from_dictionary()` construction.
+Public `DictSlot` customization includes regional phrase-variant slots such as `TWVariantsPhrases` and
+`HKVariantsPhrases`, which are applied before `TWVariants` and `HKVariants` character fallback.
 See the [Custom Dictionary User Guide](https://github.com/laisuk/opencc-fmmseg/blob/master/CUSTOM_DICT_USER_GUIDE.md).
 
 ---
