@@ -303,7 +303,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// ├── TSPhrases.txt
     /// ├── TWPhrases.txt
     /// ├── TWPhrasesRev.txt
-    /// ├── TWVariantsPhrasex.txt
+    /// ├── TWVariantsPhrases.txt
     /// ├── TWVariants.txt
     /// ├── TWVariantsRev.txt
     /// ├── TWVariantsRevPhrases.txt
