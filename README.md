@@ -189,7 +189,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.10.1"  # or latest version
+opencc-fmmseg = "0.10.2"  # or latest version
 ```
 
 Then use it in your code:
@@ -331,7 +331,7 @@ Last Error after clear: <none>
 ---
 
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.10.1/opencc_fmmseg/)
+> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.10.2/opencc_fmmseg/)
 
 ---
 
