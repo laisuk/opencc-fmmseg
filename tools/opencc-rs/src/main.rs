@@ -8,7 +8,7 @@ use clap::{
 };
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use opencc_fmmseg::{OpenCC, OpenccConfig};
+use opencc_fmmseg::{DetofuLevel, OpenCC, OpenccConfig};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
@@ -164,6 +164,12 @@ fn common_args() -> Vec<Arg> {
             .long("punct")
             .action(clap::ArgAction::SetTrue)
             .help("Enable punctuation conversion"),
+        Arg::new("detofu")
+            .long("detofu")
+            .value_name("LEVEL")
+            .num_args(0..=1)
+            .default_missing_value("all")
+            .help("Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-g"),
     ]
 }
 
@@ -192,7 +198,15 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    let output_str = OpenCC::new().convert(&input_str, config, punctuation);
+    let cc = OpenCC::new();
+    let output_str = cc.convert(&input_str, config, punctuation);
+
+    let output_str = if let Some(level) = matches.get_one::<String>("detofu") {
+        let level = DetofuLevel::parse(level)?;
+        cc.detofu(&output_str, level)
+    } else {
+        output_str
+    };
 
     let is_console_output = output_file.is_none();
     let mut output: Box<dyn Write> = match output_file {
