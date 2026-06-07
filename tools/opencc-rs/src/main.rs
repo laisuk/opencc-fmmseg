@@ -169,7 +169,14 @@ fn common_args() -> Vec<Arg> {
             .value_name("LEVEL")
             .num_args(0..=1)
             .default_missing_value("all")
-            .help("Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-g"),
+            .help("Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"),
+        Arg::new("detofu-file")
+            .long("detofu-file")
+            .value_name("FILE")
+            .help(
+                "Load additional detofu fallback mappings from a UTF-8 text file. \
+         Custom mappings override built-in mappings (requires --detofu)",
+            ),
     ]
 }
 
@@ -180,6 +187,10 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let in_enc = matches.get_one::<String>("in_enc").unwrap();
     let out_enc = matches.get_one::<String>("out_enc").unwrap();
     let punctuation = matches.get_flag("punct");
+
+    if matches.contains_id("detofu-file") && matches.get_one::<String>("detofu").is_none() {
+        return Err("--detofu-file requires --detofu".into());
+    }
 
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
@@ -203,7 +214,12 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 
     let output_str = if let Some(level) = matches.get_one::<String>("detofu") {
         let level = DetofuLevel::parse(level)?;
-        cc.detofu(&output_str, level)
+
+        if let Some(path) = matches.get_one::<String>("detofu-file") {
+            cc.detofu_with_custom_file(&output_str, level, path)?
+        } else {
+            cc.detofu(&output_str, level)
+        }
     } else {
         output_str
     };

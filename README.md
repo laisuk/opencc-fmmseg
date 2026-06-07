@@ -573,14 +573,15 @@ Convert plain text using OpenCC
 Usage: opencc-rs.exe convert [OPTIONS] --config <config>
 
 Options:
-  -i, --input <file>       Input file (use stdin if omitted for non-office documents)
-  -o, --output <file>      Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>    Conversion configuration (s2t | s2tw | s2twp | s2hk | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2t | jp2t | t2jp)
-  -p, --punct              Enable punctuation conversion
-      --detofu [<LEVEL>]   Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-g
-      --in-enc <in_enc>    Encoding for input [default: UTF-8]
-      --out-enc <out_enc>  Encoding for output [default: UTF-8]
-  -h, --help               Print help
+  -i, --input <file>        Input file (use stdin if omitted for non-office documents)
+  -o, --output <file>       Output file (use stdout if omitted for non-office documents)
+  -c, --config <config>     Conversion configuration (s2t | s2tw | s2twp | s2hk | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2t | jp2t | t2jp)
+  -p, --punct               Enable punctuation conversion
+      --detofu [<LEVEL>]    Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
+      --detofu-file <FILE>  Load additional detofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
+      --in-enc <in_enc>     Encoding for input [default: UTF-8]
+      --out-enc <out_enc>   Encoding for output [default: UTF-8]
+  -h, --help                Print help
 ```
 
 ### `opencc-rs office`
