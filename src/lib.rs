@@ -89,6 +89,7 @@ mod opencc;
 mod opencc_config;
 /// Common helpers for opencc-fmmseg.
 mod utils;
+pub mod detofu;
 
 pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
 pub use crate::dict_refs::DictRefs;
@@ -97,3 +98,4 @@ pub use crate::dictionary_lib::{DictionaryError, DictionaryMaxlength};
 pub use crate::opencc::OpenCC;
 pub use crate::opencc_config::OpenccConfig;
 pub use utils::*;
+pub use detofu::{detofu, DetofuLevel, DetofuMap};

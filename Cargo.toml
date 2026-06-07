@@ -26,6 +26,7 @@ include = [
     # All source code
     "src/**/*.rs",
     "src/dictionary_lib/dicts/*.zstd",
+    "src/data/TSCharactersTofu.txt",
     # Public text dictionaries
     "dicts/**"
 ]

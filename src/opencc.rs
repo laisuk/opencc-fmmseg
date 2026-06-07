@@ -22,7 +22,7 @@
 use crate::delimiter_set::is_delimiter;
 use crate::dictionary_lib::dictionary_maxlength::UnionKey;
 use crate::dictionary_lib::{DictMaxLen, DictionaryMaxlength, StarterUnion};
-use crate::{find_max_utf8_length, for_each_len_dec, DictRefs, OpenccConfig};
+use crate::{detofu, find_max_utf8_length, for_each_len_dec, DetofuLevel, DictRefs, OpenccConfig};
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
@@ -1625,6 +1625,10 @@ impl OpenCC {
         }
     }
 
+    pub fn detofu(&self, text: &str, level: DetofuLevel) -> String {
+        detofu::detofu(text, level)
+    }
+
     /// Converts a subset of Chinese quotation punctuation between Simplified
     /// and Traditional forms.
     ///
@@ -1786,7 +1790,7 @@ mod tests {
     use crate::dictionary_lib::{
         CustomDictMode, CustomDictSpec, DictMaxLen, DictSlot, DictionaryMaxlength,
     };
-    use crate::OpenccConfig;
+    use crate::{DetofuLevel, DetofuMap, OpenccConfig};
 
     #[test]
     fn convert_clears_stale_last_error_on_success() {
@@ -1885,5 +1889,37 @@ mod tests {
             opencc.convert("帕兰蒂尔是一家人工智能公司", "s2tw", false),
             "柏蘭蒂爾是一家人工智能公司"
         );
+    }
+
+    #[test]
+    fn test_opencc_detofu() {
+        let cc = OpenCC::new();
+        let input = "𠉂𪠟𫝈𫬐";
+
+        assert_eq!(cc.detofu(input, DetofuLevel::ExtE), "𠉂𪠟𫝈㘔");
+        assert_eq!(cc.detofu(input, DetofuLevel::ExtB), "㒓㓄㑮㘔");
+    }
+
+    #[test]
+    fn test_opencc_t2s_detofu() {
+        let cc = OpenCC::new();
+
+        let output = cc.detofu(
+            &cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false),
+            DetofuLevel::ExtB,
+        );
+
+        assert_eq!(output, "俨骖騑于上路，访风景于崇阿");
+    }
+
+    #[test]
+    fn test_detofu_custom_pairs_add_missing_mapping() {
+        let input = "這隻小狗有𣭲毛";
+
+        assert_eq!(DetofuMap::builtin(DetofuLevel::ExtB).detofu(input), input);
+
+        let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𣭲', '氄')]);
+
+        assert_eq!(map.detofu(input), "這隻小狗有氄毛");
     }
 }
