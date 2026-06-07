@@ -8,6 +8,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.10.3] - Unreleased
 
+### Added
+
+- Added public detofu display-compatibility fallback APIs for rare non-BMP CJK extension characters:
+  `DetofuLevel`, `DetofuMap`, `detofu()`, and `OpenCC::detofu()`.
+- Added docs and README examples for threshold-based detofu levels, direct utility usage, reusable maps, and post-load
+  custom fallback pairs.
+
 ### Changed
 
 - Refactored `s2twp` to match the upstream OpenCC config restructure:

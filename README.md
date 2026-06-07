@@ -189,7 +189,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.10.2"  # or latest version
+opencc-fmmseg = "0.10.3"  # or latest version
 ```
 
 Then use it in your code:
@@ -330,8 +330,85 @@ Last Error after clear: <none>
 
 ---
 
+## Detofu: tofu-safe fallback for rare CJK characters
+
+`detofu` is an optional display-compatibility pass for converted text that contains rare non-BMP CJK extension
+characters. It is useful when those characters may render as tofu boxes on some systems, browsers, fonts, or e-book
+readers.
+
+Detofu does not change OpenCC conversion dictionaries or conversion behavior. It should normally be applied after
+`convert()`:
+
+```rust
+use opencc_fmmseg::{OpenCC, DetofuLevel};
+
+fn main() {
+    let cc = OpenCC::new();
+
+    let converted = cc.convert(
+        "儼驂騑於上路，訪風景於崇阿",
+        "t2s",
+        false,
+    );
+
+    let safe = cc.detofu(&converted, DetofuLevel::ExtB);
+
+    assert_eq!(safe, "俨骖騑于上路，访风景于崇阿");
+}
+```
+
+Public APIs:
+
+- `DetofuLevel` selects the threshold for fallback replacement.
+- `OpenCC::detofu(&self, text: &str, level: DetofuLevel) -> String` applies detofu through an `OpenCC` instance.
+- `detofu(text: &str, level: DetofuLevel) -> String` applies detofu as a direct utility function.
+- `DetofuMap::builtin(level)` builds a reusable map from the built-in fallback data.
+- `DetofuMap::with_custom_pairs(...)` adds post-load custom pairs.
+- `DetofuMap::detofu(...)` applies a reusable map to text.
+
+Threshold behavior is inclusive of later supported extensions:
+
+- `DetofuLevel::ExtB` means ExtB+ and is equivalent to `all`.
+- `DetofuLevel::ExtC` means ExtC+.
+- `DetofuLevel::ExtD` means ExtD+.
+- `DetofuLevel::ExtE` means ExtE+.
+
+Direct utility usage:
+
+```rust
+use opencc_fmmseg::{detofu, DetofuLevel};
+
+fn main() {
+    let safe = detofu("骖𬴂", DetofuLevel::ExtB);
+
+    assert_eq!(safe, "骖騑");
+}
+```
+
+Advanced custom pairs:
+
+```rust
+use opencc_fmmseg::{DetofuLevel, DetofuMap};
+
+fn main() {
+    let map = DetofuMap::builtin(DetofuLevel::ExtB)
+        .with_custom_pairs(&[
+            ('𣭲', '氄'),
+        ]);
+
+    let safe = map.detofu("這隻小狗有𣭲毛");
+
+    assert_eq!(safe, "這隻小狗有氄毛");
+}
+```
+
+Custom pairs are post-load additions. If a custom key already exists in the built-in detofu map, the custom fallback
+wins.
+
+---
+
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.10.2/opencc_fmmseg/)
+> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.10.3/opencc_fmmseg/)
 
 ---
 

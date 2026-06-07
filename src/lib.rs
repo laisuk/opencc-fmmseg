@@ -30,6 +30,9 @@
 //! - [`OpenccConfig`] is the recommended Rust configuration API.
 //! - [`OpenCC::convert`] accepts OpenCC-style strings such as `"s2t"` and is
 //!   useful for CLI/config-file compatibility.
+//! - [`OpenCC::detofu`] and [`detofu`] provide optional display compatibility
+//!   fallback for rare non-BMP CJK extension characters after conversion.
+//! - [`DetofuMap`] is the advanced reusable/customizable detofu map API.
 //! - [`DictionaryMaxlength`] and [`CustomDictSpec`] are for advanced users who
 //!   need custom dictionaries or externally generated dictionary artifacts.
 //!
@@ -79,6 +82,8 @@
 //!
 /// Delimiters helper for splitting and matching delimiters.
 mod delimiter_set;
+/// Display compatibility fallback utilities for rare CJK extension characters.
+pub mod detofu;
 /// Bridge helper for conversion plan and core converter functions.
 mod dict_refs;
 /// Dictionary utilities for managing multiple OpenCC lexicons.
@@ -89,7 +94,6 @@ mod opencc;
 mod opencc_config;
 /// Common helpers for opencc-fmmseg.
 mod utils;
-pub mod detofu;
 
 pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
 pub use crate::dict_refs::DictRefs;
@@ -97,5 +101,10 @@ pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSp
 pub use crate::dictionary_lib::{DictionaryError, DictionaryMaxlength};
 pub use crate::opencc::OpenCC;
 pub use crate::opencc_config::OpenccConfig;
+/// Converts rare non-BMP CJK extension characters to compatibility fallbacks.
+pub use detofu::detofu;
+/// Threshold level used by detofu display-compatibility fallback.
+pub use detofu::DetofuLevel;
+/// Reusable and customizable detofu fallback map.
+pub use detofu::DetofuMap;
 pub use utils::*;
-pub use detofu::{detofu, DetofuLevel, DetofuMap};

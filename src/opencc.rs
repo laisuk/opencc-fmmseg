@@ -1625,6 +1625,60 @@ impl OpenCC {
         }
     }
 
+    /// Converts non-BMP CJK extension characters to display-safe fallbacks.
+    ///
+    /// This is a convenience wrapper around [`detofu::detofu`]. It is intended
+    /// for environments with incomplete rare-character font coverage, such as
+    /// some systems, browsers, e-book readers, or document viewers where
+    /// non-BMP CJK extension characters may render as tofu boxes.
+    ///
+    /// Detofu is a display compatibility pass. It does not change OpenCC
+    /// conversion dictionaries, phrase matching, regional variant selection, or
+    /// punctuation conversion. For converted text, apply detofu after
+    /// [`OpenCC::convert`] or [`OpenCC::convert_with_config`].
+    ///
+    /// # Examples
+    ///
+    /// Convert text normally:
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::OpenCC;
+    ///
+    /// let cc = OpenCC::new();
+    /// let converted = cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false);
+    ///
+    /// assert_eq!(converted, "俨骖𬴂于上路，访风景于崇阿");
+    /// ```
+    ///
+    /// Apply detofu directly when text already contains rare extension
+    /// characters:
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{DetofuLevel, OpenCC};
+    ///
+    /// let cc = OpenCC::new();
+    /// let safe = cc.detofu("骖𬴂", DetofuLevel::ExtB);
+    ///
+    /// assert_eq!(safe, "骖騑");
+    /// ```
+    ///
+    /// Combine OpenCC conversion and detofu for tofu-safe display output:
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{OpenCC, DetofuLevel};
+    ///
+    /// let cc = OpenCC::new();
+    ///
+    /// let converted = cc.convert(
+    ///     "儼驂騑於上路，訪風景於崇阿",
+    ///     "t2s",
+    ///     false,
+    /// );
+    ///
+    /// let safe = cc.detofu(&converted, DetofuLevel::ExtB);
+    ///
+    /// assert_eq!(safe, "俨骖騑于上路，访风景于崇阿");
+    /// ```
     pub fn detofu(&self, text: &str, level: DetofuLevel) -> String {
         detofu::detofu(text, level)
     }
