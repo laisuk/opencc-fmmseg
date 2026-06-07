@@ -394,17 +394,18 @@ use opencc_fmmseg::{DetofuLevel, DetofuMap};
 fn main() {
     let map = DetofuMap::builtin(DetofuLevel::ExtB)
         .with_custom_pairs(&[
-            ('𣭲', '氄'),
+            ('𣭲', '氂'),
         ]);
 
     let safe = map.detofu("這隻小狗有𣭲毛");
 
-    assert_eq!(safe, "這隻小狗有氄毛");
+    assert_eq!(safe, "這隻小狗有氂毛");
 }
 ```
 
-Custom pairs are post-load additions. If a custom key already exists in the built-in detofu map, the custom fallback
-wins.
+The built-in `detofu` map already contains many fallback mappings.
+Custom pairs are applied after loading the built-in map and override
+existing mappings when the same key is provided.
 
 ---
 

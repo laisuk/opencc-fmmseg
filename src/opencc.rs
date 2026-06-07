@@ -1967,13 +1967,16 @@ mod tests {
     }
 
     #[test]
-    fn test_detofu_custom_pairs_add_missing_mapping() {
+    fn test_detofu_custom_pairs_override_builtin_mapping() {
         let input = "這隻小狗有𣭲毛";
 
-        assert_eq!(DetofuMap::builtin(DetofuLevel::ExtB).detofu(input), input);
+        assert_eq!(
+            DetofuMap::builtin(DetofuLevel::ExtB).detofu(input),
+            "這隻小狗有氄毛"
+        );
 
-        let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𣭲', '氄')]);
+        let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𣭲', '氂')]);
 
-        assert_eq!(map.detofu(input), "這隻小狗有氄毛");
+        assert_eq!(map.detofu(input), "這隻小狗有氂毛");
     }
 }
