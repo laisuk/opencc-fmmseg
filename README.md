@@ -608,6 +608,14 @@ Options:
 
 ```bash
 ./opencc-rs convert -c s2t -i text_simplified.txt -o text_traditional.txt
+"俨骖𬴂于上路" | ./opencc-rs convert -c t2s --detofu all
+"𣭲毛" | ./opencc-rs convert -c t2s --detofu ext-b --detofu-file custom_tofu.txt
+```
+
+Example `custom_tofu.txt`:
+
+```text
+𣭲	氄	B
 ```
 
 #### Office Documents or EPUB
