@@ -107,7 +107,7 @@ fn tofu_entries() -> &'static [(char, char, DetofuLevel)] {
 /// table once and reuse it across many strings, or layer application-specific
 /// fallbacks on top of the built-in map.
 ///
-/// Detofu is independent from OpenCC conversion dictionaries. It does not
+/// Detofu is independent of OpenCC conversion dictionaries. It does not
 /// participate in Simplified/Traditional phrase matching, regional variant
 /// selection, punctuation conversion, or any other OpenCC conversion logic.
 /// It is best treated as a display compatibility pass that can run after
@@ -140,7 +140,7 @@ impl DetofuMap {
     /// [`DetofuLevel::ExtB`] loads all supported non-BMP mappings, while
     /// [`DetofuLevel::ExtE`] loads only ExtE and later supported mappings.
     ///
-    /// The built-in detofu map is independent from the OpenCC conversion
+    /// The built-in detofu map is independent of the OpenCC conversion
     /// dictionaries bundled with this crate.
     pub fn builtin(level: DetofuLevel) -> Self {
         let map = tofu_entries()
@@ -224,7 +224,7 @@ impl DetofuMap {
 /// coverage where rare CJK extension characters may render as tofu boxes on
 /// some systems, fonts, browsers, or e-book readers.
 ///
-/// Detofu is independent from OpenCC conversion dictionaries and does not
+/// Detofu is independent of OpenCC conversion dictionaries and does not
 /// modify OpenCC conversion logic. In a typical workflow, run OpenCC
 /// conversion first and then apply detofu to the converted text.
 ///
