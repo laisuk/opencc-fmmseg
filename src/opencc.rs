@@ -750,31 +750,6 @@ impl OpenCC {
             })
     }
 
-    /// Applies a three-round conversion pipeline with shared orchestration.
-    ///
-    /// This is the internal bridge for the multi-stage configurations that need
-    /// three sequential dictionary passes, such as S2T followed by phrase and
-    /// variant normalization.
-    #[inline]
-    fn apply_dicts_3(
-        &self,
-        input: &str,
-        round_1: &[&DictMaxLen],
-        u1: Arc<StarterUnion>,
-        round_2: &[&DictMaxLen],
-        u2: Arc<StarterUnion>,
-        round_3: &[&DictMaxLen],
-        u3: Arc<StarterUnion>,
-    ) -> String {
-        Self::clear_last_error();
-        DictRefs::new(round_1, u1)
-            .with_round_2(round_2, u2)
-            .with_round_3(round_3, u3)
-            .apply_segment_replace(input, |input, refs, max_len, union| {
-                self.segment_replace_with_union(input, refs, max_len, union)
-            })
-    }
-
     /// Applies a shared S2T-style first round with optional punctuation maps.
     ///
     /// This helper selects either the 2-dictionary (`st_phrases`,
@@ -1007,30 +982,31 @@ impl OpenCC {
         )
     }
 
-    /// Converts Simplified Chinese text to Taiwanese Traditional with idioms (S → T → Tw-phrases → Tw).
+    /// Converts Simplified Chinese text to Taiwanese Traditional with idioms (S → Tw).
     ///
-    /// This method performs a **three-round** dictionary-based conversion:
+    /// This method performs a **two-round** dictionary-based conversion:
     ///
     /// 1. **Round 1 (S2T core)**
+    ///    Converts Simplified Chinese to Traditional Chinese.
+    ///
     ///    Applies Simplified-to-Traditional mappings using:
     ///    - Phrase-level mappings (`st_phrases`)
     ///    - Character-level mappings (`st_characters`)
     ///    - Optionally punctuation-level mappings (`st_punctuations`) when
     ///      `punctuation` is `true`
     ///
-    /// 2. **Round 2 (Taiwan-specific idioms and phrases)**
-    ///    Adjusts the Traditional text into Taiwanese-style idioms and wordings
-    ///    using:
-    ///    - Taiwanese phrase mappings (`tw_phrases`)
+    /// 2. **Round 2 (Taiwan phrase/variant normalization)**
+    ///    Normalizes Traditional Chinese into Taiwan phrases and variants.
     ///
-    /// 3. **Round 3 (Taiwanese variant characters)**
-    ///    Refines characters into Taiwanese variant forms using:
+    ///    Adjusts the Traditional output into Taiwanese-style idioms, phrases,
+    ///    and variants using:
+    ///    - Taiwanese phrase mappings (`tw_phrases`)
+    ///    - Taiwanese variant phrase mappings (`tw_variants_phrases`)
     ///    - Taiwanese variant mappings (`tw_variants`)
     ///
-    /// All three rounds share precomputed starter metadata obtained via
-    /// `union_for` (`UnionKey::S2T`, `UnionKey::TwPhrasesOnly`,
-    /// `UnionKey::TwVariantsPair`) and run over segmented input with
-    /// longest-match replacement for high throughput.
+    /// Both rounds share precomputed starter metadata obtained via
+    /// `union_for` (`UnionKey::S2T` and `UnionKey::S2TwpR2TwTriple`) and run
+    /// over segmented input with longest-match replacement for high throughput.
     ///
     /// # Arguments
     ///
@@ -1046,26 +1022,14 @@ impl OpenCC {
             .dictionary
             .union_for(UnionKey::S2T { punct: punctuation });
 
-        let round_2 = [&self.dictionary.tw_phrases];
-        let u2 = self.dictionary.union_for(UnionKey::TwPhrasesOnly);
-
-        let round_3 = [
+        let round_2 = [
+            &self.dictionary.tw_phrases,
             &self.dictionary.tw_variants_phrases,
             &self.dictionary.tw_variants,
         ];
-        let u3 = self.dictionary.union_for(UnionKey::TwVariantsPair);
+        let u2 = self.dictionary.union_for(UnionKey::S2TwpR2TwTriple);
 
-        if punctuation {
-            let round_1 = [
-                &self.dictionary.st_phrases,
-                &self.dictionary.st_characters,
-                &self.dictionary.st_punctuations,
-            ];
-            self.apply_dicts_3(input, &round_1, u1, &round_2, u2, &round_3, u3)
-        } else {
-            let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
-            self.apply_dicts_3(input, &round_1, u1, &round_2, u2, &round_3, u3)
-        }
+        self.apply_st_round_2(input, punctuation, u1, &round_2, u2)
     }
 
     /// Converts Taiwanese Traditional text with idioms to Simplified Chinese (Tw-phrases → T → S).

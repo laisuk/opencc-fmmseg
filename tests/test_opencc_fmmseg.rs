@@ -70,6 +70,15 @@ mod tests {
     }
 
     #[test]
+    fn s2twp_combined_taiwan_round_test() {
+        let input = "鼠标里面";
+        let expected_output = "滑鼠裡面";
+        let opencc = OpenCC::new();
+        let actual_output = opencc.s2twp(input, false);
+        assert_eq!(actual_output, expected_output);
+    }
+
+    #[test]
     fn t2s_test() {
         let input = "你好，世界！龍馬精神！";
         let expected_output = "你好，世界！龙马精神！";

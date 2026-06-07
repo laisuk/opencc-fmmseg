@@ -6,6 +6,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.10.3] - Unreleased
+
+### Changed
+
+- Refactored `s2twp` to match the upstream OpenCC config restructure:
+  the Taiwan phrase mappings and Taiwan variant mappings now run together in
+  the second conversion round after the Simplified-to-Traditional round. This
+  preserves OpenCC-compatible output while removing one full conversion pass.
+
+---
+
 ## [0.10.2] - 2026-06-06
 
 ### Added

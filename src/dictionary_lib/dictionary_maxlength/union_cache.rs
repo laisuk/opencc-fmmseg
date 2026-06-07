@@ -40,6 +40,10 @@ pub(super) struct Unions {
     /// Union built from Taiwanese regional variant phrase and character dictionaries.
     tw_variants_pair: OnceLock<Arc<StarterUnion>>,
 
+    /// Union used in the second round of `s2twp`, combining:
+    /// phrases + variant phrases + variants.
+    s2twp_r2_tw_triple: OnceLock<Arc<StarterUnion>>,
+
     /// Union built from reverse Taiwanese phrase dictionaries only.
     tw_phrases_rev_only: OnceLock<Arc<StarterUnion>>,
 
@@ -120,7 +124,6 @@ pub(crate) enum UnionKey {
     /// - `tw_phrases`
     ///
     /// Used in:
-    /// - `s2twp` (round 2)
     /// - `t2twp` (round 1)
     TwPhrasesOnly,
 
@@ -132,10 +135,20 @@ pub(crate) enum UnionKey {
     ///
     /// Used in:
     /// - `s2tw` (round 2)
-    /// - `s2twp` (round 3)
     /// - `t2tw`
     /// - `t2twp` (round 2)
     TwVariantsPair,
+
+    /// Triple Taiwanese union for `s2twp` round 2:
+    ///
+    /// Includes:
+    /// - `tw_phrases`
+    /// - `tw_variants_phrases`
+    /// - `tw_variants`
+    ///
+    /// Used exclusively in:
+    /// - `s2twp` (round 2)
+    S2TwpR2TwTriple,
 
     /// Union containing only reverse Taiwanese phrase dictionaries.
     ///
@@ -293,6 +306,17 @@ impl DictionaryMaxlength {
                 .tw_variants_pair
                 .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
+                        &self.tw_variants_phrases,
+                        &self.tw_variants,
+                    ]))
+                })
+                .clone(),
+            UnionKey::S2TwpR2TwTriple => self
+                .unions
+                .s2twp_r2_tw_triple
+                .get_or_init(|| {
+                    Arc::new(StarterUnion::build(&[
+                        &self.tw_phrases,
                         &self.tw_variants_phrases,
                         &self.tw_variants,
                     ]))
