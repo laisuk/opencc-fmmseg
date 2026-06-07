@@ -5,6 +5,7 @@
 //! systems, fonts, browsers, or e-book readers.
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::OnceLock;
 
 static TOFU_DATA: &[u8] = include_bytes!("data/TSCharactersTofu.txt");
@@ -59,15 +60,15 @@ impl DetofuLevel {
     }
 
     fn from_ext(ext: &str) -> Option<Self> {
-        match ext {
-            "ExtB" => Some(Self::ExtB),
-            "ExtC" => Some(Self::ExtC),
-            "ExtD" => Some(Self::ExtD),
-            "ExtE" => Some(Self::ExtE),
-            "ExtF" => Some(Self::ExtF),
-            "ExtG" => Some(Self::ExtG),
-            "ExtH" => Some(Self::ExtH),
-            "ExtI" => Some(Self::ExtI),
+        match ext.trim() {
+            "ExtB" | "B" | "b" => Some(Self::ExtB),
+            "ExtC" | "C" | "c" => Some(Self::ExtC),
+            "ExtD" | "D" | "d" => Some(Self::ExtD),
+            "ExtE" | "E" | "e" => Some(Self::ExtE),
+            "ExtF" | "F" | "f" => Some(Self::ExtF),
+            "ExtG" | "G" | "g" => Some(Self::ExtG),
+            "ExtH" | "H" | "h" => Some(Self::ExtH),
+            "ExtI" | "I" | "i" => Some(Self::ExtI),
             _ => None,
         }
     }
@@ -75,24 +76,28 @@ impl DetofuLevel {
 
 static TOFU_ENTRIES: OnceLock<Vec<(char, char, DetofuLevel)>> = OnceLock::new();
 
+fn parse_tofu_entries(text: &str) -> Vec<(char, char, DetofuLevel)> {
+    text.lines()
+        .filter(|line| {
+            let line = line.trim();
+            !line.is_empty() && !line.starts_with('#')
+        })
+        .filter_map(|line| {
+            let mut parts = line.split('\t');
+            let tofu = parts.next()?.trim().chars().next()?;
+            let fallback = parts.next()?.trim().chars().next()?;
+            let ext = DetofuLevel::from_ext(parts.next()?)?;
+            Some((tofu, fallback, ext))
+        })
+        .collect()
+}
+
 fn tofu_entries() -> &'static [(char, char, DetofuLevel)] {
     TOFU_ENTRIES.get_or_init(|| {
         let text =
             std::str::from_utf8(TOFU_DATA).expect("TSCharactersTofu.txt must be valid UTF-8");
 
-        text.lines()
-            .filter(|line| {
-                let line = line.trim();
-                !line.is_empty() && !line.starts_with('#')
-            })
-            .filter_map(|line| {
-                let mut parts = line.split('\t');
-                let tofu = parts.next()?.chars().next()?;
-                let fallback = parts.next()?.chars().next()?;
-                let ext = DetofuLevel::from_ext(parts.next()?)?;
-                Some((tofu, fallback, ext))
-            })
-            .collect()
+        parse_tofu_entries(text)
     })
 }
 
@@ -124,6 +129,7 @@ fn tofu_entries() -> &'static [(char, char, DetofuLevel)] {
 /// ```
 #[derive(Debug, Clone)]
 pub struct DetofuMap {
+    level: DetofuLevel,
     map: HashMap<char, char>,
 }
 
@@ -143,7 +149,30 @@ impl DetofuMap {
             .map(|(tofu, fallback, _)| (*tofu, *fallback))
             .collect();
 
-        Self { map }
+        Self { level, map }
+    }
+
+    /// Adds or overrides compatibility fallback entries from a tofu mapping file.
+    ///
+    /// The file uses the same tab-separated format as the built-in generated
+    /// data: `tofu_char<TAB>fallback_char<TAB>extension`. The extension field
+    /// may use either the compact form (`B`, `C`, `D`, ...) or the older full
+    /// form (`ExtB`, `ExtC`, `ExtD`, ...). Blank lines and `#` comments are
+    /// ignored.
+    ///
+    /// File entries are applied post-load. If a file entry already exists in
+    /// the built-in detofu map, the file fallback wins. Entries below this
+    /// map's threshold level are ignored, matching [`DetofuMap::builtin`].
+    pub fn with_custom_file<P: AsRef<Path>>(mut self, path: P) -> std::io::Result<Self> {
+        let text = std::fs::read_to_string(path)?;
+
+        for (tofu, fallback, ext) in parse_tofu_entries(&text) {
+            if ext >= self.level {
+                self.map.insert(tofu, fallback);
+            }
+        }
+
+        Ok(self)
     }
 
     /// Adds or overrides compatibility fallback pairs after loading the map.

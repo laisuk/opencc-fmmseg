@@ -22,7 +22,9 @@
 use crate::delimiter_set::is_delimiter;
 use crate::dictionary_lib::dictionary_maxlength::UnionKey;
 use crate::dictionary_lib::{DictMaxLen, DictionaryMaxlength, StarterUnion};
-use crate::{detofu, find_max_utf8_length, for_each_len_dec, DetofuLevel, DictRefs, OpenccConfig};
+use crate::{
+    detofu, find_max_utf8_length, for_each_len_dec, DetofuLevel, DetofuMap, DictRefs, OpenccConfig,
+};
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
@@ -1629,13 +1631,24 @@ impl OpenCC {
     ///
     /// This is a convenience wrapper around [`detofu::detofu`]. It is intended
     /// for environments with incomplete rare-character font coverage, such as
-    /// some systems, browsers, e-book readers, or document viewers where
-    /// non-BMP CJK extension characters may render as tofu boxes.
+    /// some systems, browsers, e-book readers, document viewers, or mobile
+    /// platforms where non-BMP CJK extension characters may render as tofu boxes
+    /// (□) or missing-glyph placeholders.
     ///
-    /// Detofu is a display compatibility pass. It does not change OpenCC
-    /// conversion dictionaries, phrase matching, regional variant selection, or
-    /// punctuation conversion. For converted text, apply detofu after
-    /// [`OpenCC::convert`] or [`OpenCC::convert_with_config`].
+    /// Detofu is a display compatibility pass. It does not modify OpenCC
+    /// conversion dictionaries, phrase matching, regional variant selection,
+    /// script detection, or punctuation conversion.
+    ///
+    /// For converted text, apply detofu after [`OpenCC::convert`] or
+    /// [`OpenCC::convert_with_config`].
+    ///
+    /// The `level` parameter controls which CJK Extension blocks are replaced:
+    ///
+    /// - `ExtB` → ExtB and above
+    /// - `ExtC` → ExtC and above
+    /// - `ExtD` → ExtD and above
+    /// - ...
+    /// - `ExtI` → ExtI only
     ///
     /// # Examples
     ///
@@ -1645,7 +1658,12 @@ impl OpenCC {
     /// use opencc_fmmseg::OpenCC;
     ///
     /// let cc = OpenCC::new();
-    /// let converted = cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false);
+    ///
+    /// let converted = cc.convert(
+    ///     "儼驂騑於上路，訪風景於崇阿",
+    ///     "t2s",
+    ///     false,
+    /// );
     ///
     /// assert_eq!(converted, "俨骖𬴂于上路，访风景于崇阿");
     /// ```
@@ -1665,7 +1683,7 @@ impl OpenCC {
     /// Combine OpenCC conversion and detofu for tofu-safe display output:
     ///
     /// ```rust
-    /// use opencc_fmmseg::{OpenCC, DetofuLevel};
+    /// use opencc_fmmseg::{DetofuLevel, OpenCC};
     ///
     /// let cc = OpenCC::new();
     ///
@@ -1681,6 +1699,56 @@ impl OpenCC {
     /// ```
     pub fn detofu(&self, text: &str, level: DetofuLevel) -> String {
         detofu::detofu(text, level)
+    }
+
+    /// Converts non-BMP CJK extension characters using the built-in detofu
+    /// mappings plus a user-supplied fallback file.
+    ///
+    /// Custom mappings are merged with the built-in table. If the same tofu-risk
+    /// character exists in both sources, the custom file takes precedence.
+    ///
+    /// The file format is UTF-8 text with one mapping per line:
+    ///
+    /// ```text
+    /// 𣭲    氄    B
+    /// ```
+    ///
+    /// Format:
+    ///
+    /// ```text
+    /// tofu_char<TAB>fallback_char<TAB>extension
+    /// ```
+    ///
+    /// The extension column accepts either the compact form (`B`–`I`) or the
+    /// legacy form (`ExtB`–`ExtI`).
+    ///
+    /// Lines beginning with `#` and blank lines are ignored.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use opencc_fmmseg::{DetofuLevel, OpenCC};
+    ///
+    /// let cc = OpenCC::new();
+    ///
+    /// let safe = cc.detofu_with_custom_file(
+    ///     "𣭲毛",
+    ///     DetofuLevel::ExtB,
+    ///     "custom_tofu.txt",
+    /// )?;
+    ///
+    /// assert_eq!(safe, "氄毛");
+    ///
+    /// # Ok::<(), std::io::Error>(())
+    /// ```
+    pub fn detofu_with_custom_file<P: AsRef<Path>>(
+        &self,
+        input: &str,
+        level: DetofuLevel,
+        path: P,
+    ) -> std::io::Result<String> {
+        let map = DetofuMap::builtin(level).with_custom_file(path)?;
+        Ok(map.detofu(input))
     }
 
     /// Converts a subset of Chinese quotation punctuation between Simplified
@@ -1967,6 +2035,17 @@ mod tests {
     }
 
     #[test]
+    fn test_opencc_t2s_detofu_preserves_unmapped_character() {
+        let cc = OpenCC::new();
+
+        let converted = cc.convert("儼驂騑於上路，訪風景於崇阿，𱁬", "t2s", false);
+
+        let output = cc.detofu(&converted, DetofuLevel::ExtB);
+
+        assert_eq!(output, "俨骖騑于上路，访风景于崇阿，𱁬");
+    }
+
+    #[test]
     fn test_detofu_custom_pairs_override_builtin_mapping() {
         let input = "這隻小狗有𣭲毛";
 
@@ -1978,5 +2057,30 @@ mod tests {
         let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𣭲', '氂')]);
 
         assert_eq!(map.detofu(input), "這隻小狗有氂毛");
+    }
+
+    #[test]
+    fn detofu_with_custom_file_loads_user_mapping() {
+        use std::fs;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let mut path = std::env::temp_dir();
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+
+        path.push(format!("opencc_fmmseg_custom_tofu_{unique}.txt"));
+
+        fs::write(&path, "𣭲\t氄\tB\n").unwrap();
+
+        let cc = OpenCC::new();
+        let result = cc
+            .detofu_with_custom_file("𣭲毛", DetofuLevel::ExtB, &path)
+            .unwrap();
+
+        fs::remove_file(&path).ok();
+
+        assert_eq!(result, "氄毛");
     }
 }

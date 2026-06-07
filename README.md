@@ -334,14 +334,14 @@ Last Error after clear: <none>
 ## Detofu: tofu-safe fallback for rare CJK characters
 
 `detofu` is an optional display-compatibility pass for converted text that contains rare non-BMP CJK extension
-characters. It is useful when those characters may render as tofu boxes on some systems, browsers, fonts, or e-book
-readers.
+characters. It is useful when those characters may render as tofu boxes on some systems, browsers, fonts, document
+viewers, mobile devices, or e-book readers.
 
-Detofu does not change OpenCC conversion dictionaries or conversion behavior. It should normally be applied after
-`convert()`:
+Detofu does not change OpenCC conversion dictionaries, phrase matching, regional variant selection, script detection,
+or punctuation conversion. It should normally be applied after `convert()`:
 
 ```rust
-use opencc_fmmseg::{OpenCC, DetofuLevel};
+use opencc_fmmseg::{DetofuLevel, OpenCC};
 
 fn main() {
     let cc = OpenCC::new();
@@ -358,23 +358,32 @@ fn main() {
 }
 ```
 
-Public APIs:
+### Public APIs
 
-- `DetofuLevel` selects the threshold for fallback replacement.
-- `OpenCC::detofu(&self, text: &str, level: DetofuLevel) -> String` applies detofu through an `OpenCC` instance.
-- `detofu(text: &str, level: DetofuLevel) -> String` applies detofu as a direct utility function.
-- `DetofuMap::builtin(level)` builds a reusable map from the built-in fallback data.
-- `DetofuMap::with_custom_pairs(...)` adds post-load custom pairs.
-- `DetofuMap::detofu(...)` applies a reusable map to text.
+* `DetofuLevel` selects the fallback threshold.
+* `OpenCC::detofu(&self, text: &str, level: DetofuLevel) -> String` applies detofu through an `OpenCC` instance.
+* `OpenCC::detofu_with_custom_file(...)` applies detofu using the built-in fallback table plus a user-supplied fallback
+  file.
+* `detofu(text: &str, level: DetofuLevel) -> String` applies detofu as a direct utility function.
+* `DetofuMap::builtin(level)` builds a reusable map from the built-in fallback data.
+* `DetofuMap::with_custom_pairs(...)` adds post-load custom fallback pairs.
+* `DetofuMap::with_custom_file(...)` loads additional fallback mappings from a UTF-8 text file.
+* `DetofuMap::detofu(...)` applies a reusable map to text.
+
+### Threshold Behavior
 
 Threshold behavior is inclusive of later supported extensions:
 
-- `DetofuLevel::ExtB` means ExtB+ and is equivalent to `all`.
-- `DetofuLevel::ExtC` means ExtC+.
-- `DetofuLevel::ExtD` means ExtD+.
-- `DetofuLevel::ExtE` means ExtE+.
+* `DetofuLevel::ExtB` means ExtB and above.
+* `DetofuLevel::ExtC` means ExtC and above.
+* `DetofuLevel::ExtD` means ExtD and above.
+* `DetofuLevel::ExtE` means ExtE and above.
+* `DetofuLevel::ExtF` means ExtF and above.
+* `DetofuLevel::ExtG` means ExtG and above.
+* `DetofuLevel::ExtH` means ExtH and above.
+* `DetofuLevel::ExtI` means ExtI only.
 
-Direct utility usage:
+### Direct Utility Usage
 
 ```rust
 use opencc_fmmseg::{detofu, DetofuLevel};
@@ -386,7 +395,7 @@ fn main() {
 }
 ```
 
-Advanced custom pairs:
+### Advanced Custom Pairs
 
 ```rust
 use opencc_fmmseg::{DetofuLevel, DetofuMap};
@@ -403,9 +412,57 @@ fn main() {
 }
 ```
 
-The built-in `detofu` map already contains many fallback mappings.
-Custom pairs are applied after loading the built-in map and override
-existing mappings when the same key is provided.
+### Advanced Custom Fallback Files
+
+```rust,no_run
+use opencc_fmmseg::{DetofuLevel, OpenCC};
+
+fn main() -> std::io::Result<()> {
+    let cc = OpenCC::new();
+
+    let safe = cc.detofu_with_custom_file(
+        "𣭲毛",
+        DetofuLevel::ExtB,
+        "custom_tofu.txt",
+    )?;
+
+    assert_eq!(safe, "氄毛");
+
+    Ok(())
+}
+```
+
+Example file:
+
+```text
+# tofu_char<TAB>fallback_char<TAB>extension
+
+𣭲	氄	B
+```
+
+The extension column accepts either:
+
+```text
+B
+C
+D
+...
+```
+
+or the legacy form:
+
+```text
+ExtB
+ExtC
+ExtD
+...
+```
+
+> The built-in detofu table already contains many fallback mappings. Custom pairs and custom files are applied after
+> loading the built-in table and override existing mappings when the same tofu-risk character is provided.
+>
+> Characters are only replaced when a matching built-in or custom fallback mapping exists. Unmapped characters are
+> preserved unchanged, even when they belong to an enabled CJK extension block.
 
 ---
 

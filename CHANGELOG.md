@@ -10,17 +10,27 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Added public detofu display-compatibility fallback APIs for rare non-BMP CJK extension characters:
-  `DetofuLevel`, `DetofuMap`, `detofu()`, and `OpenCC::detofu()`.
-- Added docs and README examples for threshold-based detofu levels, direct utility usage, reusable maps, and post-load
-  custom fallback pairs.
+* Added public detofu display-compatibility fallback APIs for rare non-BMP CJK extension characters:
+  `DetofuLevel`, `DetofuMap`, `detofu()`, `OpenCC::detofu()`, and
+  `OpenCC::detofu_with_custom_file()`.
+* Added support for loading user-supplied detofu fallback files. Custom mappings
+  are merged with the built-in fallback table, and custom entries take
+  precedence when duplicate tofu-risk characters exist.
+* Added docs and README examples for threshold-based detofu levels, direct
+  utility usage, reusable maps, custom fallback files, and post-load custom
+  fallback pairs.
 
 ### Changed
 
-- Refactored `s2twp` to match the upstream OpenCC config restructure:
+* Refactored `s2twp` to match the upstream OpenCC config restructure:
   the Taiwan phrase mappings and Taiwan variant mappings now run together in
   the second conversion round after the Simplified-to-Traditional round. This
   preserves OpenCC-compatible output while removing one full conversion pass.
+* Reduced the size of the built-in detofu fallback table by switching extension
+  identifiers from `ExtB`–`ExtI` to the compact form `B`–`I` while maintaining
+  backward-compatible parsing support for both formats.
+* Improved detofu parser compatibility to accept both compact (`B`–`I`) and
+  legacy (`ExtB`–`ExtI`) extension identifiers in custom fallback files.
 
 ---
 
