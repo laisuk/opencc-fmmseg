@@ -1034,6 +1034,30 @@ impl OpenCC {
         self.apply_st_round_2(input, punctuation, u1, &round_2, u2)
     }
 
+    /// Converts Simplified Chinese text to Hong Kong Traditional with phrases (S → T → HKP).
+    ///
+    /// This mirrors [`OpenCC::s2twp`] with Hong Kong phrase and variant dictionaries:
+    ///
+    /// 1. **Round 1 (S2T core)** applies Simplified-to-Traditional mappings.
+    /// 2. **Round 2 (Hong Kong phrases + variants)** applies:
+    ///    - Hong Kong phrase mappings (`hk_phrases`)
+    ///    - Hong Kong variant phrase mappings (`hk_variants_phrases`)
+    ///    - Hong Kong variant mappings (`hk_variants`)
+    pub fn s2hkp(&self, input: &str, punctuation: bool) -> String {
+        let u1 = self
+            .dictionary
+            .union_for(UnionKey::S2T { punct: punctuation });
+
+        let round_2 = [
+            &self.dictionary.hk_phrases,
+            &self.dictionary.hk_variants_phrases,
+            &self.dictionary.hk_variants,
+        ];
+        let u2 = self.dictionary.union_for(UnionKey::S2HkpR2HkTriple);
+
+        self.apply_st_round_2(input, punctuation, u1, &round_2, u2)
+    }
+
     /// Converts Taiwanese Traditional text with idioms to Simplified Chinese (Tw-phrases → T → S).
     ///
     /// This method reverses the `s2twp` pipeline using a **two-round** conversion:
@@ -1074,6 +1098,30 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::Tw2SpR1TwRevTriple);
+        let u2 = self
+            .dictionary
+            .union_for(UnionKey::T2S { punct: punctuation });
+
+        self.apply_ts_round_2(input, punctuation, &round_1, u1, u2)
+    }
+
+    /// Converts Hong Kong Traditional text with phrases to Simplified Chinese (HKP → T → S).
+    ///
+    /// This mirrors [`OpenCC::tw2sp`] with Hong Kong reverse phrase and variant
+    /// dictionaries:
+    ///
+    /// 1. **Round 1 (Hong Kong phrase + variant reverse)** applies:
+    ///    - Hong Kong reverse phrase mappings (`hk_phrases_rev`)
+    ///    - Hong Kong reverse variant phrase mappings (`hk_variants_rev_phrases`)
+    ///    - Hong Kong reverse variant mappings (`hk_variants_rev`)
+    /// 2. **Round 2 (T2S core)** applies Traditional-to-Simplified mappings.
+    pub fn hk2sp(&self, input: &str, punctuation: bool) -> String {
+        let round_1 = [
+            &self.dictionary.hk_phrases_rev,
+            &self.dictionary.hk_variants_rev_phrases,
+            &self.dictionary.hk_variants_rev,
+        ];
+        let u1 = self.dictionary.union_for(UnionKey::Hk2SpR1HkRevTriple);
         let u2 = self
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
@@ -1482,6 +1530,7 @@ impl OpenCC {
             OpenccConfig::S2tw => self.s2tw(input, punctuation),
             OpenccConfig::S2twp => self.s2twp(input, punctuation),
             OpenccConfig::S2hk => self.s2hk(input, punctuation),
+            OpenccConfig::S2hkp => self.s2hkp(input, punctuation),
             OpenccConfig::T2s => self.t2s(input, punctuation),
             OpenccConfig::T2tw => self.t2tw(input),
             OpenccConfig::T2twp => self.t2twp(input),
@@ -1491,6 +1540,7 @@ impl OpenCC {
             OpenccConfig::Tw2t => self.tw2t(input),
             OpenccConfig::Tw2tp => self.tw2tp(input),
             OpenccConfig::Hk2s => self.hk2s(input, punctuation),
+            OpenccConfig::Hk2sp => self.hk2sp(input, punctuation),
             OpenccConfig::Hk2t => self.hk2t(input),
             OpenccConfig::Jp2t => self.jp2t(input),
             OpenccConfig::T2jp => self.t2jp(input),

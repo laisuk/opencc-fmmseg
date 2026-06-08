@@ -16,6 +16,7 @@
 /// - [`DictSlot::TSPhrases`] affects Traditional → Simplified phrase conversion.
 /// - [`DictSlot::TWVariants`] affects Taiwan regional variants.
 /// - [`DictSlot::TWVariantsPhrases`] affects Taiwan regional phrase variants.
+/// - [`DictSlot::HKPhrases`] affects Hong Kong regional phrase conversion.
 /// - [`DictSlot::HKVariants`] affects Hong Kong regional variants.
 /// - [`DictSlot::HKVariantsPhrases`] affects Hong Kong regional phrase variants.
 ///
@@ -43,6 +44,12 @@ pub enum DictSlot {
 
     /// Taiwan → Traditional reverse phrase mappings.
     TWPhrasesRev,
+
+    /// Traditional → Hong Kong phrase mappings.
+    HKPhrases,
+
+    /// Hong Kong → Traditional reverse phrase mappings.
+    HKPhrasesRev,
 
     /// Traditional → Taiwan regional variant mappings.
     TWVariants,
@@ -108,6 +115,8 @@ pub enum DictSlot {
 /// - `TSPunctuations`
 /// - `TWPhrases`
 /// - `TWPhrasesRev`
+/// - `HKPhrases`
+/// - `HKPhrasesRev`
 /// - `TWVariants`
 /// - `TWVariantsPhrases`
 /// - `TWVariantsRev`
@@ -154,6 +163,8 @@ impl TryFrom<&str> for DictSlot {
 
             "TWPhrases" => Ok(Self::TWPhrases),
             "TWPhrasesRev" => Ok(Self::TWPhrasesRev),
+            "HKPhrases" => Ok(Self::HKPhrases),
+            "HKPhrasesRev" => Ok(Self::HKPhrasesRev),
             "TWVariants" => Ok(Self::TWVariants),
             "TWVariantsPhrases" => Ok(Self::TWVariantsPhrases),
             "TWVariantsRev" => Ok(Self::TWVariantsRev),

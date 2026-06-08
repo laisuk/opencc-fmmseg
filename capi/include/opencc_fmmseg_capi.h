@@ -76,7 +76,12 @@ enum {
     /** Japanese Kanji variants → Traditional Chinese */
     OPENCC_CONFIG_JP2T = 15,
     /** Traditional Chinese → Japanese Kanji variants */
-    OPENCC_CONFIG_T2JP = 16
+    OPENCC_CONFIG_T2JP = 16,
+
+    /** Simplified → Traditional (Hong Kong, with phrases) */
+    OPENCC_CONFIG_S2HKP = 17,
+    /** Hong Kong Traditional → Simplified (with phrases) */
+    OPENCC_CONFIG_HK2SP = 18
 };
 
 // ============================================================================
@@ -499,7 +504,7 @@ void opencc_error_free(char* ptr);
  * Converts a canonical OpenCC configuration name to its numeric ID.
  *
  * This function maps a UTF-8 configuration name such as `"s2t"`, `"s2tw"`,
- * or `"s2twp"` to the corresponding numeric `opencc_config_t` value.
+ * `"s2twp"`, or `"s2hkp"` to the corresponding numeric `opencc_config_t` value.
  *
  * The comparison is case-insensitive and accepts only canonical OpenCC
  * identifiers. No memory allocation is performed.

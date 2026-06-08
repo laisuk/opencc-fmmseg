@@ -120,7 +120,7 @@ def main():
     parser_convert.add_argument('-o', '--output', metavar='<file>',
                                 help='Write converted text to <file>.')
     parser_convert.add_argument('-c', '--config', metavar='<conversion>',
-                                help='Conversion configuration: [s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp]')
+                                help='Conversion configuration: [s2t|s2tw|s2twp|s2hk|s2hkp|t2s|tw2s|tw2sp|hk2s|hk2sp|jp2t|t2jp]')
     parser_convert.add_argument('-p', '--punct', action='store_true', default=False,
                                 help='Punctuation conversion')
     parser_convert.add_argument('--in-enc', metavar='<encoding>', default='UTF-8',
@@ -154,7 +154,7 @@ def main():
         metavar="<conversion>",
         help=(
             "conversion: "
-            "s2t|s2tw|s2twp|s2hk|t2s|tw2s|tw2sp|hk2s|jp2t|t2jp"
+            "s2t|s2tw|s2twp|s2hk|s2hkp|t2s|tw2s|tw2sp|hk2s|hk2sp|jp2t|t2jp"
         ),
     )
     parser_office.add_argument(

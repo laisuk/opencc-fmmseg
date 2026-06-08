@@ -4,7 +4,9 @@ use opencc_fmmseg::dictionary_lib;
 #[path = "../tools/dict-generate/src/json_io.rs"] // adjust relative path
 mod json_io;
 use json_io::DictionaryMaxlengthSerde;
-use opencc_fmmseg::OpenCC;
+use opencc_fmmseg::{
+    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
+};
 
 #[cfg(test)]
 mod tests {
@@ -76,6 +78,42 @@ mod tests {
         let opencc = OpenCC::new();
         let actual_output = opencc.s2twp(input, false);
         assert_eq!(actual_output, expected_output);
+    }
+
+    #[test]
+    fn s2hkp_custom_phrase_round_test() {
+        let dictionary = DictionaryMaxlength::from_dicts_custom(&[CustomDictSpec {
+            slot: DictSlot::HKPhrases,
+            pairs: vec![("小女孩".to_string(), "妹丁".to_string())],
+            mode: CustomDictMode::Append,
+        }])
+        .expect("dictionary should load with custom HKPhrases");
+        let opencc = OpenCC::from_dictionary(dictionary);
+
+        assert_eq!(opencc.s2hkp("小女孩", false), "妹丁");
+        assert_eq!(
+            opencc.convert_with_config("小女孩", OpenccConfig::S2hkp, false),
+            "妹丁"
+        );
+        assert_eq!(opencc.convert("小女孩", "s2hkp", false), "妹丁");
+    }
+
+    #[test]
+    fn hk2sp_custom_phrase_round_test() {
+        let dictionary = DictionaryMaxlength::from_dicts_custom(&[CustomDictSpec {
+            slot: DictSlot::HKPhrasesRev,
+            pairs: vec![("妹丁".to_string(), "小女孩".to_string())],
+            mode: CustomDictMode::Append,
+        }])
+        .expect("dictionary should load with custom HKPhrasesRev");
+        let opencc = OpenCC::from_dictionary(dictionary);
+
+        assert_eq!(opencc.hk2sp("妹丁", false), "小女孩");
+        assert_eq!(
+            opencc.convert_with_config("妹丁", OpenccConfig::Hk2sp, false),
+            "小女孩"
+        );
+        assert_eq!(opencc.convert("妹丁", "hk2sp", false), "小女孩");
     }
 
     #[test]
@@ -189,7 +227,7 @@ mod tests {
         fs::write(filename, &cbor_data).expect("Failed to write CBOR file");
 
         // Check the expected file size (update this value after first run)
-        let expected_cbor_size = 1358997; // Replace with actual size after first run
+        let expected_cbor_size = 1431750; // Replace with actual size after first run
         let file_size = fs::metadata(filename).unwrap().len() as usize;
         assert_eq!(file_size, expected_cbor_size);
 

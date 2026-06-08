@@ -125,6 +125,10 @@ pub struct DictionaryMaxlengthSerde {
     pub tw_phrases: DictMaxLenSerde,
     pub tw_phrases_rev: DictMaxLenSerde,
     #[serde(default)]
+    pub hk_phrases: DictMaxLenSerde,
+    #[serde(default)]
+    pub hk_phrases_rev: DictMaxLenSerde,
+    #[serde(default)]
     pub tw_variants_phrases: DictMaxLenSerde,
     pub tw_variants: DictMaxLenSerde,
     pub tw_variants_rev: DictMaxLenSerde,
@@ -186,6 +190,8 @@ impl From<&DictionaryMaxlength> for DictionaryMaxlengthSerde {
             ts_phrases: (&src.ts_phrases).into(),
             tw_phrases: (&src.tw_phrases).into(),
             tw_phrases_rev: (&src.tw_phrases_rev).into(),
+            hk_phrases: (&src.hk_phrases).into(),
+            hk_phrases_rev: (&src.hk_phrases_rev).into(),
             tw_variants_phrases: (&src.tw_variants_phrases).into(),
             tw_variants: (&src.tw_variants).into(),
             tw_variants_rev: (&src.tw_variants_rev).into(),

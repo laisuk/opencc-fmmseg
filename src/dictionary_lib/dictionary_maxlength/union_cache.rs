@@ -44,6 +44,10 @@ pub(super) struct Unions {
     /// phrases + variant phrases + variants.
     s2twp_r2_tw_triple: OnceLock<Arc<StarterUnion>>,
 
+    /// Union used in the second round of `s2hkp`, combining:
+    /// phrases + variant phrases + variants.
+    s2hkp_r2_hk_triple: OnceLock<Arc<StarterUnion>>,
+
     /// Union built from reverse Taiwanese phrase dictionaries only.
     tw_phrases_rev_only: OnceLock<Arc<StarterUnion>>,
 
@@ -54,6 +58,10 @@ pub(super) struct Unions {
     /// Union used in the first round of `tw2sp`, combining:
     /// phrases_rev + rev_phrases + rev.
     tw2sp_r1_tw_rev_triple: OnceLock<Arc<StarterUnion>>,
+
+    /// Union used in the first round of `hk2sp`, combining:
+    /// phrases_rev + rev_phrases + rev.
+    hk2sp_r1_hk_rev_triple: OnceLock<Arc<StarterUnion>>,
 
     // HK helpers
     /// Union built from Hong Kong regional variant phrase and character dictionaries.
@@ -93,7 +101,8 @@ pub(crate) enum UnionKey {
     /// - `st_characters`
     /// - optionally `st_punctuations` if `punct = true`
     ///
-    /// Used by `OpenCC::s2t`, `OpenCC::s2tw`, `OpenCC::s2twp`, `OpenCC::s2hk`.
+    /// Used by `OpenCC::s2t`, `OpenCC::s2tw`, `OpenCC::s2twp`, `OpenCC::s2hk`,
+    /// `OpenCC::s2hkp`.
     S2T {
         /// Whether punctuation dictionaries should be included.
         punct: bool,
@@ -109,7 +118,8 @@ pub(crate) enum UnionKey {
     /// - `ts_characters`
     /// - optionally `ts_punctuations` if `punct = true`
     ///
-    /// Used by `OpenCC::t2s`, `OpenCC::tw2s`, `OpenCC::tw2sp`, `OpenCC::hk2s`.
+    /// Used by `OpenCC::t2s`, `OpenCC::tw2s`, `OpenCC::tw2sp`, `OpenCC::hk2s`,
+    /// `OpenCC::hk2sp`.
     T2S {
         /// Whether punctuation dictionaries should be included.
         punct: bool,
@@ -150,6 +160,17 @@ pub(crate) enum UnionKey {
     /// - `s2twp` (round 2)
     S2TwpR2TwTriple,
 
+    /// Triple Hong Kong union for `s2hkp` round 2:
+    ///
+    /// Includes:
+    /// - `hk_phrases`
+    /// - `hk_variants_phrases`
+    /// - `hk_variants`
+    ///
+    /// Used exclusively in:
+    /// - `s2hkp` (round 2)
+    S2HkpR2HkTriple,
+
     /// Union containing only reverse Taiwanese phrase dictionaries.
     ///
     /// Includes:
@@ -181,6 +202,17 @@ pub(crate) enum UnionKey {
     /// Used exclusively in:
     /// - `tw2sp` (round 1)
     Tw2SpR1TwRevTriple,
+
+    /// Triple-reverse Hong Kong union for `hk2sp` round 1:
+    ///
+    /// Includes:
+    /// - `hk_phrases_rev`
+    /// - `hk_variants_rev_phrases`
+    /// - `hk_variants_rev`
+    ///
+    /// Used exclusively in:
+    /// - `hk2sp` (round 1)
+    Hk2SpR1HkRevTriple,
 
     // ============================
     // Hong Kong Helpers
@@ -322,6 +354,17 @@ impl DictionaryMaxlength {
                     ]))
                 })
                 .clone(),
+            UnionKey::S2HkpR2HkTriple => self
+                .unions
+                .s2hkp_r2_hk_triple
+                .get_or_init(|| {
+                    Arc::new(StarterUnion::build(&[
+                        &self.hk_phrases,
+                        &self.hk_variants_phrases,
+                        &self.hk_variants,
+                    ]))
+                })
+                .clone(),
             UnionKey::TwPhrasesRevOnly => self
                 .unions
                 .tw_phrases_rev_only
@@ -345,6 +388,17 @@ impl DictionaryMaxlength {
                         &self.tw_phrases_rev,
                         &self.tw_variants_rev_phrases,
                         &self.tw_variants_rev,
+                    ]))
+                })
+                .clone(),
+            UnionKey::Hk2SpR1HkRevTriple => self
+                .unions
+                .hk2sp_r1_hk_rev_triple
+                .get_or_init(|| {
+                    Arc::new(StarterUnion::build(&[
+                        &self.hk_phrases_rev,
+                        &self.hk_variants_rev_phrases,
+                        &self.hk_variants_rev,
                     ]))
                 })
                 .clone(),

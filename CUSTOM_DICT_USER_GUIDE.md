@@ -81,6 +81,8 @@ that slot for phrase conversion.
 | `TSPhrases`            | Traditional -> Simplified phrases                | Multi-character phrase and terminology conversion for `t2s`, `tw2s`, `hk2s`, and related configs | `人工智慧 -> 人工智能`                                     |
 | `TWPhrases`            | Traditional -> Taiwan phrases                    | Taiwan phrase preferences layered onto Traditional output                                        | `滑鼠 -> 滑鼠`                                         |
 | `TWPhrasesRev`         | Taiwan -> Traditional reverse phrases            | Reverse phrase normalization from Taiwan-specific wording                                        | `-{Taiwan term}- -> -{Traditional term}-`          |
+| `HKPhrases`            | Traditional -> Hong Kong phrases                 | Hong Kong phrase preferences layered onto Traditional output                                     | `小女孩 -> 妹丁`                                        |
+| `HKPhrasesRev`         | Hong Kong -> Traditional reverse phrases         | Reverse phrase normalization from Hong Kong-specific wording                                     | `妹丁 -> 小女孩`                                        |
 | `TWVariants`           | Traditional -> Taiwan variants                   | Taiwan regional character variants                                                               | `-{Traditional variant}- -> -{Taiwan variant}-`    |
 | `TWVariantsPhrases`    | Traditional -> Taiwan phrase variants            | Taiwan regional phrase variants applied before character fallback                                | `-{Traditional phrase}- -> -{Taiwan phrase}-`      |
 | `TWVariantsRev`        | Taiwan -> Traditional reverse variants           | Reverse conversion from Taiwan variants                                                          | `-{Taiwan variant}- -> -{Traditional variant}-`    |
@@ -101,7 +103,8 @@ For most terminology customization:
 - Use `STPhrases` for Simplified-to-Traditional terms.
 - Use `TSPhrases` for Traditional-to-Simplified terms.
 - Use `TWVariantsPhrases`, `TWVariants`, or `TWPhrases` only when you specifically need Taiwan regional behavior.
-- Use `HKVariantsPhrases` or `HKVariants` only when you specifically need Hong Kong regional behavior.
+- Use `HKPhrases`, `HKPhrasesRev`, `HKVariantsPhrases`, or `HKVariants` only when you specifically need Hong Kong
+  regional behavior.
 - Use punctuation slots only for punctuation conversion behavior.
 
 If a custom entry appears to do nothing, first check that it was placed in the slot used by your conversion config.
@@ -750,6 +753,8 @@ my_opencc_dicts/
   TSPhrases.txt
   TWPhrases.txt
   TWPhrasesRev.txt
+  HKPhrases.txt        # optional; missing file loads as an empty slot
+  HKPhrasesRev.txt     # optional; missing file loads as an empty slot
   TWVariantsPhrases.txt
   TWVariants.txt
   TWVariantsRev.txt

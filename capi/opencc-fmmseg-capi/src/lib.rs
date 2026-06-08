@@ -680,6 +680,9 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
     if eq_ascii_ci(bytes, b"s2hk") {
         return Some(OpenccConfig::S2hk);
     }
+    if eq_ascii_ci(bytes, b"s2hkp") {
+        return Some(OpenccConfig::S2hkp);
+    }
     if eq_ascii_ci(bytes, b"t2s") {
         return Some(OpenccConfig::T2s);
     }
@@ -706,6 +709,9 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
     }
     if eq_ascii_ci(bytes, b"hk2s") {
         return Some(OpenccConfig::Hk2s);
+    }
+    if eq_ascii_ci(bytes, b"hk2sp") {
+        return Some(OpenccConfig::Hk2sp);
     }
     if eq_ascii_ci(bytes, b"hk2t") {
         return Some(OpenccConfig::Hk2t);
@@ -735,6 +741,7 @@ fn config_to_c_name(cfg: OpenccConfig) -> *const c_char {
         OpenccConfig::S2tw => b"s2tw\0".as_ptr() as *const c_char,
         OpenccConfig::S2twp => b"s2twp\0".as_ptr() as *const c_char,
         OpenccConfig::S2hk => b"s2hk\0".as_ptr() as *const c_char,
+        OpenccConfig::S2hkp => b"s2hkp\0".as_ptr() as *const c_char,
         OpenccConfig::T2s => b"t2s\0".as_ptr() as *const c_char,
         OpenccConfig::T2tw => b"t2tw\0".as_ptr() as *const c_char,
         OpenccConfig::T2twp => b"t2twp\0".as_ptr() as *const c_char,
@@ -744,6 +751,7 @@ fn config_to_c_name(cfg: OpenccConfig) -> *const c_char {
         OpenccConfig::Tw2t => b"tw2t\0".as_ptr() as *const c_char,
         OpenccConfig::Tw2tp => b"tw2tp\0".as_ptr() as *const c_char,
         OpenccConfig::Hk2s => b"hk2s\0".as_ptr() as *const c_char,
+        OpenccConfig::Hk2sp => b"hk2sp\0".as_ptr() as *const c_char,
         OpenccConfig::Hk2t => b"hk2t\0".as_ptr() as *const c_char,
         OpenccConfig::Jp2t => b"jp2t\0".as_ptr() as *const c_char,
         OpenccConfig::T2jp => b"t2jp\0".as_ptr() as *const c_char,

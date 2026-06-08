@@ -575,7 +575,7 @@ Usage: opencc-rs.exe convert [OPTIONS] --config <config>
 Options:
   -i, --input <file>        Input file (use stdin if omitted for non-office documents)
   -o, --output <file>       Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>     Conversion configuration (s2t | s2tw | s2twp | s2hk | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2t | jp2t | t2jp)
+  -c, --config <config>     Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
   -p, --punct               Enable punctuation conversion
       --detofu [<LEVEL>]    Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
       --detofu-file <FILE>  Load additional detofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
@@ -594,7 +594,7 @@ Usage: opencc-rs.exe office [OPTIONS] --config <config>
 Options:
   -i, --input <file>     Input file (use stdin if omitted for non-office documents)
   -o, --output <file>    Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>  Conversion configuration [possible values: s2t, t2s, s2tw, tw2s, s2twp, tw2sp, s2hk, hk2s, t2tw, t2twp, t2hk, tw2t, tw2tp, hk2t, t2jp, jp2t]
+  -c, --config <config>  Conversion configuration [possible values: s2t, t2s, s2tw, tw2s, s2twp, tw2sp, s2hk, s2hkp, hk2s, hk2sp, t2tw, t2twp, t2hk, tw2t, tw2tp, hk2t, t2jp, jp2t]
   -p, --punct            Enable punctuation conversion
   -f, --format <ext>     Force document format: docx, odt, epub...
       --keep-font        Preserve original font styles
@@ -630,11 +630,13 @@ Example `custom_tofu.txt`:
     - `s2t` – Simplified to Traditional
     - `s2tw` – Simplified to Traditional Taiwan
     - `s2hk` – Simplified to Traditional Hong Kong
+    - `s2hkp` – Simplified to Traditional Hong Kong with idioms
     - `s2twp` – Simplified to Traditional Taiwan with idioms
     - `t2s` – Traditional to Simplified
     - `tw2s` – Traditional Taiwan to Simplified
     - `tw2sp` – Traditional Taiwan to Simplified with idioms
     - `hk2s` – Traditional Hong Kong to Simplified
+    - `hk2sp` – Traditional Hong Kong to Simplified with idioms
     - `jp2t`, `t2jp` - Japanese Shinjitai/Kyujitai
     - etc
 
@@ -645,8 +647,10 @@ By default, it uses **OpenCC**'s built-in lexicon paths. You can also provide yo
 
 For advanced custom dictionaries, `DictionaryMaxlength` supports pair-based and OpenCC plaintext file injection,
 append/override merge modes, alternate dictionary base directories, and direct `OpenCC::from_dictionary()` construction.
-Public `DictSlot` customization includes regional phrase-variant slots such as `TWVariantsPhrases` and
-`HKVariantsPhrases`, which are applied before `TWVariants` and `HKVariants` character fallback.
+Public `DictSlot` customization includes regional phrase slots such as `HKPhrases` and `HKPhrasesRev`,
+plus phrase-variant slots such as `TWVariantsPhrases` and `HKVariantsPhrases`, which are applied before
+variant character fallback. Missing plaintext `HKPhrases.txt` / `HKPhrasesRev.txt` files are treated as
+empty slots for backward compatibility.
 See the [Custom Dictionary User Guide](https://github.com/laisuk/opencc-fmmseg/blob/master/CUSTOM_DICT_USER_GUIDE.md).
 
 ---

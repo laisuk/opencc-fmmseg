@@ -27,7 +27,7 @@ mod tests {
     }
 
     // Helper to collect all DictMaxLen refs (keeps count logic in one place)
-    fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 18] {
+    fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 22] {
         [
             &d.st_characters,
             &d.st_phrases,
@@ -35,9 +35,13 @@ mod tests {
             &d.ts_phrases,
             &d.tw_phrases,
             &d.tw_phrases_rev,
+            &d.hk_phrases,
+            &d.hk_phrases_rev,
+            &d.tw_variants_phrases,
             &d.tw_variants,
             &d.tw_variants_rev,
             &d.tw_variants_rev_phrases,
+            &d.hk_variants_phrases,
             &d.hk_variants,
             &d.hk_variants_rev,
             &d.hk_variants_rev_phrases,
