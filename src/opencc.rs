@@ -1801,6 +1801,41 @@ impl OpenCC {
         Ok(map.detofu(input))
     }
 
+    /// Converts non-BMP CJK extension characters using the built-in detofu
+    /// mappings plus user-supplied fallback pairs.
+    ///
+    /// Custom pairs are merged with the built-in table. If the same tofu-risk
+    /// character exists in both sources, the custom pair takes precedence.
+    ///
+    /// Unlike custom fallback files, direct pairs do not carry an extension column,
+    /// so they are always added to the selected map.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{DetofuLevel, OpenCC};
+    ///
+    /// let cc = OpenCC::new();
+    ///
+    /// let safe = cc.detofu_with_custom_pairs(
+    ///     "𣭲毛",
+    ///     DetofuLevel::ExtB,
+    ///     &[('𣭲', '氄')],
+    /// );
+    ///
+    /// assert_eq!(safe, "氄毛");
+    /// ```
+    pub fn detofu_with_custom_pairs(
+        &self,
+        input: &str,
+        level: DetofuLevel,
+        pairs: &[(char, char)],
+    ) -> String {
+        DetofuMap::builtin(level)
+            .with_custom_pairs(pairs)
+            .detofu(input)
+    }
+
     /// Converts a subset of Chinese quotation punctuation between Simplified
     /// and Traditional forms.
     ///
@@ -2132,5 +2167,40 @@ mod tests {
         fs::remove_file(&path).ok();
 
         assert_eq!(result, "氄毛");
+    }
+
+    #[test]
+    fn test_detofu_map_with_custom_pairs() {
+        let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𣭲', '氄')]);
+
+        assert_eq!(map.detofu("𣭲毛"), "氄毛");
+    }
+
+    #[test]
+    fn test_detofu_map_with_custom_pairs_overrides_builtin() {
+        let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𬴂', '騑')]);
+
+        assert_eq!(map.detofu("骖𬴂"), "骖騑");
+    }
+
+    #[test]
+    fn test_opencc_detofu_with_custom_pairs() {
+        let cc = OpenCC::new();
+
+        let output = cc.detofu_with_custom_pairs(
+            "𣭲毛 骖𬴂",
+            DetofuLevel::ExtB,
+            &[('𣭲', '氄'), ('𬴂', '騑')],
+        );
+
+        assert_eq!(output, "氄毛 骖騑");
+    }
+
+    #[test]
+    fn test_detofu_custom_pairs_later_wins() {
+        let map =
+            DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𣭲', '氂'), ('𣭲', '氄')]);
+
+        assert_eq!(map.detofu("𣭲毛"), "氄毛");
     }
 }
