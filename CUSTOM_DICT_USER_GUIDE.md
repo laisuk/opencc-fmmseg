@@ -615,39 +615,53 @@ Examples:
 | `驂騑`        | `骖𬴂`      | `𬴂` may render as tofu |
 | `齧合`        | `啮𫜩`      | `𫜩` may render as tofu |
 
-In these situations, some applications may prefer a BMP-safe compatibility fallback for specific terms or characters.
-Instead of modifying upstream OpenCC dictionaries or maintaining duplicated extension dictionary files, use post-load
-custom dictionaries.
+### DeTofu Custom Pairs Are Separate
+
+DeTofu custom pairs are separate from OpenCC custom dictionaries. OpenCC custom dictionaries affect conversion
+dictionaries, phrase matching, and replacement behavior. DeTofu custom pairs affect only the optional post-conversion
+display fallback pass.
+
+DeTofu does not modify OpenCC dictionary data, segmentation, phrase matching, regional variant selection, punctuation
+conversion, or script detection. Use custom dictionaries for linguistic or conversion changes. Use DeTofu custom pairs
+or custom fallback files for display compatibility fallbacks.
 
 ```rust
-use opencc_fmmseg::{
-    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC,
-};
+use opencc_fmmseg::{DetofuLevel, OpenCC};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let dict = DictionaryMaxlength::from_zstd()?.with_custom_dicts(&[
-        CustomDictSpec {
-            slot: DictSlot::STCharacters,
-            pairs: vec![
-                ("𬴂".to_string(), "騑".to_string()),
-                ("𫜩".to_string(), "齧".to_string()),
-            ],
-            mode: CustomDictMode::Append,
-        },
-    ])?;
+let cc = OpenCC::new();
 
-    let opencc = OpenCC::from_dictionary(dict);
+let converted = cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false);
+let safe = cc.detofu_with_custom_pairs(
+    &converted,
+    DetofuLevel::ExtB,
+    &[('𬴂', '騑')],
+);
 
-    assert_eq!(opencc.convert("𬴂", "s2t", false), "騑");
-    assert_eq!(opencc.convert("𫜩", "s2t", false), "齧");
-
-    Ok(())
-}
+assert_eq!(safe, "俨骖騑于上路，访风景于崇阿");
 ```
 
-For a Simplified-to-Traditional compatibility fallback, put Simplified source characters into `STCharacters` or
-`STPhrases`. For a Traditional-to-Simplified pipeline, put Traditional source characters into `TSCharacters` or
-`TSPhrases`. Choose the slot that matches the direction you want to affect.
+In these situations, some applications may prefer a BMP-safe compatibility fallback for specific terms or characters.
+Instead of modifying upstream OpenCC dictionaries or maintaining duplicated extension dictionary files, prefer DeTofu
+custom pairs or custom fallback files when the goal is display compatibility only.
+
+```rust
+use opencc_fmmseg::{DetofuLevel, OpenCC};
+
+let cc = OpenCC::new();
+
+let safe = cc.detofu_with_custom_pairs(
+    "骖𬴂 啮𫜩",
+    DetofuLevel::ExtB,
+    &[('𬴂', '騑'), ('𫜩', '齧')],
+);
+
+assert_eq!(safe, "骖騑 啮齧");
+```
+
+For a Simplified-to-Traditional conversion change, put Simplified source characters into `STCharacters` or `STPhrases`.
+For a Traditional-to-Simplified conversion change, put Traditional source characters into `TSCharacters` or `TSPhrases`.
+Choose the slot that matches the direction you want to affect. Use this only when you want OpenCC conversion behavior
+itself to change, not just the optional display fallback pass.
 
 This approach:
 
@@ -659,7 +673,7 @@ This approach:
 
 `opencc-fmmseg` intentionally avoids restructuring canonical OpenCC dictionaries solely for rendering limitations on
 specific platforms. The engine keeps the original Unicode mappings intact while allowing optional user-controlled
-fallback layers through custom dictionaries.
+fallback layers through DeTofu.
 
 Advanced users may selectively fall back only specific Unicode ranges or compatibility targets, such as:
 

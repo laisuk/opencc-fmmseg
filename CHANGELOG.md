@@ -10,15 +10,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-* Added public detofu display-compatibility fallback APIs for rare non-BMP CJK extension characters:
+* Added public DeTofu display-compatibility fallback APIs for rare non-BMP CJK extension characters:
   `DetofuLevel`, `DetofuMap`, `detofu()`, `OpenCC::detofu()`, and
   `OpenCC::detofu_with_custom_file()`.
-* Added support for loading user-supplied detofu fallback files. Custom mappings
+* Added `DetofuMap::with_custom_pairs(...)` for applying in-memory DeTofu fallback pairs after loading built-in
+  mappings.
+* Added `OpenCC::detofu_with_custom_pairs(...)` convenience API for applying built-in DeTofu mappings plus custom
+  in-memory fallback pairs.
+* Added support for loading user-supplied DeTofu fallback files. Custom mappings
   are merged with the built-in fallback table, and custom entries take
   precedence when duplicate tofu-risk characters exist.
-* Added docs and README examples for threshold-based detofu levels, direct
+* Added docs and README examples for threshold-based DeTofu levels, direct
   utility usage, reusable maps, custom fallback files, and post-load custom
   fallback pairs.
+* Added tests for DeTofu custom pairs, built-in override behavior, and later-pair-wins behavior.
 * Added upstream-compatible Hong Kong phrase conversion configs `s2hkp` and
   `hk2sp`.
 * Added optional HK phrase dictionary slots `HKPhrases` and `HKPhrasesRev`.
@@ -29,10 +34,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   the Taiwan phrase mappings and Taiwan variant mappings now run together in
   the second conversion round after the Simplified-to-Traditional round. This
   preserves OpenCC-compatible output while removing one full conversion pass.
-* Reduced the size of the built-in detofu fallback table by switching extension
+* Reduced the size of the built-in DeTofu fallback table by switching extension
   identifiers from `ExtB`–`ExtI` to the compact form `B`–`I` while maintaining
   backward-compatible parsing support for both formats.
-* Improved detofu parser compatibility to accept both compact (`B`–`I`) and
+* Improved DeTofu parser compatibility to accept both compact (`B`–`I`) and
   legacy (`ExtB`–`ExtI`) extension identifiers in custom fallback files.
 * Missing plaintext `HKPhrases.txt` and `HKPhrasesRev.txt` files now load as
   empty dictionaries for backward compatibility with older dictionary folders.

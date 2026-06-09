@@ -163,4 +163,58 @@ mod tests {
         let _ = fs::remove_file(&dst);
         Ok(())
     }
+
+    #[test]
+    #[ignore] // large asset; run with: cargo test -- --ignored
+    fn roundtrip_zstd_from_disk_and_count() -> TestResult<()> {
+        // 1) Write the embedded blob to a temp file to simulate an on-disk source.
+        let embedded: &[u8] = include_bytes!("dicts/dictionary_maxlength.zstd");
+        let tmp = std::env::temp_dir();
+        let src = tmp.join(format!("opencc_dict_src_{}.zstd", std::process::id()));
+        let dst = tmp.join(format!("opencc_dict_copy_{}.zstd", std::process::id()));
+        fs::write(&src, embedded)?;
+
+        // 2) Load the embedded dictionary from disk and build a plaintext-source dictionary.
+        let disk = load_from_zstd_file(&src)?;
+        let generated = DictionaryMaxlength::from_dicts().unwrap_or_default();
+
+        // 3) Save the generated dictionary, then load it back.
+        save_to_zstd_file(&generated, &dst)?;
+        let rt = load_from_zstd_file(&dst)?;
+
+        // 4) Compare table counts and non-empty counts across all paths.
+        let tot = |d: &DictionaryMaxlength| {
+            let stats = collect_stats(d);
+            (stats.len(), stats.iter().filter(|s| s.non_empty).count())
+        };
+
+        let (t_disk, n_disk) = tot(&disk);
+        let (t_generated, n_generated) = tot(&generated);
+        let (t_rt, n_rt) = tot(&rt);
+
+        println!("[from_disk ] total={t_disk}, non_empty={n_disk}");
+        println!("[generated ] total={t_generated}, non_empty={n_generated}");
+        println!("[roundtrip ] total={t_rt}, non_empty={n_rt}");
+
+        assert_eq!(
+            t_disk, t_rt,
+            "total DictMaxLen count mismatch between disk and round-trip"
+        );
+        assert_eq!(
+            t_generated, t_rt,
+            "total DictMaxLen count mismatch between generated and round-trip"
+        );
+        assert_eq!(
+            n_disk, n_rt,
+            "non-empty DictMaxLen count mismatch between disk and round-trip"
+        );
+        assert_eq!(
+            n_generated, n_rt,
+            "non-empty DictMaxLen count mismatch between generated and round-trip"
+        );
+
+        let _ = fs::remove_file(&src);
+        let _ = fs::remove_file(&dst);
+        Ok(())
+    }
 }

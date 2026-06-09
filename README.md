@@ -238,14 +238,15 @@ Last Error after clear: <none>
 
 ---
 
-## Detofu: tofu-safe fallback for rare CJK characters
+## DeTofu: tofu-safe fallback for rare CJK characters
 
-`detofu` is an optional display-compatibility pass for converted text that contains rare non-BMP CJK extension
-characters. It is useful when those characters may render as tofu boxes on some systems, browsers, fonts, document
-viewers, mobile devices, or e-book readers.
+DeTofu is an optional post-conversion display-compatibility pass for converted text that contains rare non-BMP CJK
+extension characters. It is useful when those characters may render as tofu boxes on some systems, browsers, fonts,
+document viewers, mobile devices, or e-book readers.
 
-Detofu does not change OpenCC conversion dictionaries, phrase matching, regional variant selection, script detection,
-or punctuation conversion. It should normally be applied after `convert()`:
+DeTofu is not an OpenCC dictionary conversion rule. It does not change OpenCC conversion dictionaries, phrase matching,
+regional variant selection, script detection, or punctuation conversion. It should normally be applied after
+`convert()`:
 
 ```rust
 use opencc_fmmseg::{DetofuLevel, OpenCC};
@@ -268,14 +269,77 @@ fn main() {
 ### Public APIs
 
 * `DetofuLevel` selects the fallback threshold.
-* `OpenCC::detofu(&self, text: &str, level: DetofuLevel) -> String` applies detofu through an `OpenCC` instance.
-* `OpenCC::detofu_with_custom_file(...)` applies detofu using the built-in fallback table plus a user-supplied fallback
-  file.
-* `detofu(text: &str, level: DetofuLevel) -> String` applies detofu as a direct utility function.
+* `OpenCC::detofu(&self, input: &str, level: DetofuLevel) -> String` applies DeTofu through an `OpenCC` instance.
+* `OpenCC::detofu_with_custom_file(&self, input, level, path)` applies DeTofu using the built-in fallback table plus a
+  user-supplied fallback file.
+* `OpenCC::detofu_with_custom_pairs(&self, input, level, pairs)` applies DeTofu using the built-in fallback table plus
+  in-memory custom fallback pairs.
+* `detofu(text: &str, level: DetofuLevel) -> String` applies DeTofu as a direct utility function.
 * `DetofuMap::builtin(level)` builds a reusable map from the built-in fallback data.
 * `DetofuMap::with_custom_pairs(...)` adds post-load custom fallback pairs.
 * `DetofuMap::with_custom_file(...)` loads additional fallback mappings from a UTF-8 text file.
 * `DetofuMap::detofu(...)` applies a reusable map to text.
+
+### OpenCC Instance Usage
+
+```rust,no_run
+use opencc_fmmseg::{DetofuLevel, OpenCC};
+
+fn main() -> std::io::Result<()> {
+    let cc = OpenCC::new();
+    let input = "骖𬴂";
+
+    let safe = cc.detofu(input, DetofuLevel::ExtB);
+    let safe_from_file = cc.detofu_with_custom_file(input, DetofuLevel::ExtB, "custom_tofu.txt")?;
+    let safe_from_pairs = cc.detofu_with_custom_pairs(input, DetofuLevel::ExtB, &[('𬴂', '騑')]);
+
+    assert_eq!(safe, "骖騑");
+    assert_eq!(safe_from_file, "骖騑");
+    assert_eq!(safe_from_pairs, "骖騑");
+
+    Ok(())
+}
+```
+
+### Custom Pairs
+
+```rust
+use opencc_fmmseg::{DetofuLevel, OpenCC};
+
+let cc = OpenCC::new();
+
+let safe = cc.detofu_with_custom_pairs(
+    "𣭲毛 骖𬴂",
+    DetofuLevel::ExtB,
+    &[('𣭲', '氄'), ('𬴂', '騑')],
+);
+
+assert_eq!(safe, "氄毛 骖騑");
+```
+
+Each custom pair is `(tofu_char, fallback_char)`. Pairs are applied after built-in mappings, so if a pair key already
+exists in the built-in map, the custom pair wins. If the same key appears more than once in the slice, the later pair
+wins. Unlike custom fallback files, direct pairs do not carry an extension column, so they are always added to the
+selected map. DeTofu preserves unmapped characters unchanged.
+
+### Reusable Map Usage
+
+```rust,no_run
+use opencc_fmmseg::{DetofuLevel, DetofuMap};
+
+fn main() -> std::io::Result<()> {
+    let file_map = DetofuMap::builtin(DetofuLevel::ExtB)
+        .with_custom_file("custom_tofu.txt")?;
+
+    let pair_map = DetofuMap::builtin(DetofuLevel::ExtB)
+        .with_custom_pairs(&[('𣭲', '氄')]);
+
+    assert_eq!(file_map.detofu("𣭲毛"), "氄毛");
+    assert_eq!(pair_map.detofu("𣭲毛"), "氄毛");
+
+    Ok(())
+}
+```
 
 ### Threshold Behavior
 
@@ -302,24 +366,7 @@ fn main() {
 }
 ```
 
-### Advanced Custom Pairs
-
-```rust
-use opencc_fmmseg::{DetofuLevel, DetofuMap};
-
-fn main() {
-    let map = DetofuMap::builtin(DetofuLevel::ExtB)
-        .with_custom_pairs(&[
-            ('𣭲', '氂'),
-        ]);
-
-    let safe = map.detofu("這隻小狗有𣭲毛");
-
-    assert_eq!(safe, "這隻小狗有氂毛");
-}
-```
-
-### Advanced Custom Fallback Files
+### Custom Fallback Files
 
 ```rust,no_run
 use opencc_fmmseg::{DetofuLevel, OpenCC};
@@ -365,7 +412,7 @@ ExtD
 ...
 ```
 
-> The built-in detofu table already contains many fallback mappings. Custom pairs and custom files are applied after
+> The built-in DeTofu table already contains many fallback mappings. Custom pairs and custom files are applied after
 > loading the built-in table and override existing mappings when the same tofu-risk character is provided.
 >
 > Characters are only replaced when a matching built-in or custom fallback mapping exists. Unmapped characters are
