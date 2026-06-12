@@ -1404,9 +1404,9 @@ impl OpenCC {
     /// rewrites Kyūjitai-style characters into their modern Shinjitai forms
     /// using:
     ///
-    /// - Japanese variant mappings (`jp_variants`)
+    /// - Japanese Shinjitai reverse character mappings (`jps_characters_rev`)
     ///
-    /// Starter metadata is obtained via `union_for(UnionKey::JpVariantsOnly)`
+    /// Starter metadata is obtained via `union_for(UnionKey::JpsCharactersRev)`
     /// and applied over segmented input with longest-match replacement.
     ///
     /// # Arguments
@@ -1418,8 +1418,8 @@ impl OpenCC {
     /// Text where Kyūjitai characters have been replaced with their
     /// corresponding Shinjitai forms.
     pub fn t2jp(&self, input: &str) -> String {
-        let round_1 = [&self.dictionary.jp_variants];
-        let u1 = self.dictionary.union_for(UnionKey::JpVariantsOnly);
+        let round_1 = [&self.dictionary.jps_characters_rev];
+        let u1 = self.dictionary.union_for(UnionKey::JpsCharactersRev);
         self.apply_dicts_1(input, &round_1, u1)
     }
 
@@ -1431,9 +1431,8 @@ impl OpenCC {
     ///
     /// - Japanese Shinjitai phrase mappings (`jps_phrases`)
     /// - Japanese Shinjitai character mappings (`jps_characters`)
-    /// - Reverse Japanese variant mappings (`jp_variants_rev`)
     ///
-    /// Starter metadata is obtained via `union_for(UnionKey::JpRevTriple)` and
+    /// Starter metadata is obtained via `union_for(UnionKey::JpsPair)` and
     /// reused across segments for efficient longest-match replacement.
     ///
     /// # Arguments
@@ -1448,9 +1447,8 @@ impl OpenCC {
         let round_1 = [
             &self.dictionary.jps_phrases,
             &self.dictionary.jps_characters,
-            &self.dictionary.jp_variants_rev,
         ];
-        let u1 = self.dictionary.union_for(UnionKey::JpRevTriple);
+        let u1 = self.dictionary.union_for(UnionKey::JpsPair);
         self.apply_dicts_1(input, &round_1, u1)
     }
 

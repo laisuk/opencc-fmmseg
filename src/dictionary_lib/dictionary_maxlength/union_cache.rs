@@ -72,12 +72,11 @@ pub(super) struct Unions {
     hk_rev_pair: OnceLock<Arc<StarterUnion>>,
 
     // JP helpers
-    /// Union built from Japanese variant dictionaries only.
-    jp_variants_only: OnceLock<Arc<StarterUnion>>,
+    /// Union built from Japanese Shinjitai reverse character dictionaries only.
+    jps_characters_rev: OnceLock<Arc<StarterUnion>>,
 
-    /// Union combining Japanese Shinjitai phrases, characters and
-    /// reverse variants (jps_phrases + jps_chars + jp_variants_rev).
-    jp_rev_triple: OnceLock<Arc<StarterUnion>>,
+    /// Union combining Japanese Shinjitai phrases and characters.
+    jps_pair: OnceLock<Arc<StarterUnion>>,
 }
 
 /// Logical keys identifying every cached [`StarterUnion`] variant used by the
@@ -242,25 +241,24 @@ pub(crate) enum UnionKey {
     // ============================
     // Japanese Helpers
     // ============================
-    /// Union containing only Japanese variant dictionaries.
+    /// Union containing only Japanese Shinjitai reverse character dictionaries.
     ///
     /// Includes:
-    /// - `jp_variants`
+    /// - `jps_characters_rev`
     ///
     /// Used in:
     /// - `t2jp`
-    JpVariantsOnly,
+    JpsCharactersRev,
 
-    /// Triple-set reverse Japanese union.
+    /// Pair-set Japanese Shinjitai union.
     ///
     /// Includes:
     /// - `jps_phrases`
     /// - `jps_characters`
-    /// - `jp_variants_rev`
     ///
     /// Used in:
     /// - `jp2t`
-    JpRevTriple,
+    JpsPair,
 }
 
 impl DictionaryMaxlength {
@@ -422,19 +420,18 @@ impl DictionaryMaxlength {
                     ]))
                 })
                 .clone(),
-            UnionKey::JpVariantsOnly => self
+            UnionKey::JpsCharactersRev => self
                 .unions
-                .jp_variants_only
-                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.jp_variants])))
+                .jps_characters_rev
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.jps_characters_rev])))
                 .clone(),
-            UnionKey::JpRevTriple => self
+            UnionKey::JpsPair => self
                 .unions
-                .jp_rev_triple
+                .jps_pair
                 .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.jps_phrases,
                         &self.jps_characters,
-                        &self.jp_variants_rev,
                     ]))
                 })
                 .clone(),

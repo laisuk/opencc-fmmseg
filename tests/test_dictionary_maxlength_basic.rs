@@ -109,9 +109,8 @@ fn old_cbor_without_forward_variant_phrase_fields_deserializes() {
         hk_variants_rev: DictMaxLen,
         hk_variants_rev_phrases: DictMaxLen,
         jps_characters: DictMaxLen,
+        jps_characters_rev: DictMaxLen,
         jps_phrases: DictMaxLen,
-        jp_variants: DictMaxLen,
-        jp_variants_rev: DictMaxLen,
         st_punctuations: DictMaxLen,
         ts_punctuations: DictMaxLen,
     }
@@ -130,9 +129,8 @@ fn old_cbor_without_forward_variant_phrase_fields_deserializes() {
         hk_variants_rev: DictMaxLen::default(),
         hk_variants_rev_phrases: DictMaxLen::default(),
         jps_characters: DictMaxLen::default(),
+        jps_characters_rev: DictMaxLen::default(),
         jps_phrases: DictMaxLen::default(),
-        jp_variants: DictMaxLen::default(),
-        jp_variants_rev: DictMaxLen::default(),
         st_punctuations: DictMaxLen::default(),
         ts_punctuations: DictMaxLen::default(),
     };
@@ -167,9 +165,8 @@ fn from_dicts_at_missing_forward_variant_phrase_files_defaults_empty() {
         "HKVariantsRev.txt",
         "HKVariantsRevPhrases.txt",
         "JPShinjitaiCharacters.txt",
+        "JPShinjitaiCharactersRev.txt",
         "JPShinjitaiPhrases.txt",
-        "JPVariants.txt",
-        "JPVariantsRev.txt",
         "STPunctuations.txt",
         "TSPunctuations.txt",
     ] {

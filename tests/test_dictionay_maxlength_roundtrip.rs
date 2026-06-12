@@ -28,7 +28,7 @@ mod tests {
     // ---------- Utilities ----------
 
     /// Fixed order view over all DictMaxLen tables.
-    fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 22] {
+    fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 21] {
         [
             &d.st_characters,
             &d.st_phrases,
@@ -47,9 +47,8 @@ mod tests {
             &d.hk_variants_rev,
             &d.hk_variants_rev_phrases,
             &d.jps_characters,
+            &d.jps_characters_rev,
             &d.jps_phrases,
-            &d.jp_variants,
-            &d.jp_variants_rev,
             &d.st_punctuations,
             &d.ts_punctuations,
         ]

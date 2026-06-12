@@ -46,8 +46,8 @@
 ///
 /// Hong Kong phrase configurations:
 ///
-/// - `S2hkp` — available since **v0.10.3**
-/// - `Hk2sp` — available since **v0.10.3**
+/// - `S2hkp` — available since **v0.11.0**
+/// - `Hk2sp` — available since **v0.11.0**
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpenccConfig {

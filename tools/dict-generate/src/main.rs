@@ -199,9 +199,8 @@ fn required_dictionary_files() -> &'static [&'static str] {
         "HKVariantsRev.txt",
         "HKVariantsRevPhrases.txt",
         "JPShinjitaiCharacters.txt",
+        "JPShinjitaiCharactersRev.txt",
         "JPShinjitaiPhrases.txt",
-        "JPVariants.txt",
-        "JPVariantsRev.txt",
         "STPunctuations.txt",
         "TSPunctuations.txt",
     ]

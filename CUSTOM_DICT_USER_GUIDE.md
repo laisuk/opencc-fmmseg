@@ -92,9 +92,8 @@ that slot for phrase conversion.
 | `HKVariantsRev`        | Hong Kong -> Traditional reverse variants        | Reverse conversion from Hong Kong variants                                                       | `-{Hong Kong variant}- -> -{Traditional variant}-` |
 | `HKVariantsRevPhrases` | Hong Kong -> Traditional reverse phrase variants | Reverse phrase-level Hong Kong variants                                                          | `-{Hong Kong phrase}- -> -{Traditional phrase}-`   |
 | `JPSCharacters`        | Japanese Shinjitai characters                    | Japanese Shinjitai character mappings                                                            | `-{old form}- -> -{new form}-`                     |
+| `JPSCharactersRev`     | Japanese Shinjitai reverse characters            | Japanese Shinjitai reverse character mappings                                                    | `-{Traditional form}- -> -{Japanese form}-`        |
 | `JPSPhrases`           | Japanese Shinjitai phrases                       | Japanese Shinjitai phrase mappings                                                               | `-{old phrase}- -> -{new phrase}-`                 |
-| `JPVariants`           | Traditional -> Japanese variants                 | Traditional-to-Japanese variant mappings                                                         | `-{Traditional variant}- -> -{Japanese variant}-`  |
-| `JPVariantsRev`        | Japanese -> Traditional reverse variants         | Japanese-to-Traditional reverse mappings                                                         | `-{Japanese variant}- -> -{Traditional variant}-`  |
 | `STPunctuations`       | Simplified -> Traditional punctuation            | Punctuation conversion for Simplified-to-Traditional workflows                                   | `“ -> 「`                                           |
 | `TSPunctuations`       | Traditional -> Simplified punctuation            | Punctuation conversion for Traditional-to-Simplified workflows                                   | `「 -> “`                                           |
 
@@ -778,9 +777,8 @@ my_opencc_dicts/
   HKVariantsRev.txt
   HKVariantsRevPhrases.txt
   JPShinjitaiCharacters.txt
+  JPShinjitaiCharactersRev.txt
   JPShinjitaiPhrases.txt
-  JPVariants.txt
-  JPVariantsRev.txt
   STPunctuations.txt
   TSPunctuations.txt
 ```

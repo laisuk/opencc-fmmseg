@@ -8,7 +8,7 @@ members = [
 
 [package]
 name = "opencc-fmmseg"
-version = "0.10.3"
+version = "0.11.0"
 edition = "2021"
 autobenches = false # Disable auto-bench
 authors = ["Laisuk Lai <laisuk@yahoo.com>"]

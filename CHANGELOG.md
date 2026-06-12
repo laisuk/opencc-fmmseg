@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.10.3] - Unreleased
+## [0.11.0] - Unreleased
 
 ### Added
 
@@ -30,6 +30,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+* Mirrored upstream OpenCC Japanese dictionary naming by replacing the old
+  `JPVariants` / `JPVariantsRev` model with `JPShinjitaiCharacters.txt`,
+  `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt`.
+  Custom dictionary users should use the `JPSCharactersRev` slot instead of
+  the removed `JPVariants` slot.
 * Refactored `s2twp` to match the upstream OpenCC config restructure:
   the Taiwan phrase mappings and Taiwan variant mappings now run together in
   the second conversion round after the Simplified-to-Traditional round. This
@@ -41,6 +46,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   legacy (`ExtB`–`ExtI`) extension identifiers in custom fallback files.
 * Missing plaintext `HKPhrases.txt` and `HKPhrasesRev.txt` files now load as
   empty dictionaries for backward compatibility with older dictionary folders.
+
+### Breaking
+
+* Removed the old Japanese custom dictionary slots `JPVariants` and
+  `JPVariantsRev`. Use `JPSCharactersRev` and `JPSCharacters` respectively.
 
 ---
 

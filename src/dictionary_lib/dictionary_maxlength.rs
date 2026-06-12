@@ -115,11 +115,9 @@ pub struct DictionaryMaxlength {
     #[serde(default)]
     pub jps_characters: DictMaxLen,
     #[serde(default)]
+    pub jps_characters_rev: DictMaxLen,
+    #[serde(default)]
     pub jps_phrases: DictMaxLen,
-    #[serde(default)]
-    pub jp_variants: DictMaxLen,
-    #[serde(default)]
-    pub jp_variants_rev: DictMaxLen,
     #[serde(default)]
     pub st_punctuations: DictMaxLen,
     #[serde(default)]
@@ -318,9 +316,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// ├── HKVariantsRev.txt
     /// ├── HKVariantsRevPhrases.txt
     /// ├── JPShinjitaiCharacters.txt
+    /// ├── JPShinjitaiCharactersRev.txt
     /// ├── JPShinjitaiPhrases.txt
-    /// ├── JPVariants.txt
-    /// ├── JPVariantsRev.txt
     /// ├── STPunctuations.txt
     /// └── TSPunctuations.txt
     /// ```
@@ -411,9 +408,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         self.hk_variants_rev.populate_starter_indexes();
         self.hk_variants_rev_phrases.populate_starter_indexes();
         self.jps_characters.populate_starter_indexes();
+        self.jps_characters_rev.populate_starter_indexes();
         self.jps_phrases.populate_starter_indexes();
-        self.jp_variants.populate_starter_indexes();
-        self.jp_variants_rev.populate_starter_indexes();
         self.st_punctuations.populate_starter_indexes();
         self.ts_punctuations.populate_starter_indexes();
     }
@@ -467,9 +463,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             &self.hk_variants_rev,
             &self.hk_variants_rev_phrases,
             &self.jps_characters,
+            &self.jps_characters_rev,
             &self.jps_phrases,
-            &self.jp_variants,
-            &self.jp_variants_rev,
             &self.st_punctuations,
             &self.ts_punctuations,
         ];
@@ -547,9 +542,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
                 &self.hk_variants_rev_phrases.map,
             ),
             ("JPShinjitaiCharacters.txt", &self.jps_characters.map),
+            ("JPShinjitaiCharactersRev.txt", &self.jps_characters_rev.map),
             ("JPShinjitaiPhrases.txt", &self.jps_phrases.map),
-            ("JPVariants.txt", &self.jp_variants.map),
-            ("JPVariantsRev.txt", &self.jp_variants_rev.map),
             ("STPunctuations.txt", &self.st_punctuations.map),
             ("TSPunctuations.txt", &self.ts_punctuations.map),
         ]
@@ -929,18 +923,17 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
                 specs,
                 DictSlot::JPSCharacters,
             )?,
+            jps_characters_rev: load_slot(
+                base_dir,
+                "JPShinjitaiCharactersRev.txt",
+                specs,
+                DictSlot::JPSCharactersRev,
+            )?,
             jps_phrases: load_slot(
                 base_dir,
                 "JPShinjitaiPhrases.txt",
                 specs,
                 DictSlot::JPSPhrases,
-            )?,
-            jp_variants: load_slot(base_dir, "JPVariants.txt", specs, DictSlot::JPVariants)?,
-            jp_variants_rev: load_slot(
-                base_dir,
-                "JPVariantsRev.txt",
-                specs,
-                DictSlot::JPVariantsRev,
             )?,
 
             st_punctuations: load_slot(
@@ -1294,9 +1287,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             DictSlot::HKVariantsRevPhrases => &mut self.hk_variants_rev_phrases,
 
             DictSlot::JPSCharacters => &mut self.jps_characters,
+            DictSlot::JPSCharactersRev => &mut self.jps_characters_rev,
             DictSlot::JPSPhrases => &mut self.jps_phrases,
-            DictSlot::JPVariants => &mut self.jp_variants,
-            DictSlot::JPVariantsRev => &mut self.jp_variants_rev,
 
             DictSlot::STPunctuations => &mut self.st_punctuations,
             DictSlot::TSPunctuations => &mut self.ts_punctuations,
@@ -1445,9 +1437,8 @@ impl Default for DictionaryMaxlength {
             hk_variants_rev: DictMaxLen::default(),
             hk_variants_rev_phrases: DictMaxLen::default(),
             jps_characters: DictMaxLen::default(),
+            jps_characters_rev: DictMaxLen::default(),
             jps_phrases: DictMaxLen::default(),
-            jp_variants: DictMaxLen::default(),
-            jp_variants_rev: DictMaxLen::default(),
             st_punctuations: DictMaxLen::default(),
             ts_punctuations: DictMaxLen::default(),
             // runtime-only cache (serde-skipped)

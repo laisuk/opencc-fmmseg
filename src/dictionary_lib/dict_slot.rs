@@ -84,14 +84,11 @@ pub enum DictSlot {
     /// Japanese Shinjitai character mappings.
     JPSCharacters,
 
+    /// Japanese Shinjitai reverse character mappings.
+    JPSCharactersRev,
+
     /// Japanese Shinjitai phrase mappings.
     JPSPhrases,
-
-    /// Traditional → Japanese variant mappings.
-    JPVariants,
-
-    /// Japanese → Traditional reverse variant mappings.
-    JPVariantsRev,
 
     /// Simplified → Traditional punctuation mappings.
     STPunctuations,
@@ -126,9 +123,8 @@ pub enum DictSlot {
 /// - `HKVariantsRev`
 /// - `HKVariantsRevPhrases`
 /// - `JPShinjitaiCharacters`
+/// - `JPShinjitaiCharactersRev`
 /// - `JPShinjitaiPhrases`
-/// - `JPVariants`
-/// - `JPVariantsRev`
 ///
 /// # Notes
 ///
@@ -176,9 +172,8 @@ impl TryFrom<&str> for DictSlot {
             "HKVariantsRevPhrases" => Ok(Self::HKVariantsRevPhrases),
 
             "JPShinjitaiCharacters" => Ok(Self::JPSCharacters),
+            "JPShinjitaiCharactersRev" => Ok(Self::JPSCharactersRev),
             "JPShinjitaiPhrases" => Ok(Self::JPSPhrases),
-            "JPVariants" => Ok(Self::JPVariants),
-            "JPVariantsRev" => Ok(Self::JPVariantsRev),
 
             _ => Err(()),
         }

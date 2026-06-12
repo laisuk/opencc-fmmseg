@@ -97,7 +97,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.10.3"  # or latest version
+opencc-fmmseg = "0.11.0"  # or latest version
 ```
 
 Then use it in your code:
@@ -425,7 +425,7 @@ ExtD
 ---
 
 > 📦 Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.10.3/opencc_fmmseg/)
+> 📄 Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.11.0/opencc_fmmseg/)
 
 ---
 
@@ -699,8 +699,9 @@ By default, it uses **OpenCC**'s built-in lexicon paths. You can also provide yo
 For advanced custom dictionaries, `DictionaryMaxlength` supports pair-based and OpenCC plaintext file injection,
 append/override merge modes, alternate dictionary base directories, and direct `OpenCC::from_dictionary()` construction.
 Public `DictSlot` customization includes regional phrase slots such as `HKPhrases` and `HKPhrasesRev`,
-plus phrase-variant slots such as `TWVariantsPhrases` and `HKVariantsPhrases`, which are applied before
-variant character fallback. Missing plaintext `HKPhrases.txt` / `HKPhrasesRev.txt` files are treated as
+Japanese Shinjitai slots such as `JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases`, plus phrase-variant
+slots such as `TWVariantsPhrases` and `HKVariantsPhrases`, which are applied before variant character fallback.
+Missing plaintext `HKPhrases.txt` / `HKPhrasesRev.txt` files are treated as
 empty slots for backward compatibility.
 See the [Custom Dictionary User Guide](https://github.com/laisuk/opencc-fmmseg/blob/master/CUSTOM_DICT_USER_GUIDE.md).
 
