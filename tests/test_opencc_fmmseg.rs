@@ -1,5 +1,3 @@
-use opencc_fmmseg::dictionary_lib;
-
 // Pull in the real DTO code without making a new crate
 #[path = "../tools/dict-generate/src/json_io.rs"] // adjust relative path
 mod json_io;
@@ -173,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_dictionary_from_dicts() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
+        let dictionary = DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the JSON contains the expected data
         let expected = 12;
         assert_eq!(dictionary.st_phrases.max_len, expected);
@@ -183,7 +181,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_json() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts()
+        let dictionary = DictionaryMaxlength::from_dicts()
             .expect("failed to build DictionaryMaxlength");
 
         // Stable invariant (keep this check)
@@ -214,7 +212,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_cbor() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
+        let dictionary = DictionaryMaxlength::from_dicts().unwrap();
 
         // Verify that the Dictionary contains the expected data
         let expected = 12;
@@ -238,7 +236,7 @@ mod tests {
     #[test]
     #[ignore]
     fn serialize_to_cbor_roundtrip() {
-        let dictionary = dictionary_lib::DictionaryMaxlength::from_dicts().unwrap();
+        let dictionary = DictionaryMaxlength::from_dicts().unwrap();
 
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path().to_path_buf();
@@ -252,7 +250,7 @@ mod tests {
         );
 
         // ⬇️ serde_cbor instead of ciborium
-        let decoded: dictionary_lib::DictionaryMaxlength = serde_cbor::from_slice(&bytes).unwrap();
+        let decoded: DictionaryMaxlength = serde_cbor::from_slice(&bytes).unwrap();
 
         assert_eq!(
             dictionary.st_characters.max_len,
