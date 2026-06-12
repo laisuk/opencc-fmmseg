@@ -306,15 +306,19 @@ fn main() -> std::io::Result<()> {
 ```rust
 use opencc_fmmseg::{DetofuLevel, OpenCC};
 
-let cc = OpenCC::new();
+fn main() -> std::io::Result<()> {
+    let cc = OpenCC::new();
 
-let safe = cc.detofu_with_custom_pairs(
-    "𣭲毛 骖𬴂",
-    DetofuLevel::ExtB,
-    &[('𣭲', '氄'), ('𬴂', '騑')],
-);
+    let safe = cc.detofu_with_custom_pairs(
+        "𣭲毛 骖𬴂",
+        DetofuLevel::ExtB,
+        &[('𣭲', '氄'), ('𬴂', '騑')],
+    );
 
-assert_eq!(safe, "氄毛 骖騑");
+    assert_eq!(safe, "氄毛 骖騑");
+
+    Ok(())
+}
 ```
 
 Each custom pair is `(tofu_char, fallback_char)`. Pairs are applied after built-in mappings, so if a pair key already
