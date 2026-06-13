@@ -46,50 +46,60 @@ pub enum DetofuLevel {
 
 impl DetofuLevel {
     pub fn parse(s: &str) -> Result<Self, String> {
-        match s.to_ascii_lowercase().as_str() {
-            "all" | "ext-b" | "b" => Ok(Self::ExtB),
-            "ext-c" | "c" => Ok(Self::ExtC),
-            "ext-d" | "d" => Ok(Self::ExtD),
-            "ext-e" | "e" => Ok(Self::ExtE),
-            "ext-f" | "f" => Ok(Self::ExtF),
-            "ext-g" | "g" => Ok(Self::ExtG),
-            "ext-h" | "h" => Ok(Self::ExtH),
-            "ext-i" | "i" => Ok(Self::ExtI),
-            _ => Err("supported detofu levels: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i".to_string()),
-        }
-    }
-
-    fn from_ext(ext: &str) -> Option<Self> {
-        match ext.trim() {
-            "ExtB" | "B" | "b" => Some(Self::ExtB),
-            "ExtC" | "C" | "c" => Some(Self::ExtC),
-            "ExtD" | "D" | "d" => Some(Self::ExtD),
-            "ExtE" | "E" | "e" => Some(Self::ExtE),
-            "ExtF" | "F" | "f" => Some(Self::ExtF),
-            "ExtG" | "G" | "g" => Some(Self::ExtG),
-            "ExtH" | "H" | "h" => Some(Self::ExtH),
-            "ExtI" | "I" | "i" => Some(Self::ExtI),
-            _ => None,
+        match s.trim().to_ascii_lowercase().as_str() {
+            "all" | "ext-b" | "extb" | "b" => Ok(Self::ExtB),
+            "ext-c" | "extc" | "c" => Ok(Self::ExtC),
+            "ext-d" | "extd" | "d" => Ok(Self::ExtD),
+            "ext-e" | "exte" | "e" => Ok(Self::ExtE),
+            "ext-f" | "extf" | "f" => Ok(Self::ExtF),
+            "ext-g" | "extg" | "g" => Ok(Self::ExtG),
+            "ext-h" | "exth" | "h" => Ok(Self::ExtH),
+            "ext-i" | "exti" | "i" => Ok(Self::ExtI),
+            _ => Err(
+                "supported detofu levels: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"
+                    .to_string(),
+            ),
         }
     }
 }
 
 static TOFU_ENTRIES: OnceLock<Vec<(char, char, DetofuLevel)>> = OnceLock::new();
 
-fn parse_tofu_entries(text: &str) -> Vec<(char, char, DetofuLevel)> {
-    text.lines()
-        .filter(|line| {
-            let line = line.trim();
-            !line.is_empty() && !line.starts_with('#')
-        })
-        .filter_map(|line| {
-            let mut parts = line.split('\t');
-            let tofu = parts.next()?.trim().chars().next()?;
-            let fallback = parts.next()?.trim().chars().next()?;
-            let ext = DetofuLevel::from_ext(parts.next()?)?;
-            Some((tofu, fallback, ext))
-        })
-        .collect()
+fn parse_tofu_entries(text: &str) -> Result<Vec<(char, char, DetofuLevel)>, String> {
+    let mut entries = Vec::new();
+
+    for (index, raw_line) in text.lines().enumerate() {
+        let line_no = index + 1;
+        let line = raw_line.trim();
+
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        let mut parts = line.split('\t');
+
+        let tofu = parts
+            .next()
+            .and_then(|s| s.trim().chars().next())
+            .ok_or_else(|| format!("line {line_no}: missing tofu character"))?;
+
+        let fallback = parts
+            .next()
+            .and_then(|s| s.trim().chars().next())
+            .ok_or_else(|| format!("line {line_no}: missing fallback character"))?;
+
+        let ext_text = parts
+            .next()
+            .map(str::trim)
+            .ok_or_else(|| format!("line {line_no}: missing extension"))?;
+
+        let ext = DetofuLevel::parse(ext_text)
+            .map_err(|err| format!("line {line_no}: invalid extension `{ext_text}`: {err}"))?;
+
+        entries.push((tofu, fallback, ext));
+    }
+
+    Ok(entries)
 }
 
 fn tofu_entries() -> &'static [(char, char, DetofuLevel)] {
@@ -98,6 +108,7 @@ fn tofu_entries() -> &'static [(char, char, DetofuLevel)] {
             std::str::from_utf8(TOFU_DATA).expect("TSCharactersTofu.txt must be valid UTF-8");
 
         parse_tofu_entries(text)
+            .unwrap_or_else(|err| panic!("invalid built-in TSCharactersTofu.txt: {err}"))
     })
 }
 
@@ -155,10 +166,15 @@ impl DetofuMap {
     /// Adds or overrides compatibility fallback entries from a tofu mapping file.
     ///
     /// The file uses the same tab-separated format as the built-in generated
-    /// data: `tofu_char<TAB>fallback_char<TAB>extension`. The extension field
-    /// may use either the compact form (`B`, `C`, `D`, ...) or the older full
-    /// form (`ExtB`, `ExtC`, `ExtD`, ...). Blank lines and `#` comments are
-    /// ignored.
+    /// data: `tofu_char<TAB>fallback_char<TAB>extension`.
+    ///
+    /// The extension field may use either the compact form (`B`, `C`, `D`, ...)
+    /// or the full form (`ExtB`, `ExtC`, `ExtD`, ...). Extension parsing is
+    /// case-insensitive, so `b`, `ext-b`, and `ExtB` are accepted.
+    ///
+    /// Blank lines and lines starting with `#` are ignored. Malformed entries,
+    /// missing fields, or unsupported extension values return
+    /// [`std::io::ErrorKind::InvalidData`] with the source line number.
     ///
     /// File entries are applied post-load. If a file entry already exists in
     /// the built-in detofu map, the file fallback wins. Entries below this
@@ -166,7 +182,9 @@ impl DetofuMap {
     pub fn with_custom_file<P: AsRef<Path>>(mut self, path: P) -> std::io::Result<Self> {
         let text = std::fs::read_to_string(path)?;
 
-        for (tofu, fallback, ext) in parse_tofu_entries(&text) {
+        for (tofu, fallback, ext) in parse_tofu_entries(&text)
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?
+        {
             if ext >= self.level {
                 self.map.insert(tofu, fallback);
             }
