@@ -37,7 +37,7 @@ fn build_cli() -> Command {
                     Arg::new("keep-ids")
                         .long("keep-ids")
                         .help("Preserve Unicode IDS expressions during conversion")
-                        .action(clap::ArgAction::SetTrue)
+                        .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
                     Arg::new("in_enc")
@@ -51,7 +51,6 @@ fn build_cli() -> Command {
                         .default_value("UTF-8")
                         .help("Encoding for output"),
                 ),
-
         )
         .subcommand(
             Command::new("office")

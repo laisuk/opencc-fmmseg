@@ -88,13 +88,13 @@ pub mod detofu;
 mod dict_refs;
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
+pub mod ids;
 /// Core converter
 mod opencc;
 /// Configurations for conversion.
 mod opencc_config;
 /// Common helpers for opencc-fmmseg.
 mod utils;
-pub mod ids;
 
 pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
 pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};

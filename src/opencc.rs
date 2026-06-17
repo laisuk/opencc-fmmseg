@@ -69,14 +69,29 @@ fn strip_regex() -> &'static Regex {
 
 /// Central interface for performing OpenCC-based conversion with segmentation.
 ///
-/// The `OpenCC` struct manages dictionary loading, segmentation, and multi-round text transformation.
-/// It supports conversion types such as `s2t`, `t2s`, `s2tw`, etc., and uses maximum match segmentation
-/// on non-delimiter text regions to ensure accurate replacements.
+/// The `OpenCC` struct manages dictionary loading, segmentation, and multi-round
+/// text transformation. It supports conversion types such as `s2t`, `t2s`,
+/// `s2tw`, etc., and uses maximum-match segmentation on non-delimiter text
+/// regions to ensure accurate replacements.
+///
+/// By default, Unicode Ideographic Description Sequences (IDS) are converted
+/// normally. IDS preservation can be enabled with
+/// [`set_preserve_ids`](Self::set_preserve_ids).
 pub struct OpenCC {
     /// Dictionary storage with length metadata for maximum matching.
     dictionary: DictionaryMaxlength,
-    /// Flag indicator for parallelism
+
+    /// Flag indicating whether parallel conversion is enabled.
     is_parallel: bool,
+
+    /// Flag indicating whether complete Unicode IDS expressions should be
+    /// preserved during conversion.
+    ///
+    /// When enabled, complete IDS sequences such as `⿰氵漢` and
+    /// `⿱⿰口口馬` are emitted unchanged instead of converting their
+    /// component characters.
+    ///
+    /// Default: `false`.
     is_preserve_ids: bool,
 }
 
@@ -431,16 +446,11 @@ impl OpenCC {
         }
     }
 
-    /// Serial delimiter-aware segment conversion without storing intermediate ranges.
+    /// Serial segment conversion using the shared range splitter.
     ///
-    /// This helper is used only when parallel mode is disabled. It scans the
-    /// pre-collected `chars` slice once, emits delimiter-bounded segments as they
-    /// are found, and appends each converted segment directly into the output
-    /// buffer via [`convert_by_union_into`](Self::convert_by_union_into).
-    ///
-    /// Compared with the range-based path, this avoids allocating
-    /// `Vec<Range<usize>>` and removes one layer of orchestration for serial
-    /// workloads while preserving the same delimiter semantics.
+    /// This helper is used only when parallel mode is disabled. It delegates
+    /// delimiter and IDS boundary detection to [`get_chars_range`](Self::get_chars_range),
+    /// keeping serial and parallel conversion on the same segmentation path.
     #[inline]
     fn segment_replace_with_union_serial_streaming(
         &self,
@@ -451,24 +461,11 @@ impl OpenCC {
         union: &StarterUnion,
     ) -> String {
         let mut out = String::with_capacity(text_len + (text_len >> 6));
-        let mut start = 0usize;
+        let ranges = self.get_chars_range(chars, true, self.is_preserve_ids);
 
-        for (i, ch) in chars.iter().enumerate() {
-            if is_delimiter(*ch) {
-                self.convert_by_union_into(
-                    &chars[start..i + 1],
-                    dictionaries,
-                    max_word_length,
-                    union,
-                    &mut out,
-                );
-                start = i + 1;
-            }
-        }
-
-        if start < chars.len() {
+        for range in ranges {
             self.convert_by_union_into(
-                &chars[start..],
+                &chars[range],
                 dictionaries,
                 max_word_length,
                 union,

@@ -106,10 +106,7 @@ fn test_keep_ids_preserves_nested_ma_ids() {
 fn test_keep_ids_disabled_nested_ma_ids_converts_components() {
     let cc = OpenCC::new();
 
-    assert_eq!(
-        cc.convert("⿱⿰口口馬", "t2s", false),
-        "⿱⿰口口马"
-    );
+    assert_eq!(cc.convert("⿱⿰口口馬", "t2s", false), "⿱⿰口口马");
 }
 
 #[test]
