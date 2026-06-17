@@ -181,8 +181,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_dictionary_from_dicts_then_to_json() {
-        let dictionary = DictionaryMaxlength::from_dicts()
-            .expect("failed to build DictionaryMaxlength");
+        let dictionary =
+            DictionaryMaxlength::from_dicts().expect("failed to build DictionaryMaxlength");
 
         // Stable invariant (keep this check)
         assert_eq!(dictionary.st_phrases.max_len, 12);

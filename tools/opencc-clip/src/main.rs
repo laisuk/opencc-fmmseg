@@ -5,7 +5,7 @@ use clap::{
     Arg, ArgAction, Command,
 };
 use copypasta::{ClipboardContext, ClipboardProvider};
-use opencc_fmmseg::{find_max_utf8_length, OpenCC, OpenccConfig};
+use opencc_fmmseg::{OpenCC, OpenccConfig};
 
 fn config_value_parser() -> ValueParser {
     ValueParser::new(StringValueParser::new().try_map(|s| {
@@ -32,6 +32,18 @@ fn parse_config_or_auto(s: &str) -> Option<OpenccConfig> {
 #[inline]
 fn is_japanese_config(config: OpenccConfig) -> bool {
     matches!(config, OpenccConfig::T2jp | OpenccConfig::Jp2t)
+}
+
+fn find_max_utf8_length(text: &str, max_byte_count: usize) -> usize {
+    if text.len() <= max_byte_count {
+        return text.len();
+    }
+
+    let mut byte_count = max_byte_count;
+    while byte_count > 0 && (text.as_bytes()[byte_count] & 0b11000000) == 0b10000000 {
+        byte_count -= 1;
+    }
+    byte_count
 }
 
 fn main() {

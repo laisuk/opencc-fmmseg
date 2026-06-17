@@ -82,7 +82,6 @@ use serde::{Deserialize, Serialize};
 ///
 /// # See also
 /// [`debug_assert!`], [`eprintln!`]
-#[macro_export]
 macro_rules! debug_note {
     ($($arg:tt)*) => {
         #[allow(unused)]

@@ -32,7 +32,7 @@
 /// - Internally, it uses `leading_zeros` to walk set bits from high→low.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// // mask with bit 0 (len=1), bit 2 (len=3), CAP (≥64)
 /// use opencc_fmmseg::for_each_len_dec;
 /// let mask = (1u64 << 0) | (1u64 << 2) | (1u64 << 63);
@@ -42,7 +42,7 @@
 /// assert_eq!(seen, vec![3, 1]); // CAP ignored since cap_here=5 < 64
 /// ```
 #[inline(always)]
-pub fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool) {
+pub(crate) fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> bool) {
     if mask == 0 || cap_here == 0 {
         return;
     }
@@ -97,7 +97,7 @@ pub fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> 
 /// A safe byte index at or below `max_byte_count` where a valid UTF-8 character boundary ends.
 ///
 /// # Example
-/// ```rust
+/// ```ignore
 /// use opencc_fmmseg::find_max_utf8_length;
 ///
 /// let input = "汉字转换测试"; // Each Chinese character takes 3 bytes
@@ -105,7 +105,7 @@ pub fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usize) -> 
 /// let substring = &input[..safe_index]; // No panic!
 /// println!("Safe prefix: {}", substring);
 /// ```
-pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
+pub(crate) fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
     // 1. No longer than max byte count
     if sv.len() <= max_byte_count {
         return sv.len();
@@ -139,14 +139,15 @@ pub fn find_max_utf8_length(sv: &str, max_byte_count: usize) -> usize {
 /// A byte index at or below `max` that does not cut a UTF-8 codepoint.
 ///
 /// # Example
-/// ```rust
+/// ```ignore
 /// use opencc_fmmseg::find_max_utf8_len_bytes;
 /// let bytes = "汉字转换测试".as_bytes(); // UTF-8, 3 bytes per CJK char
 /// let safe = find_max_utf8_len_bytes(bytes, 7);
 /// let prefix = &bytes[..safe];
 /// assert!(std::str::from_utf8(prefix).is_ok());
 /// ```
-pub fn find_max_utf8_len_bytes(bytes: &[u8], max: usize) -> usize {
+#[allow(dead_code)]
+pub(crate) fn find_max_utf8_len_bytes(bytes: &[u8], max: usize) -> usize {
     if bytes.len() <= max {
         return bytes.len();
     }

@@ -20,11 +20,11 @@
 //! See [README](https://github.com/laisuk/opencc-fmmseg) for more usage examples.
 
 use crate::delimiter_set::is_delimiter;
+use crate::dict_refs::DictRefs;
 use crate::dictionary_lib::dictionary_maxlength::UnionKey;
 use crate::dictionary_lib::{DictMaxLen, DictionaryMaxlength, StarterUnion};
-use crate::{
-    detofu, find_max_utf8_length, for_each_len_dec, DetofuLevel, DetofuMap, DictRefs, OpenccConfig,
-};
+use crate::utils::{find_max_utf8_length, for_each_len_dec};
+use crate::{detofu, DetofuLevel, DetofuMap, OpenccConfig};
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;

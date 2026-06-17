@@ -125,11 +125,10 @@ impl TryFrom<&str> for OpenccConfig {
 }
 
 impl OpenccConfig {
-    /// All supported OpenCC configurations in canonical order.
+    /// All supported OpenCC configurations.
     ///
     /// This constant lists every [`OpenccConfig`] variant supported by the
-    /// library. The ordering corresponds to the canonical configuration
-    /// identifiers used by OpenCC.
+    /// library.
     ///
     /// This table is primarily used internally for:
     ///
@@ -137,8 +136,9 @@ impl OpenccConfig {
     /// - Case-insensitive parsing via [`OpenccConfig::parse`]
     /// - Validation helpers such as [`OpenccConfig::is_valid_config`]
     ///
-    /// The contents of this array are stable and reflect the same ordering
-    /// defined by the enum and its `#[repr(u32)]` FFI mapping.
+    /// Do not use the array index as a numeric configuration id. For FFI or
+    /// serialized numeric values, use [`OpenccConfig::to_ffi`] and
+    /// [`OpenccConfig::from_ffi`].
     ///
     /// # Since
     ///

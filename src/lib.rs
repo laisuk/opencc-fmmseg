@@ -30,7 +30,7 @@
 //! - [`OpenccConfig`] is the recommended Rust configuration API.
 //! - [`OpenCC::convert`] accepts OpenCC-style strings such as `"s2t"` and is
 //!   useful for CLI/config-file compatibility.
-//! - [`OpenCC::detofu`] and [`detofu`] provide optional display compatibility
+//! - [`OpenCC::detofu`] and [`detofu()`] provide optional display compatibility
 //!   fallback for rare non-BMP CJK extension characters after conversion.
 //! - [`DetofuMap`] is the advanced reusable/customizable detofu map API.
 //! - [`DictionaryMaxlength`] and [`CustomDictSpec`] are for advanced users who
@@ -96,7 +96,6 @@ mod opencc_config;
 mod utils;
 
 pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
-pub use crate::dict_refs::DictRefs;
 pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};
 pub use crate::dictionary_lib::{DictionaryError, DictionaryMaxlength};
 pub use crate::opencc::OpenCC;
@@ -107,4 +106,3 @@ pub use detofu::detofu;
 pub use detofu::DetofuLevel;
 /// Reusable and customizable detofu fallback map.
 pub use detofu::DetofuMap;
-pub use utils::*;
