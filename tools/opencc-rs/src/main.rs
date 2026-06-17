@@ -34,6 +34,12 @@ fn build_cli() -> Command {
                 .about("Convert plain text using OpenCC")
                 .args(common_args())
                 .arg(
+                    Arg::new("keep-ids")
+                        .long("keep-ids")
+                        .help("Preserve Unicode IDS expressions during conversion")
+                        .action(clap::ArgAction::SetTrue)
+                )
+                .arg(
                     Arg::new("in_enc")
                         .long("in-enc")
                         .default_value("UTF-8")
@@ -45,6 +51,7 @@ fn build_cli() -> Command {
                         .default_value("UTF-8")
                         .help("Encoding for output"),
                 ),
+
         )
         .subcommand(
             Command::new("office")
@@ -209,7 +216,12 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    let cc = OpenCC::new();
+    let mut cc = OpenCC::new();
+
+    if matches.get_flag("keep-ids") {
+        cc.set_preserve_ids(true);
+    }
+
     let output_str = cc.convert(&input_str, config, punctuation);
 
     let output_str = if let Some(level) = matches.get_one::<String>("detofu") {

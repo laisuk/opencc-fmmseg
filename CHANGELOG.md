@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Added optional IDS (Ideographic Description Sequence) preservation support:
     - `OpenCC::get_preserve_ids()`
     - `OpenCC::set_preserve_ids(bool)`
+- Added `opencc-rs convert --keep-ids` to preserve complete IDS expressions during conversion.
 - Added IDS parser and validation helpers for detecting complete Unicode IDS sequences.
 - Added regression tests covering unary, binary, ternary, nested, and malformed IDS expressions.
 
