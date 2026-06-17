@@ -6,6 +6,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.1] - Unreleased
+
+### Added
+
+- Added optional IDS (Ideographic Description Sequence) preservation support:
+    - `OpenCC::get_preserve_ids()`
+    - `OpenCC::set_preserve_ids(bool)`
+- Added IDS parser and validation helpers for detecting complete Unicode IDS sequences.
+- Added regression tests covering unary, binary, ternary, nested, and malformed IDS expressions.
+
+### Changed
+
+- Update dictionary data.
+- Refactored text segmentation to optionally isolate complete IDS sequences before conversion.
+- When IDS preservation is enabled, complete IDS expressions are emitted unchanged while incomplete IDS expressions
+  continue to be processed normally.
+
+---
+
 ## [0.11.0] - 2026-06-17
 
 ### Added

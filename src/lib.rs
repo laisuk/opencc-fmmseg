@@ -94,6 +94,7 @@ mod opencc;
 mod opencc_config;
 /// Common helpers for opencc-fmmseg.
 mod utils;
+pub mod ids;
 
 pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
 pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};
