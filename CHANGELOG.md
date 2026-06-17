@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - Update dictionary data.
 - Refactored text segmentation to optionally isolate complete IDS sequences before conversion.
+- Refactored serial and parallel conversion paths to share the same text segmentation logic.
 - When IDS preservation is enabled, complete IDS expressions are emitted unchanged while incomplete IDS expressions
   continue to be processed normally.
 
