@@ -65,6 +65,7 @@ fn build_cli() -> Command {
                 )
                 .arg(
                     Arg::new("keep_font")
+                        .short('k')
                         .long("keep-font")
                         .action(clap::ArgAction::SetTrue)
                         .help("Preserve original font styles"),
