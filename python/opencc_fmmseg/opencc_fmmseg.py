@@ -28,6 +28,11 @@ class OpenCC:
         "jp2t",
     }
 
+    @classmethod
+    def supported_configs(cls):
+        """Return supported conversion configurations in a stable order."""
+        return tuple(sorted(cls.VALID_CONFIGS))
+
     def __init__(self, config=None):
         self.config = config if config in self.VALID_CONFIGS else "s2t"
         self.lib = load_native_library()

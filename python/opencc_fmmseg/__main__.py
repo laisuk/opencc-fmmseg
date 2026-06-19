@@ -5,6 +5,8 @@ import sys
 import io
 from opencc_fmmseg import OpenCC
 
+CONFIG_HELP = "Configuration: " + "|".join(OpenCC.supported_configs())
+
 
 def subcommand_convert(args):
     if args.config is None:
@@ -114,8 +116,11 @@ def main():
                                 help='Read original text from <file>.')
     parser_convert.add_argument('-o', '--output', metavar='<file>',
                                 help='Write converted text to <file>.')
-    parser_convert.add_argument('-c', '--config', metavar='<conversion>',
-                                help='Conversion configuration: [s2t|s2tw|s2twp|s2hk|s2hkp|t2s|tw2s|tw2sp|hk2s|hk2sp|jp2t|t2jp]')
+    parser_convert.add_argument(
+        '-c', '--config', metavar='<conversion>',
+        type=str.lower,
+        choices=OpenCC.supported_configs(), help=CONFIG_HELP,
+    )
     parser_convert.add_argument('-p', '--punct', action='store_true', default=False,
                                 help='Punctuation conversion')
     parser_convert.add_argument('--in-enc', metavar='<encoding>', default='UTF-8',
@@ -147,10 +152,9 @@ def main():
         "-c",
         "--config",
         metavar="<conversion>",
-        help=(
-            "conversion: "
-            "s2t|s2tw|s2twp|s2hk|s2hkp|t2s|tw2s|tw2sp|hk2s|hk2sp|jp2t|t2jp"
-        ),
+        type=str.lower,
+        choices=OpenCC.supported_configs(),
+        help=CONFIG_HELP,
     )
     parser_office.add_argument(
         "-p",
