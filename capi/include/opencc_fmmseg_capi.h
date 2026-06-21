@@ -272,9 +272,11 @@ char* opencc_convert_len(
  * Converts a null-terminated UTF-8 input string using a numeric OpenCC config,
  * writing the result into a caller-provided buffer.
  *
- * This is an advanced API for bindings and high-throughput code that wants to
- * reuse memory. Because the output length is variable, this function uses a
- * size-query pattern.
+ * This is an advanced API for bindings that specifically need caller-owned
+ * output memory. Its size-query pattern performs conversion once to determine
+ * the size and again to write the output. Prefer `opencc_convert()` or
+ * `opencc_convert_cfg()` for ordinary conversion; use this API for its buffer
+ * contract, not as a performance optimization.
  *
  * Size-query usage:
  *
@@ -351,8 +353,10 @@ bool opencc_convert_cfg_mem(
  * OpenCC config, writing the result into a caller-provided buffer.
  *
  * This is the length-based companion to `opencc_convert_cfg_mem()`. It avoids
- * scanning `input` for a terminating `'\0'` and is the preferred buffer API for
- * interop and high-throughput bindings that already know the input byte length.
+ * scanning `input` for a terminating `'\0'`, but still uses a size query and an
+ * output pass. Prefer `opencc_convert()` or `opencc_convert_cfg()` for ordinary
+ * conversion; use this API only when an explicit input length and caller-owned
+ * output buffer are required.
  *
  * The input buffer does not need to be null-terminated.
  *
