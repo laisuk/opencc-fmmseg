@@ -1007,7 +1007,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// - Empty lines are ignored.
     /// - Lines starting with `#` are ignored.
     /// - Trailing `\r` and whitespace are stripped automatically.
-    /// - UTF-8 BOM (`\u{FEFF}`) is stripped from the first data line if present.
+    /// - UTF-8 BOM (`\u{FEFF}`) is stripped if present on the first physical line.
     /// - The first whitespace-separated token after the TAB is used as the value.
     /// - Additional tokens after the first value are ignored.
     ///
@@ -1032,21 +1032,20 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         let reader = BufReader::new(file);
 
         let mut pairs = Vec::new();
-        let mut saw_data_line = false;
 
         for (lineno, raw_line) in reader.lines().enumerate() {
             let raw_line = raw_line?;
             let mut line = raw_line.trim_end();
 
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-
-            if !saw_data_line {
+            // UTF-8 BOM is only valid at the beginning of the file.
+            if lineno == 0 {
                 if let Some(rest) = line.strip_prefix('\u{FEFF}') {
                     line = rest;
                 }
-                saw_data_line = true;
+            }
+
+            if line.is_empty() || line.starts_with('#') {
+                continue;
             }
 
             let Some((k, v)) = line.split_once('\t') else {

@@ -8,10 +8,14 @@ use clap::{
 };
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use opencc_fmmseg::{DetofuLevel, OpenCC, OpenccConfig};
+use opencc_fmmseg::{
+    CustomDictFileSpec, CustomDictMode, DetofuLevel, DictSlot, DictionaryMaxlength, OpenCC,
+    OpenccConfig,
+};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -38,6 +42,13 @@ fn build_cli() -> Command {
                         .long("keep-ids")
                         .help("Preserve Unicode IDS expressions during conversion")
                         .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("custom-dict")
+                        .long("custom-dict")
+                        .value_name("SLOT:MODE:FILE")
+                        .action(clap::ArgAction::Append)
+                        .help("Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt"),
                 )
                 .arg(
                     Arg::new("in_enc")
@@ -218,7 +229,18 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    let mut cc = OpenCC::new();
+    // let mut cc = OpenCC::new();
+    let mut cc = if let Some(values) = matches.get_many::<String>("custom-dict") {
+        let specs = values
+            .map(|v| parse_custom_dict_spec(v))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let dictionary = DictionaryMaxlength::from_zstd()?.with_custom_dict_files(&specs)?;
+
+        OpenCC::from_dictionary(dictionary)
+    } else {
+        OpenCC::new()
+    };
 
     if matches.get_flag("keep-ids") {
         cc.set_preserve_ids(true);
@@ -403,5 +425,67 @@ fn encode_and_write_output(output_str: &str, enc: &str, output: &mut dyn Write) 
 fn remove_utf8_bom(input: &mut Vec<u8>) {
     if input.starts_with(&[0xEF, 0xBB, 0xBF]) {
         input.drain(..3);
+    }
+}
+
+fn parse_custom_dict_spec(
+    arg: &str,
+) -> Result<CustomDictFileSpec<PathBuf>, Box<dyn std::error::Error>> {
+    let mut parts = arg.splitn(3, ':');
+
+    let slot = parts.next().ok_or("Missing custom dict slot")?;
+
+    let mode = parts.next().ok_or("Missing custom dict mode")?;
+
+    let file = parts.next().ok_or("Missing custom dict file")?;
+
+    let slot = DictSlot::try_from(normalize_dict_slot_name(slot))
+        .map_err(|_| format!("Unknown custom dictionary slot: {slot}"))?;
+
+    let mode = match mode.to_ascii_lowercase().as_str() {
+        "append" => CustomDictMode::Append,
+        "override" => CustomDictMode::Override,
+        other => return Err(format!("Unknown custom dict mode: {other}").into()),
+    };
+
+    Ok(CustomDictFileSpec {
+        slot,
+        files: vec![PathBuf::from(file)],
+        mode,
+    })
+}
+
+fn normalize_dict_slot_name(s: &str) -> &str {
+    match s.to_ascii_lowercase().as_str() {
+        "stcharacters" => "STCharacters",
+        "stphrases" => "STPhrases",
+
+        "tscharacters" => "TSCharacters",
+        "tsphrases" => "TSPhrases",
+
+        "twphrases" => "TWPhrases",
+        "twphrasesrev" => "TWPhrasesRev",
+
+        "twvariants" => "TWVariants",
+        "twvariantsphrases" => "TWVariantsPhrases",
+        "twvariantsrev" => "TWVariantsRev",
+        "twvariantsrevphrases" => "TWVariantsRevPhrases",
+
+        "hkphrases" => "HKPhrases",
+        "hkphrasesrev" => "HKPhrasesRev",
+
+        "hkvariants" => "HKVariants",
+        "hkvariantsphrases" => "HKVariantsPhrases",
+        "hkvariantsrev" => "HKVariantsRev",
+        "hkvariantsrevphrases" => "HKVariantsRevPhrases",
+
+        "jpscharacters" => "JPSCharacters",
+        "jpscharactersrev" => "JPSCharactersRev",
+        "jpsphrases" => "JPSPhrases",
+
+        "stpunctuations" => "STPunctuations",
+        "tspunctuations" => "TSPunctuations",
+
+        _ => s,
     }
 }
