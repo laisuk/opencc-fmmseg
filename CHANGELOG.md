@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - `OpenCC::get_preserve_ids()`
     - `OpenCC::set_preserve_ids(bool)`
 - Added `opencc-rs convert --keep-ids` to preserve complete IDS expressions during conversion.
+- Added `opencc-rs convert/office --custom-dict` to use custom dictionary during conversion.
 - Added IDS parser and validation helpers for detecting complete Unicode IDS sequences.
 - Added regression tests covering unary, binary, ternary, nested, and malformed IDS expressions.
 

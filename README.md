@@ -624,15 +624,17 @@ Convert plain text using OpenCC
 Usage: opencc-rs.exe convert [OPTIONS] --config <config>
 
 Options:
-  -i, --input <file>        Input file (use stdin if omitted for non-office documents)
-  -o, --output <file>       Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>     Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
-  -p, --punct               Enable punctuation conversion
-      --detofu [<LEVEL>]    Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
-      --detofu-file <FILE>  Load additional detofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
-      --in-enc <in_enc>     Encoding for input [default: UTF-8]
-      --out-enc <out_enc>   Encoding for output [default: UTF-8]
-  -h, --help                Print help
+  -i, --input <file>                  Input file (use stdin if omitted for non-office documents)
+  -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
+  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
+  -p, --punct                         Enable punctuation conversion
+      --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
+      --detofu-file <FILE>            Load additional detofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
+      --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
+      --keep-ids                      Preserve Unicode IDS expressions during conversion
+      --in-enc <in_enc>               Encoding for input [default: UTF-8]
+      --out-enc <out_enc>             Encoding for output [default: UTF-8]
+  -h, --help                          Print help
 ```
 
 ### `opencc-rs office`
@@ -643,14 +645,17 @@ Convert Office or EPUB documents using OpenCC
 Usage: opencc-rs.exe office [OPTIONS] --config <config>
 
 Options:
-  -i, --input <file>     Input file (use stdin if omitted for non-office documents)
-  -o, --output <file>    Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>  Conversion configuration [possible values: s2t, t2s, s2tw, tw2s, s2twp, tw2sp, s2hk, s2hkp, hk2s, hk2sp, t2tw, t2twp, t2hk, tw2t, tw2tp, hk2t, t2jp, jp2t]
-  -p, --punct            Enable punctuation conversion
-  -f, --format <ext>     Force document format: docx, odt, epub...
-      --keep-font        Preserve original font styles
-      --auto-ext         Infer format from file extension
-  -h, --help             Print help
+  -i, --input <file>                  Input file (use stdin if omitted for non-office documents)
+  -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
+  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
+  -p, --punct                         Enable punctuation conversion
+      --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
+      --detofu-file <FILE>            Load additional detofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
+      --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
+  -f, --format <ext>                  Force document format: docx, odt, epub...
+  -k, --keep-font                     Preserve original font styles
+      --convert-filename              Convert the output filename using the selected OpenCC configuration
+  -h, --help                          Print help
 ```
 
 ### Example
@@ -661,12 +666,20 @@ Options:
 ./opencc-rs convert -c s2t -i text_simplified.txt -o text_traditional.txt
 "俨骖𬴂于上路" | ./opencc-rs convert -c t2s --detofu all
 "𣭲毛" | ./opencc-rs convert -c t2s --detofu ext-b --detofu-file custom_tofu.txt
+"這個細路哥很靈活" | ./opencc-rs convert -c hk2sp --custom-dict hkphrasesrev:append:my_hk_dict.txt
 ```
 
 Example `custom_tofu.txt`:
 
 ```text
 𣭲	氄	B
+```
+
+Example `my_hk_dict.txt`:
+
+```text
+# Custom Dictionary
+細路哥	小男孩
 ```
 
 #### Office Documents or EPUB
