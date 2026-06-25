@@ -25,6 +25,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Refactored serial and parallel conversion paths to share the same text segmentation logic.
 - When IDS preservation is enabled, complete IDS expressions are emitted unchanged while incomplete IDS expressions
   continue to be processed normally.
+- Optimized `office_converter` for error handling.
 
 ---
 
