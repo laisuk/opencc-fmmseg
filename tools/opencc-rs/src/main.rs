@@ -44,13 +44,6 @@ fn build_cli() -> Command {
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
-                    Arg::new("custom-dict")
-                        .long("custom-dict")
-                        .value_name("SLOT:MODE:FILE")
-                        .action(clap::ArgAction::Append)
-                        .help("Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt"),
-                )
-                .arg(
                     Arg::new("in_enc")
                         .long("in-enc")
                         .default_value("UTF-8")
@@ -197,6 +190,11 @@ fn common_args() -> Vec<Arg> {
                 "Load additional detofu fallback mappings from a UTF-8 text file. \
          Custom mappings override built-in mappings (requires --detofu)",
             ),
+        Arg::new("custom-dict")
+            .long("custom-dict")
+            .value_name("SLOT:MODE:FILE")
+            .action(clap::ArgAction::Append)
+            .help("Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt"),
     ]
 }
 
@@ -230,17 +228,7 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 
     let input_str = decode_input(&buffer, in_enc)?;
     // let mut cc = OpenCC::new();
-    let mut cc = if let Some(values) = matches.get_many::<String>("custom-dict") {
-        let specs = values
-            .map(|v| parse_custom_dict_spec(v))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let dictionary = DictionaryMaxlength::from_zstd()?.with_custom_dict_files(&specs)?;
-
-        OpenCC::from_dictionary(dictionary)
-    } else {
-        OpenCC::new()
-    };
+    let mut cc = build_opencc(matches)?;
 
     if matches.get_flag("keep-ids") {
         cc.set_preserve_ids(true);
@@ -316,7 +304,8 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
         return Err(format!("❌  Unsupported Office format: {office_format}").into());
     }
 
-    let helper = OpenCC::new();
+    // let helper = OpenCC::new();
+    let helper = build_opencc(matches)?;
 
     let final_output = match output_file {
         Some(path) => {
@@ -371,6 +360,20 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
     }
 
     Ok(())
+}
+
+fn build_opencc(matches: &ArgMatches) -> Result<OpenCC, Box<dyn std::error::Error>> {
+    let Some(values) = matches.get_many::<String>("custom-dict") else {
+        return Ok(OpenCC::new());
+    };
+
+    let specs = values
+        .map(|v| parse_custom_dict_spec(v))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let dictionary = DictionaryMaxlength::from_zstd()?.with_custom_dict_files(&specs)?;
+
+    Ok(OpenCC::from_dictionary(dictionary))
 }
 
 fn read_input(input: &mut dyn Read, is_console: bool) -> io::Result<Vec<u8>> {
@@ -434,12 +437,11 @@ fn parse_custom_dict_spec(
     let mut parts = arg.splitn(3, ':');
 
     let slot = parts.next().ok_or("Missing custom dict slot")?;
-
     let mode = parts.next().ok_or("Missing custom dict mode")?;
-
     let file = parts.next().ok_or("Missing custom dict file")?;
 
-    let slot = DictSlot::try_from(normalize_dict_slot_name(slot))
+    let slot_name = normalize_dict_slot_name(slot);
+    let slot = DictSlot::try_from(slot_name.as_str())
         .map_err(|_| format!("Unknown custom dictionary slot: {slot}"))?;
 
     let mode = match mode.to_ascii_lowercase().as_str() {
@@ -455,17 +457,18 @@ fn parse_custom_dict_spec(
     })
 }
 
-fn normalize_dict_slot_name(s: &str) -> &str {
-    match s.to_ascii_lowercase().as_str() {
+fn normalize_dict_slot_name(s: &str) -> String {
+    match s.trim().to_ascii_lowercase().as_str() {
         "stcharacters" => "STCharacters",
         "stphrases" => "STPhrases",
+        "stpunctuations" => "STPunctuations",
 
         "tscharacters" => "TSCharacters",
         "tsphrases" => "TSPhrases",
+        "tspunctuations" => "TSPunctuations",
 
         "twphrases" => "TWPhrases",
         "twphrasesrev" => "TWPhrasesRev",
-
         "twvariants" => "TWVariants",
         "twvariantsphrases" => "TWVariantsPhrases",
         "twvariantsrev" => "TWVariantsRev",
@@ -473,7 +476,6 @@ fn normalize_dict_slot_name(s: &str) -> &str {
 
         "hkphrases" => "HKPhrases",
         "hkphrasesrev" => "HKPhrasesRev",
-
         "hkvariants" => "HKVariants",
         "hkvariantsphrases" => "HKVariantsPhrases",
         "hkvariantsrev" => "HKVariantsRev",
@@ -483,9 +485,7 @@ fn normalize_dict_slot_name(s: &str) -> &str {
         "jpscharactersrev" => "JPSCharactersRev",
         "jpsphrases" => "JPSPhrases",
 
-        "stpunctuations" => "STPunctuations",
-        "tspunctuations" => "TSPunctuations",
-
-        _ => s,
+        _ => s.trim(),
     }
+    .to_string()
 }
