@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - When IDS preservation is enabled, complete IDS expressions are emitted unchanged while incomplete IDS expressions
   continue to be processed normally.
 - Optimized `office_converter` for error handling.
+- Extracted `DeTofu` section from `README.md` to standalone `DETOFU_USER_GUIDE.md`
 
 ---
 
