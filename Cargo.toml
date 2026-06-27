@@ -23,6 +23,9 @@ categories = ["text-processing", "localization", "command-line-utilities", "pars
 include = [
     "Cargo.toml",
     "/LICENSE",
+    "/CHANGELOG.md",
+    "/CUSTOM_DICT_USER_GUIDE.md",
+    "/DETOFU_USER_GUIDE.md",
     # All source code
     "src/**/*.rs",
     "src/dictionary_lib/dicts/*.zstd",

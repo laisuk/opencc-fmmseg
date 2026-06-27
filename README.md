@@ -97,7 +97,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.11.0"  # or latest version
+opencc-fmmseg = "0.11.1"  # or latest version
 ```
 
 Then use it in your code:
@@ -244,7 +244,7 @@ DeTofu is an optional post-conversion display-compatibility pass for rare CJK ex
 tofu boxes on some systems, fonts, browsers, document viewers, mobile devices, or e-book readers.
 
 This is an advanced compatibility feature rather than common OpenCC conversion usage. See the
-[DeTofu User Guide](https://github.com/laisuk/opencc-fmmseg/blob/master/DETOFU_USER_GUIDE.md) for Rust APIs, threshold behavior, custom fallback pairs, and custom
+[DeTofu User Guide](DETOFU_USER_GUIDE.md) for Rust APIs, threshold behavior, custom fallback pairs, and custom
 fallback files.
 
 ---
@@ -536,7 +536,7 @@ Japanese Shinjitai slots such as `JPSCharacters`, `JPSCharactersRev`, and `JPSPh
 slots such as `TWVariantsPhrases` and `HKVariantsPhrases`, which are applied before variant character fallback.
 Missing plaintext `HKPhrases.txt` / `HKPhrasesRev.txt` files are treated as
 empty slots for backward compatibility.
-See the [Custom Dictionary User Guide](https://github.com/laisuk/opencc-fmmseg/blob/master/CUSTOM_DICT_USER_GUIDE.md).
+See the [Custom Dictionary User Guide](CUSTOM_DICT_USER_GUIDE.md).
 
 ---
 
