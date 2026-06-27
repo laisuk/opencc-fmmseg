@@ -24,7 +24,7 @@ use crate::dict_refs::DictRefs;
 use crate::dictionary_lib::dictionary_maxlength::UnionKey;
 use crate::dictionary_lib::{DictMaxLen, DictionaryMaxlength, StarterUnion};
 use crate::utils::{find_max_utf8_length, for_each_len_dec};
-use crate::{detofu, ids, DetofuLevel, DetofuMap, OpenccConfig};
+use crate::{compat_ideographs, detofu, ids, DetofuLevel, DetofuMap, OpenccConfig};
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
@@ -1773,6 +1773,49 @@ impl OpenCC {
             (_, true) => 2,
             _ => 0,
         }
+    }
+
+    /// Normalizes CJK Compatibility Ideographs with the built-in Unicode table.
+    ///
+    /// This is a convenience wrapper around
+    /// [`compat_ideographs::normalize_compat_ideographs`]. It performs an
+    /// optional Unicode compatibility normalization pre-pass and does not change
+    /// this [`OpenCC`] instance, the selected OpenCC config, conversion
+    /// dictionaries, segmentation behavior, script detection, or punctuation
+    /// conversion.
+    ///
+    /// Use this before [`OpenCC::convert`] or [`OpenCC::convert_with_config`]
+    /// when input may contain CJK Compatibility Ideographs such as `金` and you
+    /// want upstream OpenCC-compatible behavior. Unmapped compatibility
+    /// ideographs remain unchanged.
+    ///
+    /// DeToFu is the opposite side of the pipeline: compatibility ideograph
+    /// normalization is a pre-processing step, while [`OpenCC::detofu`] is an
+    /// optional post-processing display fallback.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::OpenCC;
+    ///
+    /// let cc = OpenCC::new();
+    /// assert_eq!(cc.normalize_compat("金庸"), "金庸");
+    /// ```
+    ///
+    /// Normalize, convert, then optionally apply DeToFu for display fallback:
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{DetofuLevel, OpenCC};
+    ///
+    /// let cc = OpenCC::new();
+    /// let normalized = cc.normalize_compat("金庸小說");
+    /// let converted = cc.convert(&normalized, "s2t", false);
+    /// let display = cc.detofu(&converted, DetofuLevel::ExtB);
+    ///
+    /// assert_eq!(display, "金庸小說");
+    /// ```
+    pub fn normalize_compat(&self, text: &str) -> String {
+        compat_ideographs::normalize_compat_ideographs(text)
     }
 
     /// Converts non-BMP CJK extension characters to display-safe fallbacks.

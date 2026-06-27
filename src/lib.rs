@@ -30,6 +30,8 @@
 //! - [`OpenccConfig`] is the recommended Rust configuration API.
 //! - [`OpenCC::convert`] accepts OpenCC-style strings such as `"s2t"` and is
 //!   useful for CLI/config-file compatibility.
+//! - [`OpenCC::normalize_compat`] and [`normalize_compat_ideographs()`] provide
+//!   optional CJK Compatibility Ideograph normalization before conversion.
 //! - [`OpenCC::detofu`] and [`detofu()`] provide optional display compatibility
 //!   fallback for rare non-BMP CJK extension characters after conversion.
 //! - [`DetofuMap`] is the advanced reusable/customizable detofu map API.
@@ -80,6 +82,8 @@
 //! errors are recorded in [`OpenCC::get_last_error`]. Dictionary construction
 //! APIs return [`Result`] with [`DictionaryError`].
 //!
+/// Unicode CJK Compatibility Ideograph normalization utilities.
+pub mod compat_ideographs;
 /// Delimiters helper for splitting and matching delimiters.
 mod delimiter_set;
 /// Display compatibility fallback utilities for rare CJK extension characters.
@@ -101,6 +105,10 @@ pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSp
 pub use crate::dictionary_lib::{DictionaryError, DictionaryMaxlength};
 pub use crate::opencc::OpenCC;
 pub use crate::opencc_config::OpenccConfig;
+/// Normalizes CJK Compatibility Ideographs to UnicodeData decomposition targets.
+pub use compat_ideographs::normalize_compat_ideographs;
+/// Reusable CJK Compatibility Ideograph normalization table.
+pub use compat_ideographs::CompatIdeographs;
 /// Converts rare non-BMP CJK extension characters to compatibility fallbacks.
 pub use detofu::detofu;
 /// Threshold level used by detofu display-compatibility fallback.

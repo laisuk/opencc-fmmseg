@@ -6,6 +6,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Added optional CJK Compatibility Ideograph normalization for callers that want a Unicode compatibility pre-pass before
+  OpenCC segmentation/conversion.
+- Added `src/data/CJK_Compatibility_Ideographs.txt` mapping data.
+- Added `compat_ideographs.rs` with cached dense lookup tables.
+- Added `OpenCC::normalize_compat(...)` convenience API.
+- The feature is optional and does not affect normal conversion unless explicitly used.
+
+---
+
 ## [0.11.1] - 2026-06-27
 
 ### Added
@@ -549,9 +562,4 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ---
 
 ## [Unreleased]
-
-
-
-
-
 

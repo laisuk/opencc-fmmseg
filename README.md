@@ -238,7 +238,44 @@ Last Error after clear: <none>
 
 ---
 
-## DeTofu: tofu-safe fallback for rare CJK characters
+## CJK Compatibility Ideograph normalization
+
+Some legacy text contains Unicode CJK Compatibility Ideographs such as `金`. These are uncommon in ordinary Chinese
+text, but callers that need upstream OpenCC-compatible behavior can run the optional compatibility pre-pass before
+segmentation and conversion.
+
+```rust
+use opencc_fmmseg::OpenCC;
+
+fn main() {
+    let cc = OpenCC::new();
+    let normalized = cc.normalize_compat("金庸");
+    assert_eq!(normalized, "金庸");
+}
+```
+
+Use it explicitly before conversion when needed:
+
+```rust
+use opencc_fmmseg::{OpenCC, OpenccConfig};
+
+fn main() {
+    let cc = OpenCC::new();
+    let input = "金庸小說";
+    let normalized = cc.normalize_compat(input);
+    let converted = cc.convert_with_config(&normalized, OpenccConfig::S2t, false);
+
+    assert_eq!(converted, "金庸小說");
+}
+```
+
+This normalization is optional because it changes Unicode code points, compatibility ideographs are rare in normal text,
+and some callers need exact code-point preservation. Compatibility normalization is a pre-processing step; DeToFu is a
+post-processing/display fallback for rare CJK extension characters.
+
+---
+
+## DeToFu: tofu-safe fallback for rare CJK characters
 
 DeTofu is an optional post-conversion display-compatibility pass for rare CJK extension characters that may render as
 tofu boxes on some systems, fonts, browsers, document viewers, mobile devices, or e-book readers.
