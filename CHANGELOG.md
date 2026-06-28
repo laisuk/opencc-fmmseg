@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Added `compat_ideographs.rs` with cached dense lookup tables.
 - Added `OpenCC::normalize_compat(...)` convenience API.
 - The feature is optional and does not affect normal conversion unless explicitly used.
+- CLI: `opencc-rs` - added `--norm-compat` feature.
 
 ---
 
