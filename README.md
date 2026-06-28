@@ -249,8 +249,8 @@ use opencc_fmmseg::OpenCC;
 
 fn main() {
     let cc = OpenCC::new();
-    let normalized = cc.normalize_compat("金庸");
-    assert_eq!(normalized, "金庸");
+    let normalized = cc.normalize_compat("天龍八部書裡的喬峰是契丹人");
+    assert_eq!(normalized, "天龍八部書裡的喬峰是契丹人");
 }
 ```
 
@@ -261,11 +261,11 @@ use opencc_fmmseg::{OpenCC, OpenccConfig};
 
 fn main() {
     let cc = OpenCC::new();
-    let input = "金庸小說";
+    let input = "天龍八部書裡的喬峰是契丹人";
     let normalized = cc.normalize_compat(input);
-    let converted = cc.convert_with_config(&normalized, OpenccConfig::S2t, false);
+    let converted = cc.convert_with_config(&normalized, OpenccConfig::T2s, false);
 
-    assert_eq!(converted, "金庸小說");
+    assert_eq!(converted, "天龙八部书里的乔峰是契丹人");
 }
 ```
 

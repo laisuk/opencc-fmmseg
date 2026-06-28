@@ -1,8 +1,5 @@
 use opencc_fmmseg::dictionary_lib::DictMaxLen;
-use opencc_fmmseg::{
-    CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictSlot, DictionaryMaxlength, OpenCC,
-    OpenccConfig,
-};
+use opencc_fmmseg::{normalize_compat_ideographs, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig};
 
 #[test]
 fn convert_clears_stale_last_error_on_success() {
@@ -207,4 +204,29 @@ fn test_detofu_custom_pairs_later_wins() {
         DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𣭲', '氂'), ('𣭲', '氄')]);
 
     assert_eq!(map.detofu("𣭲毛"), "氄毛");
+}
+
+#[test]
+fn normalize_compat_golden() {
+    assert_eq!(
+        normalize_compat_ideographs("天龍八部書裡的喬峰是契丹人"),
+        "天龍八部書裡的喬峰是契丹人"
+    );
+}
+
+#[test]
+fn opencc_normalize_compat_then_convert_golden() {
+    let cc = OpenCC::new();
+
+    let normalized = cc.normalize_compat("天龍八部書裡的喬峰是契丹人");
+
+    assert_eq!(
+        normalized,
+        "天龍八部書裡的喬峰是契丹人"
+    );
+
+    assert_eq!(
+        cc.convert(&normalized, "t2s", false),
+        "天龙八部书里的乔峰是契丹人"
+    );
 }

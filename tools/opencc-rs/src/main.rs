@@ -183,6 +183,10 @@ fn common_args() -> Vec<Arg> {
             .num_args(0..=1)
             .default_missing_value("all")
             .help("Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"),
+        Arg::new("norm-compat")
+            .long("norm-compat")
+            .action(clap::ArgAction::SetTrue)
+            .help("Normalize CJK Compatibility Ideographs before conversion."),
         Arg::new("detofu-file")
             .long("detofu-file")
             .value_name("FILE")
@@ -227,14 +231,21 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    // let mut cc = OpenCC::new();
     let mut cc = build_opencc(matches)?;
+
+    let normalized_input;
+    let convert_input: &str = if matches.get_flag("norm-compat") {
+        normalized_input = cc.normalize_compat(&input_str);
+        &normalized_input
+    } else {
+        &input_str
+    };
 
     if matches.get_flag("keep-ids") {
         cc.set_preserve_ids(true);
     }
 
-    let output_str = cc.convert(&input_str, config, punctuation);
+    let output_str = cc.convert(convert_input, config, punctuation);
 
     let output_str = if let Some(level) = matches.get_one::<String>("detofu") {
         let level = DetofuLevel::parse(level)?;
