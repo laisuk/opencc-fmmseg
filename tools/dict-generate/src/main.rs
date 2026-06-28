@@ -3,6 +3,7 @@ mod json_io;
 use crate::json_io::DictionaryMaxlengthSerde;
 use clap::{Arg, Command};
 use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
+use opencc_tool_common::parse_custom_dict_spec;
 use std::fs::File;
 use std::io;
 use std::io::{BufWriter, Write};
@@ -54,6 +55,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .default_value("dicts")
                 .help("Base directory containing OpenCC dictionary TXT files"),
         )
+        .arg(
+            Arg::new("custom-dict")
+                .short('D')
+                .long("custom-dict")
+                .value_name("SLOT:MODE:FILE")
+                .action(clap::ArgAction::Append)
+                .help("Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt"),
+        )
         .get_matches();
 
     let base_dir = matches
@@ -91,7 +100,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let dictionary = DictionaryMaxlength::from_dicts_at(dict_dir)?;
+    let dictionary = match matches.get_many::<String>("custom-dict") {
+        Some(values) => {
+            let specs = values
+                .map(|v| parse_custom_dict_spec(v))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            DictionaryMaxlength::from_dicts_at(dict_dir)?.with_custom_dict_files(&specs)?
+        }
+        None => DictionaryMaxlength::from_dicts_at(dict_dir)?,
+    };
+
+    // let dictionary = DictionaryMaxlength::from_dicts_at(dict_dir)?;
 
     match dict_format {
         Some("zstd") => {
@@ -205,6 +225,8 @@ fn required_dictionary_files() -> &'static [&'static str] {
         "TSPunctuations.txt",
     ]
 }
+
+// Tests
 
 #[cfg(test)]
 mod tests {

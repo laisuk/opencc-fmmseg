@@ -264,6 +264,7 @@ dependencies = [
  "clap",
  "clap_lex",
  "opencc-fmmseg",
+ "opencc-tool-common",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -648,9 +649,17 @@ dependencies = [
  "encoding_rs",
  "encoding_rs_io",
  "opencc-fmmseg",
+ "opencc-tool-common",
  "regex",
  "winres",
  "zip",
+]
+
+[[package]]
+name = "opencc-tool-common"
+version = "0.11.1"
+dependencies = [
+ "opencc-fmmseg",
 ]
 
 [[package]]

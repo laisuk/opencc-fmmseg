@@ -3,6 +3,7 @@ members = [
     "capi/opencc-fmmseg-capi",
     "tools/dict-generate",
     "tools/opencc-clip",
+    "tools/opencc-tool-common",
     "tools/opencc-rs"
 ]
 
