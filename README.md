@@ -97,7 +97,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.11.1"  # or latest version
+opencc-fmmseg = "0.11.2"  # or latest version
 ```
 
 Then use it in your code:
