@@ -175,17 +175,17 @@ fn common_args() -> Vec<Arg> {
             .long("punct")
             .action(clap::ArgAction::SetTrue)
             .help("Enable punctuation conversion"),
+        Arg::new("norm-compat")
+            .short('n')
+            .long("norm-compat")
+            .action(clap::ArgAction::SetTrue)
+            .help("Normalize CJK Compatibility Ideographs before conversion."),
         Arg::new("detofu")
             .long("detofu")
             .value_name("LEVEL")
             .num_args(0..=1)
             .default_missing_value("all")
             .help("Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"),
-        Arg::new("norm-compat")
-            .short('n')
-            .long("norm-compat")
-            .action(clap::ArgAction::SetTrue)
-            .help("Normalize CJK Compatibility Ideographs before conversion."),
         Arg::new("detofu-file")
             .long("detofu-file")
             .value_name("FILE")
