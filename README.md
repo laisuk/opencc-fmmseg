@@ -485,9 +485,10 @@ Options:
   -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
   -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
   -p, --punct                         Enable punctuation conversion
+  -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
       --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
       --detofu-file <FILE>            Load additional detofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
-      --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
+  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
       --keep-ids                      Preserve Unicode IDS expressions during conversion
       --in-enc <in_enc>               Encoding for input [default: UTF-8]
       --out-enc <out_enc>             Encoding for output [default: UTF-8]
@@ -506,13 +507,37 @@ Options:
   -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
   -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
   -p, --punct                         Enable punctuation conversion
+  -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
       --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
       --detofu-file <FILE>            Load additional detofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
-      --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
+  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
   -f, --format <ext>                  Force document format: docx, odt, epub...
   -k, --keep-font                     Preserve original font styles
-      --convert-filename              Convert the output filename using the selected OpenCC configuration
+  -F, --convert-filename              Convert the output filename using the selected OpenCC configuration
+  -h, --help                          Print help                        Print help
+```
+
+### `dict-generate`
+
+```
+Dict Generator: Dictionary Artifacts Generator from dictionaries in ./dicts/
+
+Usage: dict-generate.exe [OPTIONS]
+
+Options:
+  -f, --format <format>               Dictionary format: [zstd|cbor|json] [default: zstd] [possible values: zstd, cbor, json]
+      --pretty                        Pretty-print JSON when --format json
+  -o, --output <filename>             Write generated dictionary to <filename>. If not specified, a default filename is used.
+  -b, --base-dir <dir>                Base directory containing OpenCC dictionary TXT files [default: dicts]
+  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
   -h, --help                          Print help
+
+Examples:
+
+dict-generate --format cbor --output dictionary_maxlength.cbor
+dict-generate --format zstd --output dictionary_maxlength.zstd
+
+The generated CBOR can be loaded with DictionaryMaxlength::deserialize_from_cbor().
 ```
 
 ### Example
