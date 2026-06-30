@@ -6,6 +6,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+[Unreleased]
+
+### Changed
+
+- Update dictionary data.
+- Update Tofu character dictionary.
+
+---
+
 ## [0.11.2] - 2026-06-29
 
 ### Added
