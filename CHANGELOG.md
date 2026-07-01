@@ -10,8 +10,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Update dictionary data.
-- Update Tofu character dictionary.
+- Updated embedded dictionary data.
+- Updated DeToFu character mappings.
+- Resolved ambiguous DeToFu fallback mappings using preferred BMP replacement characters.
 
 ---
 
