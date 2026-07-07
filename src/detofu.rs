@@ -1,6 +1,6 @@
 //! Display compatibility fallback utilities.
 //!
-//! This module provides optional "detofu" processing for non-BMP
+//! This module provides optional DeTofu processing for non-BMP
 //! CJK extension characters that may not render correctly on some
 //! systems, fonts, browsers, or e-book readers.
 
@@ -10,9 +10,9 @@ use std::sync::OnceLock;
 
 static TOFU_DATA: &[u8] = include_bytes!("data/TSCharactersTofu.txt");
 
-/// Controls which CJK extension ranges are replaced by detofu.
+/// Controls which CJK extension ranges are replaced by DeTofu.
 ///
-/// Detofu levels are threshold-based: the selected level is the earliest
+/// DeTofu levels are threshold-based: the selected level is the earliest
 /// extension block to replace, and all supported later extension blocks are
 /// replaced too.
 ///
@@ -56,7 +56,7 @@ impl DetofuLevel {
             "ext-h" | "exth" | "h" => Ok(Self::ExtH),
             "ext-i" | "exti" | "i" => Ok(Self::ExtI),
             _ => Err(
-                "supported detofu levels: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"
+                "supported DeTofu levels: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"
                     .to_string(),
             ),
         }
@@ -112,13 +112,13 @@ fn tofu_entries() -> &'static [(char, char, DetofuLevel)] {
     })
 }
 
-/// A reusable map for detofu display-compatibility fallback.
+/// A reusable map for DeTofu display-compatibility fallback.
 ///
 /// `DetofuMap` is an advanced API for callers that want to build a fallback
 /// table once and reuse it across many strings, or layer application-specific
 /// fallbacks on top of the built-in map.
 ///
-/// Detofu is independent of OpenCC conversion dictionaries. It does not
+/// DeTofu is independent of OpenCC conversion dictionaries. It does not
 /// participate in Simplified/Traditional phrase matching, regional variant
 /// selection, punctuation conversion, or any other OpenCC conversion logic.
 /// It is best treated as a display compatibility pass that can run after
@@ -145,13 +145,13 @@ pub struct DetofuMap {
 }
 
 impl DetofuMap {
-    /// Builds a detofu map from the crate's built-in compatibility data.
+    /// Builds a DeTofu map from the crate's built-in compatibility data.
     ///
     /// The selected [`DetofuLevel`] is threshold-based. For example,
     /// [`DetofuLevel::ExtB`] loads all supported non-BMP mappings, while
     /// [`DetofuLevel::ExtE`] loads only ExtE and later supported mappings.
     ///
-    /// The built-in detofu map is independent of the OpenCC conversion
+    /// The built-in DeTofu map is independent of the OpenCC conversion
     /// dictionaries bundled with this crate.
     pub fn builtin(level: DetofuLevel) -> Self {
         let map = tofu_entries()
@@ -177,7 +177,7 @@ impl DetofuMap {
     /// [`std::io::ErrorKind::InvalidData`] with the source line number.
     ///
     /// File entries are applied post-load. If a file entry already exists in
-    /// the built-in detofu map, the file fallback wins. Entries below this
+    /// the built-in DeTofu map, the file fallback wins. Entries below this
     /// map's threshold level are ignored, matching [`DetofuMap::builtin`].
     pub fn with_custom_file<P: AsRef<Path>>(mut self, path: P) -> std::io::Result<Self> {
         let text = std::fs::read_to_string(path)?;
@@ -196,7 +196,7 @@ impl DetofuMap {
     /// Adds or overrides compatibility fallback pairs after loading the map.
     ///
     /// Custom pairs are applied post-load. If a custom key already exists in
-    /// the built-in detofu map, the custom fallback wins.
+    /// the built-in DeTofu map, the custom fallback wins.
     ///
     /// # Examples
     ///
@@ -242,9 +242,9 @@ impl DetofuMap {
 /// coverage where rare CJK extension characters may render as tofu boxes on
 /// some systems, fonts, browsers, or e-book readers.
 ///
-/// Detofu is independent of OpenCC conversion dictionaries and does not
+/// DeTofu is independent of OpenCC conversion dictionaries and does not
 /// modify OpenCC conversion logic. In a typical workflow, run OpenCC
-/// conversion first and then apply detofu to the converted text.
+/// conversion first and then apply DeTofu to the converted text.
 ///
 /// # Examples
 ///

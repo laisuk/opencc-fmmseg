@@ -185,12 +185,12 @@ fn common_args() -> Vec<Arg> {
             .value_name("LEVEL")
             .num_args(0..=1)
             .default_missing_value("all")
-            .help("Apply tofu-safe fallback after conversion: all, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"),
+            .help("Apply tofu-safe fallback after conversion: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"),
         Arg::new("detofu-file")
             .long("detofu-file")
             .value_name("FILE")
             .help(
-                "Load additional detofu fallback mappings from a UTF-8 text file. \
+                "Load additional DeTofu fallback mappings from a UTF-8 text file. \
          Custom mappings override built-in mappings (requires --detofu)",
             ),
         Arg::new("custom-dict")

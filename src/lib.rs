@@ -34,7 +34,7 @@
 //!   optional CJK Compatibility Ideograph normalization before conversion.
 //! - [`OpenCC::detofu`] and [`detofu()`] provide optional display compatibility
 //!   fallback for rare non-BMP CJK extension characters after conversion.
-//! - [`DetofuMap`] is the advanced reusable/customizable detofu map API.
+//! - [`DetofuMap`] is the advanced reusable/customizable DeTofu map API.
 //! - [`DictionaryMaxlength`] and [`CustomDictSpec`] are for advanced users who
 //!   need custom dictionaries or externally generated dictionary artifacts.
 //!
@@ -111,7 +111,7 @@ pub use compat_ideographs::normalize_compat_ideographs;
 pub use compat_ideographs::CompatIdeographs;
 /// Converts rare non-BMP CJK extension characters to compatibility fallbacks.
 pub use detofu::detofu;
-/// Threshold level used by detofu display-compatibility fallback.
+/// Threshold level used by DeTofu display-compatibility fallback.
 pub use detofu::DetofuLevel;
-/// Reusable and customizable detofu fallback map.
+/// Reusable and customizable DeTofu fallback map.
 pub use detofu::DetofuMap;

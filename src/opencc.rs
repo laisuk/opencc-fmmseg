@@ -1789,7 +1789,7 @@ impl OpenCC {
     /// want upstream OpenCC-compatible behavior. Unmapped compatibility
     /// ideographs remain unchanged.
     ///
-    /// DeToFu is the opposite side of the pipeline: compatibility ideograph
+    /// DeTofu is the opposite side of the pipeline: compatibility ideograph
     /// normalization is a pre-processing step, while [`OpenCC::detofu`] is an
     /// optional post-processing display fallback.
     ///
@@ -1802,7 +1802,7 @@ impl OpenCC {
     /// assert_eq!(cc.normalize_compat("金庸"), "金庸");
     /// ```
     ///
-    /// Normalize, convert, then optionally apply DeToFu for display fallback:
+    /// Normalize, convert, then optionally apply DeTofu for display fallback:
     ///
     /// ```rust
     /// use opencc_fmmseg::{DetofuLevel, OpenCC};
@@ -1826,11 +1826,11 @@ impl OpenCC {
     /// platforms where non-BMP CJK extension characters may render as tofu boxes
     /// (□) or missing-glyph placeholders.
     ///
-    /// Detofu is a display compatibility pass. It does not modify OpenCC
+    /// DeTofu is a display compatibility pass. It does not modify OpenCC
     /// conversion dictionaries, phrase matching, regional variant selection,
     /// script detection, or punctuation conversion.
     ///
-    /// For converted text, apply detofu after [`OpenCC::convert`] or
+    /// For converted text, apply DeTofu after [`OpenCC::convert`] or
     /// [`OpenCC::convert_with_config`].
     ///
     /// The `level` parameter controls which CJK Extension blocks are replaced:
@@ -1859,7 +1859,7 @@ impl OpenCC {
     /// assert_eq!(converted, "俨骖𬴂于上路，访风景于崇阿");
     /// ```
     ///
-    /// Apply detofu directly when text already contains rare extension
+    /// Apply DeTofu directly when text already contains rare extension
     /// characters:
     ///
     /// ```rust
@@ -1871,7 +1871,7 @@ impl OpenCC {
     /// assert_eq!(safe, "骖騑");
     /// ```
     ///
-    /// Combine OpenCC conversion and detofu for tofu-safe display output:
+    /// Combine OpenCC conversion and DeTofu for tofu-safe display output:
     ///
     /// ```rust
     /// use opencc_fmmseg::{DetofuLevel, OpenCC};
@@ -1892,7 +1892,7 @@ impl OpenCC {
         detofu::detofu(text, level)
     }
 
-    /// Converts non-BMP CJK extension characters using the built-in detofu
+    /// Converts non-BMP CJK extension characters using the built-in DeTofu
     /// mappings plus a user-supplied fallback file.
     ///
     /// Custom mappings are merged with the built-in table. If the same tofu-risk
@@ -1942,7 +1942,7 @@ impl OpenCC {
         Ok(map.detofu(input))
     }
 
-    /// Converts non-BMP CJK extension characters using the built-in detofu
+    /// Converts non-BMP CJK extension characters using the built-in DeTofu
     /// mappings plus user-supplied fallback pairs.
     ///
     /// Custom pairs are merged with the built-in table. If the same tofu-risk

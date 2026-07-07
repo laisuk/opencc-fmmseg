@@ -6,13 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-[Unreleased]
+[0.11.3] -2026-07-08
 
 ### Changed
 
 - Updated embedded dictionary data.
-- Updated DeToFu character mappings.
-- Resolved ambiguous DeToFu fallback mappings using preferred BMP replacement characters.
+- Update conversion dictionary data.
+- Updated DeTofu character mappings.
+- Resolved ambiguous DeTofu fallback mappings using preferred BMP replacement characters.
 
 ---
 
