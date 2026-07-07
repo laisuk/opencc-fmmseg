@@ -649,7 +649,7 @@ runtime.
 The new **mask-first gating** (`key_length_mask` + `starter_len_mask`) delivers perfect **O(n)** scaling and
 ultra-stable parallel throughput across large text corpora.
 
-![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_092.png)
+![Benchmark Chart](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/benches/opencc_fmmseg_benchmark_0113.png)
 
 ### 🏅 Highlights
 
