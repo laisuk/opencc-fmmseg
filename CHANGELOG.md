@@ -6,7 +6,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-[0.11.3] -2026-07-08
+## [Unreleased]
+
+### Changed
+
+- Update dictionary data.
+
+---
+
+## [0.11.3] -2026-07-08
 
 ### Changed
 
