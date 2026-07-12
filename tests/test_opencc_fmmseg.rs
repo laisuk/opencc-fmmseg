@@ -94,6 +94,12 @@ mod tests {
             "妹丁"
         );
         assert_eq!(opencc.convert("小女孩", "s2hkp", false), "妹丁");
+        assert_eq!(opencc.t2hkp("小女孩"), "妹丁");
+        assert_eq!(
+            opencc.convert_with_config("小女孩", OpenccConfig::T2hkp, true),
+            "妹丁"
+        );
+        assert_eq!(opencc.convert("小女孩", "t2hkp", true), "妹丁");
     }
 
     #[test]
@@ -112,6 +118,12 @@ mod tests {
             "小女孩"
         );
         assert_eq!(opencc.convert("妹丁", "hk2sp", false), "小女孩");
+        assert_eq!(opencc.hk2tp("妹丁"), "小女孩");
+        assert_eq!(
+            opencc.convert_with_config("妹丁", OpenccConfig::Hk2tp, true),
+            "小女孩"
+        );
+        assert_eq!(opencc.convert("妹丁", "hk2tp", true), "小女孩");
     }
 
     #[test]

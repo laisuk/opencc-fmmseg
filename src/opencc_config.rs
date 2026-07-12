@@ -40,6 +40,8 @@
 /// | 16      | `T2jp` | Traditional → Japanese (Kanji variants)     | ❌ (ignored)                |
 /// | 17      | `S2hkp`| Simplified → Hong Kong (with phrases)       | ✅                          |
 /// | 18      | `Hk2sp`| Hong Kong → Simplified (with phrases)       | ✅                          |
+/// | 19      | `T2hkp`| Traditional → Hong Kong (with phrases)      | ❌ (ignored)                |
+/// | 20      | `Hk2tp`| Hong Kong → Traditional (with phrases)      | ❌ (ignored)                |
 /// # Since
 ///
 /// Core configurations (`S2t` through `T2jp`) are available since **v0.8.4**.
@@ -104,6 +106,12 @@ pub enum OpenccConfig {
 
     /// Hong Kong variant → Simplified Chinese (with phrases).
     Hk2sp = 18,
+
+    /// Traditional Chinese → Hong Kong variant (with phrases).
+    T2hkp = 19,
+
+    /// Hong Kong variant → Traditional Chinese (with phrases).
+    Hk2tp = 20,
 }
 
 impl TryFrom<&str> for OpenccConfig {
@@ -143,7 +151,7 @@ impl OpenccConfig {
     /// # Since
     ///
     /// Available since **v0.9.1**.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 20] = [
         Self::S2t,
         Self::S2tw,
         Self::S2twp,
@@ -153,6 +161,7 @@ impl OpenccConfig {
         Self::T2tw,
         Self::T2twp,
         Self::T2hk,
+        Self::T2hkp,
         Self::Tw2s,
         Self::Tw2sp,
         Self::Tw2t,
@@ -160,6 +169,7 @@ impl OpenccConfig {
         Self::Hk2s,
         Self::Hk2sp,
         Self::Hk2t,
+        Self::Hk2tp,
         Self::Jp2t,
         Self::T2jp,
     ];
@@ -201,6 +211,8 @@ impl OpenccConfig {
             16 => Some(Self::T2jp),
             17 => Some(Self::S2hkp),
             18 => Some(Self::Hk2sp),
+            19 => Some(Self::T2hkp),
+            20 => Some(Self::Hk2tp),
             _ => None,
         }
     }
@@ -290,6 +302,7 @@ impl OpenccConfig {
             Self::T2tw => "t2tw",
             Self::T2twp => "t2twp",
             Self::T2hk => "t2hk",
+            Self::T2hkp => "t2hkp",
             Self::Tw2s => "tw2s",
             Self::Tw2sp => "tw2sp",
             Self::Tw2t => "tw2t",
@@ -297,6 +310,7 @@ impl OpenccConfig {
             Self::Hk2s => "hk2s",
             Self::Hk2sp => "hk2sp",
             Self::Hk2t => "hk2t",
+            Self::Hk2tp => "hk2tp",
             Self::Jp2t => "jp2t",
             Self::T2jp => "t2jp",
         }

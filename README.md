@@ -483,7 +483,7 @@ Usage: opencc-rs.exe convert [OPTIONS] --config <config>
 Options:
   -i, --input <file>                  Input file (use stdin if omitted for non-office documents)
   -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
+  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp)
   -p, --punct                         Enable punctuation conversion
   -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
       --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
@@ -505,7 +505,7 @@ Usage: opencc-rs.exe office [OPTIONS] --config <config>
 Options:
   -i, --input <file>                  Input file (use stdin if omitted for non-office documents)
   -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | jp2t | t2jp)
+  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp)
   -p, --punct                         Enable punctuation conversion
   -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
       --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
@@ -577,12 +577,14 @@ Example `my_hk_dict.txt`:
     - `s2tw` – Simplified to Traditional Taiwan
     - `s2hk` – Simplified to Traditional Hong Kong
     - `s2hkp` – Simplified to Traditional Hong Kong with idioms
+    - `t2hkp` – Traditional to Hong Kong Traditional with idioms
     - `s2twp` – Simplified to Traditional Taiwan with idioms
     - `t2s` – Traditional to Simplified
     - `tw2s` – Traditional Taiwan to Simplified
     - `tw2sp` – Traditional Taiwan to Simplified with idioms
     - `hk2s` – Traditional Hong Kong to Simplified
     - `hk2sp` – Traditional Hong Kong to Simplified with idioms
+    - `hk2tp` – Hong Kong Traditional with idioms to general Traditional
     - `jp2t`, `t2jp` - Japanese Shinjitai/Kyujitai
     - etc
 

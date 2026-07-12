@@ -695,6 +695,9 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
     if eq_ascii_ci(bytes, b"t2hk") {
         return Some(OpenccConfig::T2hk);
     }
+    if eq_ascii_ci(bytes, b"t2hkp") {
+        return Some(OpenccConfig::T2hkp);
+    }
     if eq_ascii_ci(bytes, b"tw2s") {
         return Some(OpenccConfig::Tw2s);
     }
@@ -715,6 +718,9 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
     }
     if eq_ascii_ci(bytes, b"hk2t") {
         return Some(OpenccConfig::Hk2t);
+    }
+    if eq_ascii_ci(bytes, b"hk2tp") {
+        return Some(OpenccConfig::Hk2tp);
     }
     if eq_ascii_ci(bytes, b"jp2t") {
         return Some(OpenccConfig::Jp2t);
@@ -746,6 +752,7 @@ fn config_to_c_name(cfg: OpenccConfig) -> *const c_char {
         OpenccConfig::T2tw => b"t2tw\0".as_ptr() as *const c_char,
         OpenccConfig::T2twp => b"t2twp\0".as_ptr() as *const c_char,
         OpenccConfig::T2hk => b"t2hk\0".as_ptr() as *const c_char,
+        OpenccConfig::T2hkp => b"t2hkp\0".as_ptr() as *const c_char,
         OpenccConfig::Tw2s => b"tw2s\0".as_ptr() as *const c_char,
         OpenccConfig::Tw2sp => b"tw2sp\0".as_ptr() as *const c_char,
         OpenccConfig::Tw2t => b"tw2t\0".as_ptr() as *const c_char,
@@ -753,6 +760,7 @@ fn config_to_c_name(cfg: OpenccConfig) -> *const c_char {
         OpenccConfig::Hk2s => b"hk2s\0".as_ptr() as *const c_char,
         OpenccConfig::Hk2sp => b"hk2sp\0".as_ptr() as *const c_char,
         OpenccConfig::Hk2t => b"hk2t\0".as_ptr() as *const c_char,
+        OpenccConfig::Hk2tp => b"hk2tp\0".as_ptr() as *const c_char,
         OpenccConfig::Jp2t => b"jp2t\0".as_ptr() as *const c_char,
         OpenccConfig::T2jp => b"t2jp\0".as_ptr() as *const c_char,
     }
@@ -1119,6 +1127,14 @@ mod tests {
 
         assert_eq!(ok, 1);
         assert_eq!(out_id, 1);
+
+        let name = CString::new("t2hkp").unwrap();
+        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(out_id, 19);
+
+        let name = CString::new("hk2tp").unwrap();
+        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(out_id, 20);
     }
 
     #[test]
@@ -1128,6 +1144,12 @@ mod tests {
 
         let cstr = unsafe { CStr::from_ptr(ptr) };
         assert_eq!(cstr.to_str().unwrap(), "s2t");
+
+        let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(19)) };
+        assert_eq!(cstr.to_str().unwrap(), "t2hkp");
+
+        let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(20)) };
+        assert_eq!(cstr.to_str().unwrap(), "hk2tp");
     }
 
     #[test]

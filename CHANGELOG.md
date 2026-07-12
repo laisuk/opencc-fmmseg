@@ -8,9 +8,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Added direct Hong Kong phrase conversion APIs `OpenCC::t2hkp()` and
+  `OpenCC::hk2tp()`, together with the `t2hkp` and `hk2tp` string configs and
+  `OpenccConfig::{T2hkp, Hk2tp}` typed configs. The new stable C/FFI config IDs
+  are `19` and `20`, respectively.
+
 ### Changed
 
 - Update dictionary data.
+- Refactored direct Taiwan phrase conversions `t2twp` and `tw2tp` from two
+  dictionary rounds to one by sharing the combined `TwTriple` and
+  `TwRevTriple` starter unions. Removed the obsolete phrase-only union caches.
+- Generalized the Hong Kong phrase union caches to `HkTriple` and
+  `HkRevTriple`. The new direct `t2hkp` and `hk2tp` conversions reuse these
+  combined unions in one dictionary round and do not require a punctuation
+  parameter.
 
 ---
 

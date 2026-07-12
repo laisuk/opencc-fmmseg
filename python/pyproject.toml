@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opencc-fmmseg"
-version = "0.11.3"
+version = "0.11.4"
 description = "Python ctypes wrapper for OpenCC-FMMSEG (Rust-based high-performance Chinese text conversion)"
 readme = "README.md"
 requires-python = ">=3.8"

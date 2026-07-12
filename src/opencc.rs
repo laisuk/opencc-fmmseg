@@ -1107,7 +1107,7 @@ impl OpenCC {
     ///    - Taiwanese variant mappings (`tw_variants`)
     ///
     /// Both rounds share precomputed starter metadata obtained via
-    /// `union_for` (`UnionKey::S2T` and `UnionKey::S2TwpR2TwTriple`) and run
+    /// `union_for` (`UnionKey::S2T` and `UnionKey::TwTriple`) and run
     /// over segmented input with longest-match replacement for high throughput.
     ///
     /// # Arguments
@@ -1129,7 +1129,7 @@ impl OpenCC {
             &self.dictionary.tw_variants_phrases,
             &self.dictionary.tw_variants,
         ];
-        let u2 = self.dictionary.union_for(UnionKey::S2TwpR2TwTriple);
+        let u2 = self.dictionary.union_for(UnionKey::TwTriple);
 
         self.apply_st_round_2(input, punctuation, u1, &round_2, u2)
     }
@@ -1153,7 +1153,7 @@ impl OpenCC {
             &self.dictionary.hk_variants_phrases,
             &self.dictionary.hk_variants,
         ];
-        let u2 = self.dictionary.union_for(UnionKey::S2HkpR2HkTriple);
+        let u2 = self.dictionary.union_for(UnionKey::HkTriple);
 
         self.apply_st_round_2(input, punctuation, u1, &round_2, u2)
     }
@@ -1177,7 +1177,7 @@ impl OpenCC {
     ///      `punctuation` is `true`
     ///
     /// Starter metadata is provided by `union_for` with
-    /// `UnionKey::Tw2SpR1TwRevTriple` for the first round and
+    /// `UnionKey::TwRevTriple` for the first round and
     /// `UnionKey::T2S` for the second round, enabling efficient
     /// longest-match replacement across segments.
     ///
@@ -1197,7 +1197,7 @@ impl OpenCC {
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let u1 = self.dictionary.union_for(UnionKey::Tw2SpR1TwRevTriple);
+        let u1 = self.dictionary.union_for(UnionKey::TwRevTriple);
         let u2 = self
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
@@ -1221,7 +1221,7 @@ impl OpenCC {
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
-        let u1 = self.dictionary.union_for(UnionKey::Hk2SpR1HkRevTriple);
+        let u1 = self.dictionary.union_for(UnionKey::HkRevTriple);
         let u2 = self
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
@@ -1340,21 +1340,13 @@ impl OpenCC {
         self.apply_dicts_1(input, &round_1, u1)
     }
 
-    /// Converts general Traditional Chinese text to Taiwanese Traditional with idioms (T → Tw-phrases → Tw).
+    /// Converts general Traditional Chinese text to idiomatic Taiwanese Traditional (T → TWP).
     ///
-    /// This method performs a two-round dictionary-based conversion:
-    ///
-    /// 1. **Round 1 (Taiwanese idioms and phrases)**
-    ///    Applies Taiwanese-style idiom and phrase mappings:
-    ///    - Taiwanese phrase mappings (`tw_phrases`)
-    ///
-    /// 2. **Round 2 (Taiwanese variant characters)**
-    ///    Further adjusts the result into Taiwanese character variants:
-    ///    - Taiwanese variant mappings (`tw_variants`)
-    ///
-    /// Both rounds use precomputed starter metadata from `union_for`
-    /// (`UnionKey::TwPhrasesOnly` and `UnionKey::TwVariantsPair`) and run
-    /// over segmented input with longest-match replacement.
+    /// This method performs one longest-match replacement round over the
+    /// Taiwanese phrase (`tw_phrases`), variant phrase
+    /// (`tw_variants_phrases`), and variant character (`tw_variants`)
+    /// dictionaries. Starter metadata for all three dictionaries is shared
+    /// through `union_for(UnionKey::TwTriple)`.
     ///
     /// # Arguments
     ///
@@ -1365,14 +1357,13 @@ impl OpenCC {
     ///
     /// Taiwanese Traditional Chinese text with both idioms and variants applied.
     pub fn t2twp(&self, input: &str) -> String {
-        let round_1 = [&self.dictionary.tw_phrases];
-        let u1 = self.dictionary.union_for(UnionKey::TwPhrasesOnly);
-        let round_2 = [
+        let round_1 = [
+            &self.dictionary.tw_phrases,
             &self.dictionary.tw_variants_phrases,
             &self.dictionary.tw_variants,
         ];
-        let u2 = self.dictionary.union_for(UnionKey::TwVariantsPair);
-        self.apply_dicts_2(input, &round_1, u1, &round_2, u2)
+        let u1 = self.dictionary.union_for(UnionKey::TwTriple);
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// Converts Taiwanese Traditional text to general Traditional (Tw → T).
@@ -1404,21 +1395,13 @@ impl OpenCC {
         self.apply_dicts_1(input, &round_1, u1)
     }
 
-    /// This method performs a two-round dictionary-based normalization:
+    /// Converts idiomatic Taiwanese Traditional text to general Traditional (TWP → T).
     ///
-    /// 1. **Round 1 (variant normalization)**
-    ///    Normalizes Taiwanese variants back to general Traditional using:
-    ///    - Reverse Taiwanese variant phrase mappings (`tw_variants_rev_phrases`)
-    ///    - Reverse Taiwanese variant character mappings (`tw_variants_rev`)
-    ///
-    /// 2. **Round 2 (idiom/phrase normalization)**
-    ///    Normalizes Taiwanese-specific idioms and phrases using:
-    ///    - Reverse Taiwanese phrase mappings (`tw_phrases_rev`)
-    ///
-    /// Starter metadata is obtained from `union_for(UnionKey::TwRevPair)` for
-    /// the first round and `union_for(UnionKey::TwPhrasesRevOnly)` for the
-    /// second round, and is reused across segments for efficient longest-match
-    /// replacement.
+    /// This method performs one longest-match replacement round over the
+    /// reverse Taiwanese phrase (`tw_phrases_rev`), reverse variant phrase
+    /// (`tw_variants_rev_phrases`), and reverse variant character
+    /// (`tw_variants_rev`) dictionaries. Starter metadata for all three
+    /// dictionaries is shared through `union_for(UnionKey::TwRevTriple)`.
     ///
     /// # Arguments
     ///
@@ -1431,15 +1414,12 @@ impl OpenCC {
     /// idioms normalized.
     pub fn tw2tp(&self, input: &str) -> String {
         let round_1 = [
+            &self.dictionary.tw_phrases_rev,
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
-        let u1 = self.dictionary.union_for(UnionKey::TwRevPair);
-
-        let round_2 = [&self.dictionary.tw_phrases_rev];
-        let u2 = self.dictionary.union_for(UnionKey::TwPhrasesRevOnly);
-
-        self.apply_dicts_2(input, &round_1, u1, &round_2, u2)
+        let u1 = self.dictionary.union_for(UnionKey::TwRevTriple);
+        self.apply_dicts_1(input, &round_1, u1)
     }
 
     /// Converts general Traditional Chinese text to Hong Kong Traditional variants (T → HK).
@@ -1470,6 +1450,36 @@ impl OpenCC {
         self.apply_dicts_1(input, &round_1, u1)
     }
 
+    /// Converts general Traditional Chinese text to idiomatic Hong Kong Traditional (T → HKP).
+    ///
+    /// This method performs one longest-match replacement round over the Hong
+    /// Kong phrase (`hk_phrases`), variant phrase (`hk_variants_phrases`), and
+    /// variant character (`hk_variants`) dictionaries. Starter metadata for
+    /// all three dictionaries is shared through
+    /// `union_for(UnionKey::HkTriple)`.
+    ///
+    /// Unlike [`OpenCC::s2hkp`], this direct Traditional-to-Hong-Kong
+    /// conversion does not need a punctuation parameter because it does not
+    /// run a Simplified-to-Traditional round.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - General Traditional Chinese text to convert into idiomatic
+    ///   Hong Kong Traditional.
+    ///
+    /// # Returns
+    ///
+    /// Idiomatic Hong Kong Traditional text with phrase and variant mappings
+    /// applied.
+    pub fn t2hkp(&self, input: &str) -> String {
+        let round_1 = [
+            &self.dictionary.hk_phrases,
+            &self.dictionary.hk_variants_phrases,
+            &self.dictionary.hk_variants,
+        ];
+        let u1 = self.dictionary.union_for(UnionKey::HkTriple);
+        self.apply_dicts_1(input, &round_1, u1)
+    }
     /// Converts Hong Kong Traditional text to general Traditional (HK → T).
     ///
     /// This method performs a single-round dictionary-based normalization that
@@ -1498,6 +1508,35 @@ impl OpenCC {
         self.apply_dicts_1(input, &round_1, u1)
     }
 
+    /// Converts idiomatic Hong Kong Traditional text to general Traditional (HKP → T).
+    ///
+    /// This method performs one longest-match replacement round over the
+    /// reverse Hong Kong phrase (`hk_phrases_rev`), reverse variant phrase
+    /// (`hk_variants_rev_phrases`), and reverse variant character
+    /// (`hk_variants_rev`) dictionaries. Starter metadata for all three
+    /// dictionaries is shared through `union_for(UnionKey::HkRevTriple)`.
+    ///
+    /// Unlike [`OpenCC::hk2sp`], this direct Hong-Kong-to-Traditional
+    /// conversion does not need a punctuation parameter because it does not
+    /// run a Traditional-to-Simplified round.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Idiomatic Hong Kong Traditional text to normalize.
+    ///
+    /// # Returns
+    ///
+    /// General Traditional Chinese text with Hong Kong phrases and variants
+    /// normalized.
+    pub fn hk2tp(&self, input: &str) -> String {
+        let round_1 = [
+            &self.dictionary.hk_phrases_rev,
+            &self.dictionary.hk_variants_rev_phrases,
+            &self.dictionary.hk_variants_rev,
+        ];
+        let u1 = self.dictionary.union_for(UnionKey::HkRevTriple);
+        self.apply_dicts_1(input, &round_1, u1)
+    }
     /// Converts Japanese Kyūjitai (traditional kanji forms) to Shinjitai.
     ///
     /// This method performs a single-round dictionary-based conversion that
@@ -1633,6 +1672,7 @@ impl OpenCC {
             OpenccConfig::T2tw => self.t2tw(input),
             OpenccConfig::T2twp => self.t2twp(input),
             OpenccConfig::T2hk => self.t2hk(input),
+            OpenccConfig::T2hkp => self.t2hkp(input),
             OpenccConfig::Tw2s => self.tw2s(input, punctuation),
             OpenccConfig::Tw2sp => self.tw2sp(input, punctuation),
             OpenccConfig::Tw2t => self.tw2t(input),
@@ -1640,6 +1680,7 @@ impl OpenCC {
             OpenccConfig::Hk2s => self.hk2s(input, punctuation),
             OpenccConfig::Hk2sp => self.hk2sp(input, punctuation),
             OpenccConfig::Hk2t => self.hk2t(input),
+            OpenccConfig::Hk2tp => self.hk2tp(input),
             OpenccConfig::Jp2t => self.jp2t(input),
             OpenccConfig::T2jp => self.t2jp(input),
         }

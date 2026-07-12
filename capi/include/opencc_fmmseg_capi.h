@@ -81,7 +81,11 @@ enum {
     /** Simplified → Traditional (Hong Kong, with phrases) */
     OPENCC_CONFIG_S2HKP = 17,
     /** Hong Kong Traditional → Simplified (with phrases) */
-    OPENCC_CONFIG_HK2SP = 18
+    OPENCC_CONFIG_HK2SP = 18,
+    /** Traditional Chinese → Hong Kong variant (with phrases). */
+    OPENCC_CONFIG_T2HKP = 19,
+    /** Hong Kong variant → Traditional Chinese (with phrases). */
+    OPENCC_CONFIG_HK2TP = 20
 };
 
 // ============================================================================

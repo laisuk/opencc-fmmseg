@@ -46,8 +46,8 @@
 //! | `t2s` | [`OpenCC::t2s`] | Traditional to Simplified |
 //! | `s2tw` / `s2twp` | [`OpenCC::s2tw`] / [`OpenCC::s2twp`] | Simplified to Taiwan Traditional |
 //! | `tw2s` / `tw2sp` | [`OpenCC::tw2s`] / [`OpenCC::tw2sp`] | Taiwan Traditional to Simplified |
-//! | `s2hk` / `s2hkp` / `t2hk` | [`OpenCC::s2hk`] / [`OpenCC::s2hkp`] / [`OpenCC::t2hk`] | To Hong Kong Traditional variants |
-//! | `hk2s` / `hk2sp` / `hk2t` | [`OpenCC::hk2s`] / [`OpenCC::hk2sp`] / [`OpenCC::hk2t`] | Hong Kong variants to Simplified/Traditional |
+//! | `s2hk` / `s2hkp` / `t2hk` / `t2hkp` | [`OpenCC::s2hk`] / [`OpenCC::s2hkp`] / [`OpenCC::t2hk`] / [`OpenCC::t2hkp`] | To Hong Kong Traditional variants |
+//! | `hk2s` / `hk2sp` / `hk2t` / `hk2tp` | [`OpenCC::hk2s`] / [`OpenCC::hk2sp`] / [`OpenCC::hk2t`] / [`OpenCC::hk2tp`] | Hong Kong variants to Simplified/Traditional |
 //! | `t2tw` / `t2twp` | [`OpenCC::t2tw`] / [`OpenCC::t2twp`] | Traditional to Taiwan variants |
 //! | `tw2t` / `tw2tp` | [`OpenCC::tw2t`] / [`OpenCC::tw2tp`] | Taiwan variants to Traditional |
 //! | `t2jp` / `jp2t` | [`OpenCC::t2jp`] / [`OpenCC::jp2t`] | Traditional and Japanese kanji variants |

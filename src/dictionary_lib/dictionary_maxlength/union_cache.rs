@@ -34,34 +34,26 @@ pub(super) struct Unions {
     t2s_punct: OnceLock<Arc<StarterUnion>>,
 
     // TW-only helpers
-    /// Union built from Taiwanese phrase dictionaries only.
-    tw_phrases_only: OnceLock<Arc<StarterUnion>>,
-
     /// Union built from Taiwanese regional variant phrase and character dictionaries.
     tw_variants_pair: OnceLock<Arc<StarterUnion>>,
 
-    /// Union used in the second round of `s2twp`, combining:
-    /// phrases + variant phrases + variants.
-    s2twp_r2_tw_triple: OnceLock<Arc<StarterUnion>>,
+    /// Union combining Taiwanese phrases, variant phrases, and variants.
+    tw_triple: OnceLock<Arc<StarterUnion>>,
 
-    /// Union used in the second round of `s2hkp`, combining:
+    /// Union combining Hong Kong phrases, variant phrases, and variants.
     /// phrases + variant phrases + variants.
-    s2hkp_r2_hk_triple: OnceLock<Arc<StarterUnion>>,
-
-    /// Union built from reverse Taiwanese phrase dictionaries only.
-    tw_phrases_rev_only: OnceLock<Arc<StarterUnion>>,
+    hk_triple: OnceLock<Arc<StarterUnion>>,
 
     /// Union combining reverse Taiwanese variant phrases and characters
     /// (rev_phrases + rev).
     tw_rev_pair: OnceLock<Arc<StarterUnion>>,
 
-    /// Union used in the first round of `tw2sp`, combining:
-    /// phrases_rev + rev_phrases + rev.
-    tw2sp_r1_tw_rev_triple: OnceLock<Arc<StarterUnion>>,
+    /// Union combining reverse Taiwanese phrases, variant phrases, and variants.
+    tw_rev_triple: OnceLock<Arc<StarterUnion>>,
 
-    /// Union used in the first round of `hk2sp`, combining:
+    /// Union combining reverse Hong Kong phrases, variant phrases, and variants.
     /// phrases_rev + rev_phrases + rev.
-    hk2sp_r1_hk_rev_triple: OnceLock<Arc<StarterUnion>>,
+    hk_rev_triple: OnceLock<Arc<StarterUnion>>,
 
     // HK helpers
     /// Union built from Hong Kong regional variant phrase and character dictionaries.
@@ -127,15 +119,6 @@ pub(crate) enum UnionKey {
     // ============================
     // Taiwanese Helpers
     // ============================
-    /// Union containing only Taiwanese phrase dictionaries.
-    ///
-    /// Includes:
-    /// - `tw_phrases`
-    ///
-    /// Used in:
-    /// - `t2twp` (round 1)
-    TwPhrasesOnly,
-
     /// Union containing Taiwanese regional variant phrase and character dictionaries.
     ///
     /// Includes:
@@ -145,39 +128,31 @@ pub(crate) enum UnionKey {
     /// Used in:
     /// - `s2tw` (round 2)
     /// - `t2tw`
-    /// - `t2twp` (round 2)
     TwVariantsPair,
 
-    /// Triple Taiwanese union for `s2twp` round 2:
+    /// Triple Taiwanese union.
     ///
     /// Includes:
     /// - `tw_phrases`
     /// - `tw_variants_phrases`
     /// - `tw_variants`
     ///
-    /// Used exclusively in:
+    /// Used in:
     /// - `s2twp` (round 2)
-    S2TwpR2TwTriple,
+    /// - `t2twp`
+    TwTriple,
 
-    /// Triple Hong Kong union for `s2hkp` round 2:
+    /// Triple Hong Kong union.
     ///
     /// Includes:
     /// - `hk_phrases`
     /// - `hk_variants_phrases`
     /// - `hk_variants`
     ///
-    /// Used exclusively in:
-    /// - `s2hkp` (round 2)
-    S2HkpR2HkTriple,
-
-    /// Union containing only reverse Taiwanese phrase dictionaries.
-    ///
-    /// Includes:
-    /// - `tw_phrases_rev`
-    ///
     /// Used in:
-    /// - `tw2tp` (round 2)
-    TwPhrasesRevOnly,
+    /// - `s2hkp` (round 2)
+    /// - `t2hkp`
+    HkTriple,
 
     /// Combined reverse Taiwanese variant union.
     ///
@@ -188,30 +163,31 @@ pub(crate) enum UnionKey {
     /// Used in:
     /// - `tw2s` (round 1)
     /// - `tw2t` (round 1)
-    /// - `tw2tp` (round 1)
     TwRevPair,
 
-    /// Triple-reverse Taiwanese union for `tw2sp` round 1:
+    /// Triple-reverse Taiwanese union.
     ///
     /// Includes:
     /// - `tw_phrases_rev`
     /// - `tw_variants_rev_phrases`
     /// - `tw_variants_rev`
     ///
-    /// Used exclusively in:
+    /// Used in:
     /// - `tw2sp` (round 1)
-    Tw2SpR1TwRevTriple,
+    /// - `tw2tp`
+    TwRevTriple,
 
-    /// Triple-reverse Hong Kong union for `hk2sp` round 1:
+    /// Triple-reverse Hong Kong union.
     ///
     /// Includes:
     /// - `hk_phrases_rev`
     /// - `hk_variants_rev_phrases`
     /// - `hk_variants_rev`
     ///
-    /// Used exclusively in:
+    /// Used in:
     /// - `hk2sp` (round 1)
-    Hk2SpR1HkRevTriple,
+    /// - `hk2tp`
+    HkRevTriple,
 
     // ============================
     // Hong Kong Helpers
@@ -326,11 +302,6 @@ impl DictionaryMaxlength {
                 })
                 .clone()
             }
-            UnionKey::TwPhrasesOnly => self
-                .unions
-                .tw_phrases_only
-                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.tw_phrases])))
-                .clone(),
             UnionKey::TwVariantsPair => self
                 .unions
                 .tw_variants_pair
@@ -341,9 +312,9 @@ impl DictionaryMaxlength {
                     ]))
                 })
                 .clone(),
-            UnionKey::S2TwpR2TwTriple => self
+            UnionKey::TwTriple => self
                 .unions
-                .s2twp_r2_tw_triple
+                .tw_triple
                 .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.tw_phrases,
@@ -352,9 +323,9 @@ impl DictionaryMaxlength {
                     ]))
                 })
                 .clone(),
-            UnionKey::S2HkpR2HkTriple => self
+            UnionKey::HkTriple => self
                 .unions
-                .s2hkp_r2_hk_triple
+                .hk_triple
                 .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.hk_phrases,
@@ -362,11 +333,6 @@ impl DictionaryMaxlength {
                         &self.hk_variants,
                     ]))
                 })
-                .clone(),
-            UnionKey::TwPhrasesRevOnly => self
-                .unions
-                .tw_phrases_rev_only
-                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.tw_phrases_rev])))
                 .clone(),
             UnionKey::TwRevPair => self
                 .unions
@@ -378,9 +344,9 @@ impl DictionaryMaxlength {
                     ]))
                 })
                 .clone(),
-            UnionKey::Tw2SpR1TwRevTriple => self
+            UnionKey::TwRevTriple => self
                 .unions
-                .tw2sp_r1_tw_rev_triple
+                .tw_rev_triple
                 .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.tw_phrases_rev,
@@ -389,9 +355,9 @@ impl DictionaryMaxlength {
                     ]))
                 })
                 .clone(),
-            UnionKey::Hk2SpR1HkRevTriple => self
+            UnionKey::HkRevTriple => self
                 .unions
-                .hk2sp_r1_hk_rev_triple
+                .hk_rev_triple
                 .get_or_init(|| {
                     Arc::new(StarterUnion::build(&[
                         &self.hk_phrases_rev,

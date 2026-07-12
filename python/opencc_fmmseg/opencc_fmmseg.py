@@ -23,7 +23,9 @@ class OpenCC:
         "t2twp",
         "tw2tp",
         "t2hk",
+        "t2hkp",
         "hk2t",
+        "hk2tp",
         "t2jp",
         "jp2t",
     }
