@@ -105,6 +105,9 @@ enum {
  * values may be appended in future versions.
  *
  * This value is passed by value and requires no allocation or deallocation.
+ *
+ * @since
+ *     Available since v0.11.5.
  */
 typedef uint32_t opencc_dict_slot_t;
 
@@ -114,6 +117,9 @@ typedef uint32_t opencc_dict_slot_t;
  * Custom entries affect only the selected dictionary slot. Choosing the
  * correct slot is essential because each OpenCC conversion configuration
  * consumes a different combination of dictionary slots.
+ *
+ * @since
+ *     Available since v0.11.5.
  */
 enum {
     /** Simplified → Traditional character mappings. */
@@ -187,11 +193,17 @@ enum {
  *
  * This type is a 32-bit unsigned integer. Mode values are stable and will
  * never be reordered or reused.
+ *
+ * @since
+ *     Available since v0.11.5.
  */
 typedef uint32_t opencc_custom_dict_mode_t;
 
 /**
  * Controls how custom pairs are applied to a dictionary slot.
+ *
+ * @since
+ *     Available since v0.11.5.
  */
 enum {
     /**
@@ -223,6 +235,9 @@ enum {
  *
  * The constructor copies both strings. The caller retains ownership of the
  * original memory.
+ *
+ * @since
+ *     Available since v0.11.5.
  */
 typedef struct opencc_custom_pair {
     /** Source dictionary key. */
@@ -240,6 +255,11 @@ typedef struct opencc_custom_pair {
  * The specification, pair array, and strings are borrowed only for the
  * duration of `opencc_new_custom()`. The constructor copies all required
  * data before returning.
+ *
+ * A NULL `pairs` pointer is valid only when `pair_count` is zero.
+ *
+ * @since
+ *     Available since v0.11.5.
  */
 typedef struct opencc_custom_dict_spec {
     /** Dictionary slot receiving these custom mappings. */
@@ -340,6 +360,9 @@ void* opencc_new(void);
  *
  *     The caller retains ownership of `specs`, all pair arrays, and all source
  *     and target strings.
+ *
+ * @since
+ *     Available since v0.11.5.
  */
 void* opencc_new_custom(
     const opencc_custom_dict_spec_t* specs,

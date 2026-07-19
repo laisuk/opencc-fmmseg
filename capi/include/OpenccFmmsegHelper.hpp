@@ -24,20 +24,40 @@
 //   empty-input results.
 class OpenccFmmsegHelper {
 public:
-    // One owned source-target mapping used during immutable construction.
+    /**
+     * One owned UTF-8 source-target mapping used during immutable
+     * construction.
+     *
+     * Both strings must contain valid UTF-8 and must not contain embedded
+     * NUL bytes.
+     *
+     * @since v0.11.5
+     */
     struct CustomPair {
+        /** Source dictionary key. */
         std::string source;
+
+        /** Replacement dictionary value. */
         std::string target;
     };
 
-    // One owned custom dictionary specification used during construction.
-    //
-    // The wrapper converts these C++ values to the temporary pointer arrays
-    // required by the C API. The resulting native OpenCC instance copies all
-    // dictionary data and remains immutable after construction.
+    /**
+     * One owned custom dictionary specification used during construction.
+     *
+     * The wrapper converts these C++ values to the temporary pointer arrays
+     * required by the C API. The resulting native OpenCC instance copies all
+     * dictionary data and remains immutable after construction.
+     *
+     * @since v0.11.5
+     */
     struct CustomDictSpec {
+        /** One of the `OPENCC_DICT_SLOT_*` constants. */
         opencc_dict_slot_t slot;
+
+        /** `OPENCC_CUSTOM_DICT_APPEND` or `OPENCC_CUSTOM_DICT_OVERRIDE`. */
         opencc_custom_dict_mode_t mode;
+
+        /** Source-target mappings to apply to the selected slot. */
         std::vector<CustomPair> pairs;
     };
 
@@ -50,13 +70,24 @@ public:
             throw std::runtime_error("Failed to initialize OpenCC instance.");
     }
 
-    // Creates an immutable OpenCC instance using the embedded dictionaries
-    // plus the supplied in-memory custom dictionary specifications.
-    //
-    // The input strings and arrays are needed only during this constructor.
-    // The native constructor copies all required data before returning.
-    //
-    // Throws `std::runtime_error` when validation or native construction fails.
+    /**
+     * Creates an immutable OpenCC instance using the embedded dictionaries
+     * plus the supplied in-memory custom dictionary specifications.
+     *
+     * The input strings and arrays are needed only during this constructor.
+     * The native constructor copies all required data before returning.
+     *
+     * An empty specification vector is equivalent to the default constructor.
+     *
+     * @param specs
+     *     Custom dictionary specifications applied during construction.
+     *
+     * @throws std::runtime_error
+     *     If a slot, mode, pair, or UTF-8 string is invalid, or native
+     *     construction otherwise fails.
+     *
+     * @since v0.11.5
+     */
     explicit OpenccFmmsegHelper(const std::vector<CustomDictSpec> &specs)
         : opencc_(createCustomOpencc(specs)) {}
 

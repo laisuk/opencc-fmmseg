@@ -114,7 +114,7 @@ pub unsafe extern "C" fn opencc_new_custom(
 /// C API function `opencc_delete`.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// This function follows the opencc-fmmseg C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_delete(instance: *mut OpenCC) {
@@ -1499,7 +1499,7 @@ mod tests {
 
         assert!(instance.is_null());
     }
-    
+
     #[test]
     fn parse_custom_dict_specs_rejects_invalid_slot() {
         let specs = [OpenccCustomDictSpec {
@@ -1545,6 +1545,24 @@ mod tests {
     }
 
     #[test]
+    fn parse_custom_dict_specs_rejects_null_pairs_with_nonzero_count() {
+        let specs = [OpenccCustomDictSpec {
+            slot: OPENCC_DICT_SLOT_ST_PHRASES,
+            mode: OPENCC_CUSTOM_DICT_APPEND,
+            pairs: ptr::null(),
+            pair_count: 1,
+        }];
+
+        let error = unsafe { parse_custom_dict_specs(specs.as_ptr(), specs.len()) }
+            .expect_err("NULL pairs with a non-zero pair_count must be rejected");
+
+        assert_eq!(
+            error,
+            "Invalid custom dictionary spec 0: pairs is NULL while pair_count is 1"
+        );
+    }
+
+    #[test]
     fn opencc_new_custom_rejects_null_pairs_with_nonzero_count() {
         let specs = [OpenccCustomDictSpec {
             slot: OPENCC_DICT_SLOT_ST_PHRASES,
@@ -1556,9 +1574,6 @@ mod tests {
         let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
 
         assert!(instance.is_null());
-
-        let error = read_and_free(opencc_last_error());
-        assert!(error.contains("pairs is NULL"));
     }
 
     #[test]

@@ -1,7 +1,7 @@
 # CUSTOM_DICT_USER_GUIDE.md
 
-This guide explains how to extend the `opencc-fmmseg` conversion dictionaries with custom terms while keeping normal
-OpenCC behavior and terminology intact.
+This guide explains how to extend the `opencc-fmmseg` conversion dictionaries from Rust, C, or C++ with custom terms
+while keeping normal OpenCC behavior and terminology intact.
 
 ## Overview
 
@@ -599,6 +599,289 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## C API
+
+The C API provides `opencc_new_custom()` for constructing an immutable converter from the embedded dictionaries plus
+in-memory custom mappings. It is the C equivalent of loading the embedded dictionary and applying pair-based custom
+dictionaries before creating an `OpenCC` instance.
+
+Include [`capi/include/opencc_fmmseg_capi.h`](capi/include/opencc_fmmseg_capi.h) and use these types:
+
+| C API type or function      | Purpose                                                                  |
+|-----------------------------|--------------------------------------------------------------------------|
+| `opencc_custom_pair_t`      | One borrowed, UTF-8 `source`/`target` mapping.                           |
+| `opencc_custom_dict_spec_t` | A slot, merge mode, pair-array pointer, and pair count.                  |
+| `opencc_dict_slot_t`        | ABI-stable 32-bit slot identifier.                                       |
+| `opencc_custom_dict_mode_t` | ABI-stable 32-bit append/override identifier.                            |
+| `opencc_new_custom()`       | Copies the specifications and returns a fully initialized converter.     |
+| `opencc_delete()`           | Releases a converter created by `opencc_new()` or `opencc_new_custom()`. |
+
+The C slot constants follow the slots described in [Understanding Dictionary Slots](#understanding-dictionary-slots).
+Common choices are:
+
+- `OPENCC_DICT_SLOT_ST_PHRASES` for Simplified-to-Traditional terms
+- `OPENCC_DICT_SLOT_TS_PHRASES` for Traditional-to-Simplified terms
+- `OPENCC_DICT_SLOT_TW_VARIANTS_PHRASES` and `OPENCC_DICT_SLOT_HK_VARIANTS_PHRASES` for regional phrase variants
+- `OPENCC_DICT_SLOT_ST_CHARACTERS` and `OPENCC_DICT_SLOT_TS_CHARACTERS` for character mappings
+
+All 21 constants are declared and documented in `opencc_fmmseg_capi.h`. Use the named constants rather than their
+numeric values so the intent remains clear.
+
+### C Example
+
+This example adds both directions explicitly and verifies a round trip. Custom dictionaries are directional: adding an
+`STPhrases` mapping does not synthesize its `TSPhrases` inverse.
+
+```c
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "opencc_fmmseg_capi.h"
+
+static void print_last_error(void) {
+    char *message = opencc_last_error();
+    if (message != NULL) {
+        fprintf(stderr, "OpenCC error: %s\n", message);
+        opencc_error_free(message);
+    }
+}
+
+int main(void) {
+    const opencc_custom_pair_t st_pairs[] = {
+        { "帕兰蒂尔", "柏蘭蒂爾" },
+        { "软件",     "軟體" }
+    };
+
+    const opencc_custom_pair_t ts_pairs[] = {
+        { "柏蘭蒂爾", "帕兰蒂尔" },
+        { "軟體",     "软件" }
+    };
+
+    const opencc_custom_dict_spec_t specs[] = {
+        {
+            OPENCC_DICT_SLOT_ST_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            st_pairs,
+            sizeof(st_pairs) / sizeof(st_pairs[0])
+        },
+        {
+            OPENCC_DICT_SLOT_TS_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            ts_pairs,
+            sizeof(ts_pairs) / sizeof(ts_pairs[0])
+        }
+    };
+
+    void *opencc = opencc_new_custom(
+        specs,
+        sizeof(specs) / sizeof(specs[0])
+    );
+    if (opencc == NULL) {
+        print_last_error();
+        return 1;
+    }
+
+    const char *source = "帕兰蒂尔是一家软件公司。";
+    char *traditional = opencc_convert_cfg(
+        opencc, source, OPENCC_CONFIG_S2T, false
+    );
+    if (traditional == NULL) {
+        print_last_error();
+        opencc_delete(opencc);
+        return 1;
+    }
+
+    char *simplified = opencc_convert_cfg(
+        opencc, traditional, OPENCC_CONFIG_T2S, false
+    );
+    if (simplified == NULL) {
+        print_last_error();
+        opencc_string_free(traditional);
+        opencc_delete(opencc);
+        return 1;
+    }
+
+    printf("Source:      %s\n", source);
+    printf("Traditional: %s\n", traditional);
+    printf("Round trip:  %s (%s)\n", simplified,
+           strcmp(source, simplified) == 0 ? "PASS" : "FAIL");
+
+    opencc_string_free(simplified);
+    opencc_string_free(traditional);
+    opencc_delete(opencc);
+    return 0;
+}
+```
+
+Use `opencc_string_free()` only for conversion results and `opencc_error_free()` only for strings returned by
+`opencc_last_error()`. `opencc_delete()` is the preferred instance destructor; `opencc_free()` remains only as a
+deprecated compatibility alias.
+
+### Direct C API from C++
+
+The same ABI can be called directly from C++. The declarations are C++-safe, but ownership rules remain those of the C
+API. The following small RAII aliases make every early return safe:
+
+```cpp
+#include <iostream>
+#include <memory>
+
+#include "opencc_fmmseg_capi.h"
+
+struct OpenccDeleter {
+    void operator()(void *p) const noexcept { opencc_delete(p); }
+};
+
+struct OpenccStringDeleter {
+    void operator()(char *p) const noexcept { opencc_string_free(p); }
+};
+
+using OpenccPtr = std::unique_ptr<void, OpenccDeleter>;
+using OpenccStringPtr = std::unique_ptr<char, OpenccStringDeleter>;
+
+int main() {
+    const opencc_custom_pair_t pairs[] = {
+        { "帕兰蒂尔", "柏蘭蒂爾" },
+        { "软件",     "軟體" }
+    };
+    const opencc_custom_dict_spec_t specs[] = {
+        {
+            OPENCC_DICT_SLOT_ST_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            pairs,
+            sizeof(pairs) / sizeof(pairs[0])
+        }
+    };
+
+    OpenccPtr opencc(opencc_new_custom(
+        specs, sizeof(specs) / sizeof(specs[0])
+    ));
+    if (!opencc) {
+        char *error = opencc_last_error();
+        std::cerr << (error != nullptr ? error : "OpenCC initialization failed") << '\n';
+        opencc_error_free(error);
+        return 1;
+    }
+
+    OpenccStringPtr output(opencc_convert_cfg(
+        opencc.get(),
+        "帕兰蒂尔是一家软件公司。",
+        OPENCC_CONFIG_S2T,
+        false
+    ));
+    if (!output) {
+        char *error = opencc_last_error();
+        std::cerr << (error != nullptr ? error : "OpenCC conversion failed") << '\n';
+        opencc_error_free(error);
+        return 1;
+    }
+
+    std::cout << output.get() << '\n';
+    return 0;
+}
+```
+
+Passing `NULL` to `opencc_delete()`, `opencc_string_free()`, and `opencc_error_free()` is safe, which keeps the custom
+deleters simple.
+
+### Header-Only C++ RAII Helper
+
+[`capi/include/OpenccFmmsegHelper.hpp`](capi/include/OpenccFmmsegHelper.hpp) is the higher-level C++ option. Its custom
+dictionary constructor accepts owned `std::string` and `std::vector` values, translates them to the C structs, and
+automatically releases the native instance. The helper is movable but not copyable.
+
+```cpp
+#include <exception>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "OpenccFmmsegHelper.hpp"
+
+int main() {
+    try {
+        const std::vector<OpenccFmmsegHelper::CustomDictSpec> custom_dicts = {
+            {
+                OPENCC_DICT_SLOT_ST_PHRASES,
+                OPENCC_CUSTOM_DICT_APPEND,
+                {
+                    { "帕兰蒂尔", "柏蘭蒂爾" },
+                    { "软件",     "軟體" }
+                }
+            },
+            {
+                OPENCC_DICT_SLOT_TS_PHRASES,
+                OPENCC_CUSTOM_DICT_APPEND,
+                {
+                    { "柏蘭蒂爾", "帕兰蒂尔" },
+                    { "軟體",     "软件" }
+                }
+            }
+        };
+
+        const OpenccFmmsegHelper opencc(custom_dicts);
+        const std::string source = "帕兰蒂尔是一家软件公司。";
+        const std::string traditional =
+            opencc.convert_cfg(source, OPENCC_CONFIG_S2T);
+        const std::string simplified =
+            opencc.convert_cfg(traditional, OPENCC_CONFIG_T2S);
+
+        std::cout << traditional << '\n';
+        std::cout << simplified << '\n';
+    } catch (const std::exception &error) {
+        // Construction and custom-dictionary validation errors throw.
+        std::cerr << error.what() << '\n';
+        return 1;
+    }
+
+    return 0;
+}
+```
+
+The helper throws `std::runtime_error` if native construction fails. Its conversion methods return a `std::string`; if
+the native conversion returns `NULL`, they return the current native error text rather than throwing. Applications that
+need a separate success/error channel should use the direct C API.
+
+### C API Ownership and Validation
+
+`opencc_new_custom()` borrows all input pointers only for the duration of the call and copies the specifications, pair
+arrays, source strings, and target strings. After successful construction, callers may immediately free, reuse, or let
+those inputs go out of scope. The resulting converter and its rebuilt lookup structures remain immutable.
+
+The following inputs are rejected. The constructor returns `NULL`, and the diagnostic can be retrieved with
+`opencc_last_error()`:
+
+- `specs == NULL` when `spec_count > 0`
+- an unknown slot or merge-mode value
+- `pairs == NULL` when `pair_count > 0`
+- a `NULL` source or target pointer
+- a source or target that is not valid, null-terminated UTF-8
+
+An empty pair array is valid when `pair_count` is zero. `opencc_new_custom(NULL, 0)` is also valid and is equivalent to
+`opencc_new()`.
+
+The C API currently accepts in-memory pairs only. To use an OpenCC plaintext dictionary file from C or C++, parse it
+using the rules in [OpenCC Compatibility](#opencc-compatibility), keep the resulting strings alive while building the C
+struct arrays, and pass those arrays to `opencc_new_custom()`. The constructor copies the strings before returning.
+
+### C and C++ Build Notes
+
+Link against the `opencc_fmmseg_capi` shared library and make its header available to the compiler. For example, from a
+directory containing the header and Windows import library:
+
+```text
+gcc -o custom_dict_c custom_dict_c.c -I . -L . -lopencc_fmmseg_capi
+g++ -std=c++17 -o custom_dict_cpp custom_dict_cpp.cpp -I . -L . -lopencc_fmmseg_capi
+cl /utf-8 /I. custom_dict_c.c /link opencc_fmmseg_capi.dll.lib
+cl /std:c++17 /utf-8 /EHsc /I. custom_dict_cpp.cpp /link opencc_fmmseg_capi.dll.lib
+```
+
+Keep `opencc_fmmseg_capi.dll` beside the Windows executable or otherwise on the DLL search path. Save source files as
+UTF-8 and enable the compiler's UTF-8 source/execution character set when using Chinese literals. The C++ examples use
+C++17 deliberately: in C++20, `u8"..."` has type `const char8_t[]` and cannot be passed directly to APIs accepting
+`const char *`. Plain UTF-8 literals with `/utf-8`, as shown above, avoid that mismatch.
+
 ## Non-BMP / Tofu-Risk Character Fallbacks
 
 Some Unicode characters, especially rare CJK Extension characters outside the Basic Multilingual Plane (BMP), may render
@@ -627,16 +910,18 @@ or custom fallback files for display compatibility fallbacks.
 ```rust
 use opencc_fmmseg::{DetofuLevel, OpenCC};
 
-let cc = OpenCC::new();
+fn main() {
+    let cc = OpenCC::new();
 
-let converted = cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false);
-let safe = cc.detofu_with_custom_pairs(
-    &converted,
-    DetofuLevel::ExtB,
-    &[('𬴂', '騑')],
-);
+    let converted = cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false);
+    let safe = cc.detofu_with_custom_pairs(
+        &converted,
+        DetofuLevel::ExtB,
+        &[('𬴂', '騑')],
+    );
 
-assert_eq!(safe, "俨骖騑于上路，访风景于崇阿");
+    assert_eq!(safe, "俨骖騑于上路，访风景于崇阿");
+}
 ```
 
 In these situations, some applications may prefer a BMP-safe compatibility fallback for specific terms or characters.
@@ -646,15 +931,17 @@ custom pairs or custom fallback files when the goal is display compatibility onl
 ```rust
 use opencc_fmmseg::{DetofuLevel, OpenCC};
 
-let cc = OpenCC::new();
+fn main() {
+    let cc = OpenCC::new();
 
-let safe = cc.detofu_with_custom_pairs(
-    "骖𬴂 啮𫜩",
-    DetofuLevel::ExtB,
-    &[('𬴂', '騑'), ('𫜩', '齧')],
-);
+    let safe = cc.detofu_with_custom_pairs(
+        "骖𬴂 啮𫜩",
+        DetofuLevel::ExtB,
+        &[('𬴂', '騑'), ('𫜩', '齧')],
+    );
 
-assert_eq!(safe, "骖騑 啮齧");
+    assert_eq!(safe, "骖騑 啮齧");
+}
 ```
 
 For a Simplified-to-Traditional conversion change, put Simplified source characters into `STCharacters` or `STPhrases`.
@@ -902,6 +1189,7 @@ If startup time matters, generate and deploy a Zstd or CBOR artifact.
 ## Limitations and Notes
 
 - Dictionaries are immutable after `OpenCC` construction.
+- C API dictionaries created by `opencc_new_custom()` are also immutable and accept in-memory pairs only.
 - Runtime hot-reload injection is not currently provided.
 - Prepare and customize dictionaries before constructing `OpenCC`.
 - Malformed dictionary lines produce errors.
@@ -924,6 +1212,10 @@ If you need runtime updates, rebuild a new `DictionaryMaxlength` and create a ne
 - Test custom conversions with representative input.
 - Maintain slot discipline: match the slot to the conversion direction and regional behavior you expect.
 - Keep custom dictionaries UTF-8 encoded.
+- In C and direct C++, check `opencc_new_custom()` for `NULL` and release the retrieved error with
+  `opencc_error_free()`.
+- In C and direct C++, pair every successful constructor with `opencc_delete()` and every conversion result with
+  `opencc_string_free()`.
 
 ## API Reference Summary
 
@@ -939,6 +1231,11 @@ If you need runtime updates, rebuild a new `DictionaryMaxlength` and create a ne
 | `DictionaryMaxlength::with_custom_dicts()`       | Function | Applies in-memory custom pairs to an already loaded dictionary.                         |
 | `DictionaryMaxlength::with_custom_dict_files()`  | Function | Applies custom OpenCC-style files to an already loaded dictionary.                      |
 | `OpenCC::from_dictionary()`                      | Function | Creates an `OpenCC` converter from a prepared `DictionaryMaxlength`.                    |
+| `opencc_custom_pair_t`                           | C struct | Describes one borrowed UTF-8 custom source-target pair.                                 |
+| `opencc_custom_dict_spec_t`                      | C struct | Describes the slot, merge mode, and pair array used by the C constructor.               |
+| `opencc_new_custom()`                            | C API    | Creates an immutable C API converter with copied in-memory custom mappings.             |
+| `opencc_delete()`                                | C API    | Releases a C API converter, including one created with custom mappings.                 |
+| `OpenccFmmsegHelper(CustomDictSpec...)`          | C++      | Provides header-only RAII construction and ownership for custom mappings.               |
 
 ## Conclusion
 
