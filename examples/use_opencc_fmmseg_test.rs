@@ -1,5 +1,6 @@
-use opencc_fmmseg::OpenCC;
-use opencc_fmmseg::OpenccConfig;
+use opencc_fmmseg::{
+    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
+};
 
 fn main() {
     // ---------------------------------------------------------------------
@@ -90,6 +91,54 @@ fn main() {
 
     println!(
         "Last Error after clear: {}",
+        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+    );
+
+    // ---------------------------------------------------------------------
+    // Test 5: Immutable custom dictionary roundtrip
+    // ---------------------------------------------------------------------
+    println!();
+    println!("== Test 5: immutable custom dictionary roundtrip ==");
+
+    let custom_specs = [
+        CustomDictSpec {
+            slot: DictSlot::STPhrases,
+            pairs: vec![
+                ("帕兰蒂尔".to_string(), "柏蘭蒂爾".to_string()),
+                ("软件".to_string(), "軟體".to_string()),
+            ],
+            mode: CustomDictMode::Append,
+        },
+        CustomDictSpec {
+            slot: DictSlot::TSPhrases,
+            pairs: vec![
+                ("柏蘭蒂爾".to_string(), "帕兰蒂尔".to_string()),
+                ("軟體".to_string(), "软件".to_string()),
+            ],
+            mode: CustomDictMode::Append,
+        },
+    ];
+
+    let custom_dictionary = DictionaryMaxlength::from_zstd()
+        .expect("failed to load embedded dictionaries")
+        .with_custom_dicts(&custom_specs)
+        .expect("failed to apply custom dictionaries");
+
+    let custom_converter = OpenCC::from_dictionary(custom_dictionary);
+
+    let source = "帕兰蒂尔是一家软件公司。";
+    let traditional = custom_converter.convert_with_config(source, OpenccConfig::S2t, false);
+    let simplified = custom_converter.convert_with_config(&traditional, OpenccConfig::T2s, false);
+
+    println!("Source:      {}", source);
+    println!("S2T custom:  {}", traditional);
+    println!("T2S custom:  {}", simplified);
+    println!(
+        "Roundtrip:   {}",
+        if simplified == source { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "Last Error: {}",
         OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
     );
 

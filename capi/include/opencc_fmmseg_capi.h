@@ -89,6 +89,173 @@ enum {
 };
 
 // ============================================================================
+// Custom dictionary construction API
+// ============================================================================
+
+/**
+ * @typedef opencc_dict_slot_t
+ *
+ * ABI-stable dictionary slot selector used when constructing an OpenCC
+ * instance with custom dictionary entries.
+ *
+ * This type is a 32-bit unsigned integer for consistent representation across
+ * C, C++, C#, Java, Python FFI, and other language bindings.
+ *
+ * Slot values are stable and will never be reordered or reused. New slot
+ * values may be appended in future versions.
+ *
+ * This value is passed by value and requires no allocation or deallocation.
+ */
+typedef uint32_t opencc_dict_slot_t;
+
+/**
+ * Dictionary slots available for custom dictionary injection.
+ *
+ * Custom entries affect only the selected dictionary slot. Choosing the
+ * correct slot is essential because each OpenCC conversion configuration
+ * consumes a different combination of dictionary slots.
+ */
+enum {
+    /** Simplified → Traditional character mappings. */
+    OPENCC_DICT_SLOT_ST_CHARACTERS = 1,
+
+    /** Simplified → Traditional phrase mappings. */
+    OPENCC_DICT_SLOT_ST_PHRASES = 2,
+
+    /** Traditional → Simplified character mappings. */
+    OPENCC_DICT_SLOT_TS_CHARACTERS = 3,
+
+    /** Traditional → Simplified phrase mappings. */
+    OPENCC_DICT_SLOT_TS_PHRASES = 4,
+
+    /** Traditional → Taiwan phrase mappings. */
+    OPENCC_DICT_SLOT_TW_PHRASES = 5,
+
+    /** Taiwan → Traditional reverse phrase mappings. */
+    OPENCC_DICT_SLOT_TW_PHRASES_REV = 6,
+
+    /** Traditional → Hong Kong phrase mappings. */
+    OPENCC_DICT_SLOT_HK_PHRASES = 7,
+
+    /** Hong Kong → Traditional reverse phrase mappings. */
+    OPENCC_DICT_SLOT_HK_PHRASES_REV = 8,
+
+    /** Traditional → Taiwan regional variant mappings. */
+    OPENCC_DICT_SLOT_TW_VARIANTS = 9,
+
+    /** Traditional → Taiwan regional phrase variant mappings. */
+    OPENCC_DICT_SLOT_TW_VARIANTS_PHRASES = 10,
+
+    /** Taiwan → Traditional reverse variant mappings. */
+    OPENCC_DICT_SLOT_TW_VARIANTS_REV = 11,
+
+    /** Taiwan → Traditional reverse phrase variant mappings. */
+    OPENCC_DICT_SLOT_TW_VARIANTS_REV_PHRASES = 12,
+
+    /** Traditional → Hong Kong regional variant mappings. */
+    OPENCC_DICT_SLOT_HK_VARIANTS = 13,
+
+    /** Traditional → Hong Kong regional phrase variant mappings. */
+    OPENCC_DICT_SLOT_HK_VARIANTS_PHRASES = 14,
+
+    /** Hong Kong → Traditional reverse variant mappings. */
+    OPENCC_DICT_SLOT_HK_VARIANTS_REV = 15,
+
+    /** Hong Kong → Traditional reverse phrase variant mappings. */
+    OPENCC_DICT_SLOT_HK_VARIANTS_REV_PHRASES = 16,
+
+    /** Japanese Shinjitai character mappings. */
+    OPENCC_DICT_SLOT_JPS_CHARACTERS = 17,
+
+    /** Japanese Shinjitai reverse character mappings. */
+    OPENCC_DICT_SLOT_JPS_CHARACTERS_REV = 18,
+
+    /** Japanese Shinjitai phrase mappings. */
+    OPENCC_DICT_SLOT_JPS_PHRASES = 19,
+
+    /** Simplified → Traditional punctuation mappings. */
+    OPENCC_DICT_SLOT_ST_PUNCTUATIONS = 20,
+
+    /** Traditional → Simplified punctuation mappings. */
+    OPENCC_DICT_SLOT_TS_PUNCTUATIONS = 21
+};
+
+/**
+ * @typedef opencc_custom_dict_mode_t
+ *
+ * ABI-stable custom dictionary merge mode.
+ *
+ * This type is a 32-bit unsigned integer. Mode values are stable and will
+ * never be reordered or reused.
+ */
+typedef uint32_t opencc_custom_dict_mode_t;
+
+/**
+ * Controls how custom pairs are applied to a dictionary slot.
+ */
+enum {
+    /**
+     * Merge custom pairs into the built-in dictionary slot.
+     *
+     * Custom values replace existing values for matching source keys.
+     * Existing unrelated mappings remain available.
+     */
+    OPENCC_CUSTOM_DICT_APPEND = 1,
+
+    /**
+     * Clear the selected built-in dictionary slot before inserting the
+     * custom pairs.
+     *
+     * After construction, the selected slot contains only the supplied
+     * custom mappings.
+     */
+    OPENCC_CUSTOM_DICT_OVERRIDE = 2
+};
+
+/**
+ * One custom OpenCC dictionary mapping.
+ *
+ * Both strings must:
+ *
+ * - be valid null-terminated UTF-8 strings;
+ * - remain valid for the duration of `opencc_new_custom()`;
+ * - not contain embedded NUL bytes.
+ *
+ * The constructor copies both strings. The caller retains ownership of the
+ * original memory.
+ */
+typedef struct opencc_custom_pair {
+    /** Source dictionary key. */
+    const char* source;
+
+    /** Replacement dictionary value. */
+    const char* target;
+} opencc_custom_pair_t;
+
+/**
+ * Custom mappings targeting one OpenCC dictionary slot.
+ *
+ * `pairs` points to a contiguous array containing `pair_count` elements.
+ *
+ * The specification, pair array, and strings are borrowed only for the
+ * duration of `opencc_new_custom()`. The constructor copies all required
+ * data before returning.
+ */
+typedef struct opencc_custom_dict_spec {
+    /** Dictionary slot receiving these custom mappings. */
+    opencc_dict_slot_t slot;
+
+    /** Append or override behavior. */
+    opencc_custom_dict_mode_t mode;
+
+    /** Array of custom source-target mappings. */
+    const opencc_custom_pair_t* pairs;
+
+    /** Number of elements in `pairs`. */
+    size_t pair_count;
+} opencc_custom_dict_spec_t;
+
+// ============================================================================
 // Version / ABI
 // ============================================================================
 
@@ -126,12 +293,67 @@ const char* opencc_version_string(void);
 void* opencc_new(void);
 
 /**
- * Frees an instance returned by `opencc_new()`.
+ * Creates an immutable OpenCC FMMSEG instance using the embedded dictionaries
+ * plus optional in-memory custom dictionary mappings.
+ *
+ * Custom mappings are applied during construction only. After this function
+ * returns successfully, the resulting OpenCC instance is fully initialized
+ * and its conversion dictionaries are immutable.
+ *
+ * Each specification targets one dictionary slot and uses either append or
+ * override mode.
+ *
+ * The constructor copies all specifications, pairs, source strings, and
+ * target strings required by the resulting instance. The caller may release
+ * or reuse all input memory immediately after this function returns.
+ *
+ * Empty construction is supported:
+ *
+ *     opencc_new_custom(NULL, 0)
+ *
+ * is equivalent to `opencc_new()`.
+ *
+ * Invalid argument combinations include:
+ *
+ * - `specs == NULL` while `spec_count > 0`;
+ * - an unknown dictionary slot;
+ * - an unknown custom dictionary mode;
+ * - `pairs == NULL` while `pair_count > 0`;
+ * - a NULL source or target string;
+ * - invalid UTF-8 in a source or target string.
+ *
+ * @param specs
+ *     Pointer to a contiguous array of custom dictionary specifications.
+ *     May be NULL only when `spec_count` is zero.
+ *
+ * @param spec_count
+ *     Number of elements in `specs`.
+ *
+ * @return
+ *     A pointer to a fully initialized immutable OpenCC instance on success.
+ *
+ *     Returns NULL on failure. A human-readable error message can then be
+ *     retrieved using `opencc_last_error()`.
+ *
+ * @ownership
+ *     The returned instance must be released using `opencc_delete()`.
+ *
+ *     The caller retains ownership of `specs`, all pair arrays, and all source
+ *     and target strings.
+ */
+void* opencc_new_custom(
+    const opencc_custom_dict_spec_t* specs,
+    size_t spec_count
+);
+
+/**
+ * Frees an instance returned by an OpenCC constructor.
  *
  * Passing NULL is safe and does nothing.
  *
  * @param instance
- *     A pointer previously returned by `opencc_new()`.
+ *     A pointer previously returned by `opencc_new()` or
+ *     `opencc_new_custom()`.
  */
 void opencc_delete(const void* instance);
 

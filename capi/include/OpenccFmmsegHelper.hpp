@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 // RAII convenience wrapper around the opencc-fmmseg C API.
 //
@@ -23,6 +24,23 @@
 //   empty-input results.
 class OpenccFmmsegHelper {
 public:
+    // One owned source-target mapping used during immutable construction.
+    struct CustomPair {
+        std::string source;
+        std::string target;
+    };
+
+    // One owned custom dictionary specification used during construction.
+    //
+    // The wrapper converts these C++ values to the temporary pointer arrays
+    // required by the C API. The resulting native OpenCC instance copies all
+    // dictionary data and remains immutable after construction.
+    struct CustomDictSpec {
+        opencc_dict_slot_t slot;
+        opencc_custom_dict_mode_t mode;
+        std::vector<CustomPair> pairs;
+    };
+
     // Creates a new native OpenCC instance.
     //
     // Throws `std::runtime_error` only if `opencc_new()` fails.
@@ -31,6 +49,16 @@ public:
         if (!opencc_)
             throw std::runtime_error("Failed to initialize OpenCC instance.");
     }
+
+    // Creates an immutable OpenCC instance using the embedded dictionaries
+    // plus the supplied in-memory custom dictionary specifications.
+    //
+    // The input strings and arrays are needed only during this constructor.
+    // The native constructor copies all required data before returning.
+    //
+    // Throws `std::runtime_error` when validation or native construction fails.
+    explicit OpenccFmmsegHelper(const std::vector<CustomDictSpec> &specs)
+        : opencc_(createCustomOpencc(specs)) {}
 
     OpenccFmmsegHelper(const OpenccFmmsegHelper &) = delete;
 
@@ -216,6 +244,57 @@ private:
     bool punctuationEnabled_ = false;
     std::string configName_;
     bool useConfigName_ = false;
+
+    [[nodiscard]] static void *createCustomOpencc(
+        const std::vector<CustomDictSpec> &specs
+    ) {
+        std::vector<std::vector<opencc_custom_pair_t>> ffiPairArrays;
+        ffiPairArrays.reserve(specs.size());
+
+        for (const CustomDictSpec &spec : specs) {
+            std::vector<opencc_custom_pair_t> ffiPairs;
+            ffiPairs.reserve(spec.pairs.size());
+
+            for (const CustomPair &pair : spec.pairs) {
+                ffiPairs.push_back({
+                    pair.source.c_str(),
+                    pair.target.c_str(),
+                });
+            }
+
+            ffiPairArrays.push_back(std::move(ffiPairs));
+        }
+
+        std::vector<opencc_custom_dict_spec_t> ffiSpecs;
+        ffiSpecs.reserve(specs.size());
+
+        for (std::size_t i = 0; i < specs.size(); ++i) {
+            const CustomDictSpec &spec = specs[i];
+            const auto &ffiPairs = ffiPairArrays[i];
+
+            ffiSpecs.push_back({
+                spec.slot,
+                spec.mode,
+                ffiPairs.empty() ? nullptr : ffiPairs.data(),
+                ffiPairs.size(),
+            });
+        }
+
+        void *instance = opencc_new_custom(
+            ffiSpecs.empty() ? nullptr : ffiSpecs.data(),
+            ffiSpecs.size()
+        );
+
+        if (!instance) {
+            std::string error = lastError();
+            if (error.empty()) {
+                error = "Failed to initialize custom OpenCC instance.";
+            }
+            throw std::runtime_error(error);
+        }
+
+        return instance;
+    }
 
     static void cleanupOpencc(void *p) noexcept {
         if (p) opencc_delete(p);

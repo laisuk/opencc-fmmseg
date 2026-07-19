@@ -1,9 +1,39 @@
-use opencc_fmmseg::{OpenCC, OpenccConfig};
+use opencc_fmmseg::{
+    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
+};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
 
 const OPENCC_ABI_NUMBER: u32 = 1;
+
+// ============================================================================
+// Custom dictionary C ABI types
+// ============================================================================
+
+/// One borrowed UTF-8 custom dictionary pair supplied by the C caller.
+///
+/// Both pointers must remain valid for the duration of
+/// [`opencc_new_custom`]. The constructor copies both strings.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct OpenccCustomPair {
+    pub source: *const c_char,
+    pub target: *const c_char,
+}
+
+/// One custom dictionary specification supplied by the C caller.
+///
+/// `pairs` points to a contiguous array containing `pair_count` elements.
+/// The constructor copies all required data before returning.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct OpenccCustomDictSpec {
+    pub slot: u32,
+    pub mode: u32,
+    pub pairs: *const OpenccCustomPair,
+    pub pair_count: usize,
+}
 
 // ============================================================================
 // Version / ABI
@@ -39,6 +69,46 @@ pub extern "C" fn opencc_version_string() -> *const c_char {
 #[no_mangle]
 pub extern "C" fn opencc_new() -> *mut OpenCC {
     Box::into_raw(Box::new(OpenCC::new()))
+}
+
+/// Creates an immutable OpenCC instance using the embedded dictionaries plus
+/// optional in-memory custom dictionary mappings.
+///
+/// The supplied specification array, pair arrays, and strings are borrowed
+/// only for the duration of this call. All required data is copied into
+/// Rust-owned memory before the function returns.
+///
+/// `specs == NULL` is valid only when `spec_count == 0`.
+///
+/// On failure, returns NULL and records a human-readable error retrievable
+/// through [`opencc_last_error`].
+///
+/// # Safety
+///
+/// When `spec_count > 0`, `specs` must point to a contiguous array containing
+/// at least `spec_count` valid [`OpenccCustomDictSpec`] elements.
+///
+/// For every specification with `pair_count > 0`, `pairs` must point to a
+/// contiguous array containing at least `pair_count` valid
+/// [`OpenccCustomPair`] elements.
+///
+/// Every non-NULL string pointer must point to a valid NUL-terminated byte
+/// sequence for the duration of the call.
+#[no_mangle]
+pub unsafe extern "C" fn opencc_new_custom(
+    specs: *const OpenccCustomDictSpec,
+    spec_count: usize,
+) -> *mut OpenCC {
+    match build_opencc_with_custom_dicts(specs, spec_count) {
+        Ok(opencc) => {
+            OpenCC::clear_last_error();
+            Box::into_raw(Box::new(opencc))
+        }
+        Err(message) => {
+            OpenCC::set_last_error(&message);
+            ptr::null_mut()
+        }
+    }
 }
 
 /// C API function `opencc_delete`.
@@ -767,6 +837,196 @@ fn config_to_c_name(cfg: OpenccConfig) -> *const c_char {
 }
 
 // ============================================================================
+// Custom dictionary ABI constants
+// ============================================================================
+
+const OPENCC_DICT_SLOT_ST_CHARACTERS: u32 = 1;
+const OPENCC_DICT_SLOT_ST_PHRASES: u32 = 2;
+const OPENCC_DICT_SLOT_TS_CHARACTERS: u32 = 3;
+const OPENCC_DICT_SLOT_TS_PHRASES: u32 = 4;
+
+const OPENCC_DICT_SLOT_TW_PHRASES: u32 = 5;
+const OPENCC_DICT_SLOT_TW_PHRASES_REV: u32 = 6;
+const OPENCC_DICT_SLOT_HK_PHRASES: u32 = 7;
+const OPENCC_DICT_SLOT_HK_PHRASES_REV: u32 = 8;
+
+const OPENCC_DICT_SLOT_TW_VARIANTS: u32 = 9;
+const OPENCC_DICT_SLOT_TW_VARIANTS_PHRASES: u32 = 10;
+const OPENCC_DICT_SLOT_TW_VARIANTS_REV: u32 = 11;
+const OPENCC_DICT_SLOT_TW_VARIANTS_REV_PHRASES: u32 = 12;
+
+const OPENCC_DICT_SLOT_HK_VARIANTS: u32 = 13;
+const OPENCC_DICT_SLOT_HK_VARIANTS_PHRASES: u32 = 14;
+const OPENCC_DICT_SLOT_HK_VARIANTS_REV: u32 = 15;
+const OPENCC_DICT_SLOT_HK_VARIANTS_REV_PHRASES: u32 = 16;
+
+const OPENCC_DICT_SLOT_JPS_CHARACTERS: u32 = 17;
+const OPENCC_DICT_SLOT_JPS_CHARACTERS_REV: u32 = 18;
+const OPENCC_DICT_SLOT_JPS_PHRASES: u32 = 19;
+
+const OPENCC_DICT_SLOT_ST_PUNCTUATIONS: u32 = 20;
+const OPENCC_DICT_SLOT_TS_PUNCTUATIONS: u32 = 21;
+
+const OPENCC_CUSTOM_DICT_APPEND: u32 = 1;
+const OPENCC_CUSTOM_DICT_OVERRIDE: u32 = 2;
+
+// ============================================================================
+// Custom dictionary private helpers
+// ============================================================================
+
+#[inline]
+fn dict_slot_from_ffi(value: u32) -> Option<DictSlot> {
+    match value {
+        OPENCC_DICT_SLOT_ST_CHARACTERS => Some(DictSlot::STCharacters),
+        OPENCC_DICT_SLOT_ST_PHRASES => Some(DictSlot::STPhrases),
+        OPENCC_DICT_SLOT_TS_CHARACTERS => Some(DictSlot::TSCharacters),
+        OPENCC_DICT_SLOT_TS_PHRASES => Some(DictSlot::TSPhrases),
+
+        OPENCC_DICT_SLOT_TW_PHRASES => Some(DictSlot::TWPhrases),
+        OPENCC_DICT_SLOT_TW_PHRASES_REV => Some(DictSlot::TWPhrasesRev),
+        OPENCC_DICT_SLOT_HK_PHRASES => Some(DictSlot::HKPhrases),
+        OPENCC_DICT_SLOT_HK_PHRASES_REV => Some(DictSlot::HKPhrasesRev),
+
+        OPENCC_DICT_SLOT_TW_VARIANTS => Some(DictSlot::TWVariants),
+        OPENCC_DICT_SLOT_TW_VARIANTS_PHRASES => Some(DictSlot::TWVariantsPhrases),
+        OPENCC_DICT_SLOT_TW_VARIANTS_REV => Some(DictSlot::TWVariantsRev),
+        OPENCC_DICT_SLOT_TW_VARIANTS_REV_PHRASES => Some(DictSlot::TWVariantsRevPhrases),
+
+        OPENCC_DICT_SLOT_HK_VARIANTS => Some(DictSlot::HKVariants),
+        OPENCC_DICT_SLOT_HK_VARIANTS_PHRASES => Some(DictSlot::HKVariantsPhrases),
+        OPENCC_DICT_SLOT_HK_VARIANTS_REV => Some(DictSlot::HKVariantsRev),
+        OPENCC_DICT_SLOT_HK_VARIANTS_REV_PHRASES => Some(DictSlot::HKVariantsRevPhrases),
+
+        OPENCC_DICT_SLOT_JPS_CHARACTERS => Some(DictSlot::JPSCharacters),
+        OPENCC_DICT_SLOT_JPS_CHARACTERS_REV => Some(DictSlot::JPSCharactersRev),
+        OPENCC_DICT_SLOT_JPS_PHRASES => Some(DictSlot::JPSPhrases),
+
+        OPENCC_DICT_SLOT_ST_PUNCTUATIONS => Some(DictSlot::STPunctuations),
+        OPENCC_DICT_SLOT_TS_PUNCTUATIONS => Some(DictSlot::TSPunctuations),
+
+        _ => None,
+    }
+}
+
+#[inline]
+fn custom_dict_mode_from_ffi(value: u32) -> Option<CustomDictMode> {
+    match value {
+        OPENCC_CUSTOM_DICT_APPEND => Some(CustomDictMode::Append),
+        OPENCC_CUSTOM_DICT_OVERRIDE => Some(CustomDictMode::Override),
+        _ => None,
+    }
+}
+
+#[inline]
+unsafe fn copy_custom_utf8(
+    ptr_: *const c_char,
+    field_name: &'static str,
+    spec_index: usize,
+    pair_index: usize,
+) -> Result<String, String> {
+    if ptr_.is_null() {
+        return Err(format!(
+            "Invalid custom dictionary spec {} pair {}: {} is NULL",
+            spec_index, pair_index, field_name
+        ));
+    }
+
+    CStr::from_ptr(ptr_)
+        .to_str()
+        .map(str::to_owned)
+        .map_err(|_| {
+            format!(
+                "Invalid custom dictionary spec {} pair {}: {} is not valid UTF-8",
+                spec_index, pair_index, field_name
+            )
+        })
+}
+
+unsafe fn parse_custom_pairs(
+    spec: &OpenccCustomDictSpec,
+    spec_index: usize,
+) -> Result<Vec<(String, String)>, String> {
+    if spec.pair_count == 0 {
+        return Ok(Vec::new());
+    }
+
+    if spec.pairs.is_null() {
+        return Err(format!(
+            "Invalid custom dictionary spec {}: pairs is NULL while pair_count is {}",
+            spec_index, spec.pair_count
+        ));
+    }
+
+    let ffi_pairs = std::slice::from_raw_parts(spec.pairs, spec.pair_count);
+    let mut pairs = Vec::with_capacity(ffi_pairs.len());
+
+    for (pair_index, pair) in ffi_pairs.iter().enumerate() {
+        let source = copy_custom_utf8(pair.source, "source", spec_index, pair_index)?;
+
+        let target = copy_custom_utf8(pair.target, "target", spec_index, pair_index)?;
+
+        pairs.push((source, target));
+    }
+
+    Ok(pairs)
+}
+
+unsafe fn parse_custom_dict_specs(
+    specs: *const OpenccCustomDictSpec,
+    spec_count: usize,
+) -> Result<Vec<CustomDictSpec>, String> {
+    if spec_count == 0 {
+        return Ok(Vec::new());
+    }
+
+    if specs.is_null() {
+        return Err(format!(
+            "Invalid argument: specs is NULL while spec_count is {}",
+            spec_count
+        ));
+    }
+
+    let ffi_specs = std::slice::from_raw_parts(specs, spec_count);
+    let mut rust_specs = Vec::with_capacity(ffi_specs.len());
+
+    for (spec_index, spec) in ffi_specs.iter().enumerate() {
+        let slot = dict_slot_from_ffi(spec.slot).ok_or_else(|| {
+            format!(
+                "Invalid custom dictionary slot {} in spec {}",
+                spec.slot, spec_index
+            )
+        })?;
+
+        let mode = custom_dict_mode_from_ffi(spec.mode).ok_or_else(|| {
+            format!(
+                "Invalid custom dictionary mode {} in spec {}",
+                spec.mode, spec_index
+            )
+        })?;
+
+        let pairs = parse_custom_pairs(spec, spec_index)?;
+
+        rust_specs.push(CustomDictSpec { slot, pairs, mode });
+    }
+
+    Ok(rust_specs)
+}
+
+unsafe fn build_opencc_with_custom_dicts(
+    specs: *const OpenccCustomDictSpec,
+    spec_count: usize,
+) -> Result<OpenCC, String> {
+    let rust_specs = parse_custom_dict_specs(specs, spec_count)?;
+
+    let dictionary = DictionaryMaxlength::from_zstd()
+        .map_err(|err| format!("Failed to load embedded dictionaries: {err}"))?
+        .with_custom_dicts(&rust_specs)
+        .map_err(|err| format!("Failed to apply custom dictionaries: {err}"))?;
+
+    Ok(OpenCC::from_dictionary(dictionary))
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -1166,5 +1426,177 @@ mod tests {
 
         let ok = opencc_config_name_to_id(ptr::null(), ptr::null_mut());
         assert_eq!(ok, 0);
+    }
+
+    // Custom Dicts Tests
+
+    #[test]
+    fn opencc_new_custom_empty_matches_normal_constructor() {
+        let instance = unsafe { opencc_new_custom(ptr::null(), 0) };
+
+        assert!(!instance.is_null());
+
+        opencc_delete(instance);
+    }
+
+    #[test]
+    fn opencc_new_custom_rejects_null_specs_with_nonzero_count() {
+        opencc_clear_last_error();
+
+        let instance = unsafe { opencc_new_custom(ptr::null(), 1) };
+
+        assert!(instance.is_null());
+
+        let error = read_and_free(opencc_last_error());
+        assert!(error.contains("specs is NULL"));
+    }
+
+    #[test]
+    fn opencc_new_custom_applies_st_phrases() {
+        let source = CString::new("帕兰蒂尔").unwrap();
+        let target = CString::new("柏蘭蒂爾").unwrap();
+        let input = CString::new("帕兰蒂尔是一家公司").unwrap();
+
+        let pairs = [OpenccCustomPair {
+            source: source.as_ptr(),
+            target: target.as_ptr(),
+        }];
+
+        let specs = [OpenccCustomDictSpec {
+            slot: OPENCC_DICT_SLOT_ST_PHRASES,
+            mode: OPENCC_CUSTOM_DICT_APPEND,
+            pairs: pairs.as_ptr(),
+            pair_count: pairs.len(),
+        }];
+
+        let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
+
+        assert!(!instance.is_null());
+
+        let output =
+            opencc_convert_cfg(instance, input.as_ptr(), OpenccConfig::S2t.to_ffi(), false);
+
+        assert!(!output.is_null());
+
+        let actual = unsafe { CStr::from_ptr(output).to_str().unwrap().to_owned() };
+
+        assert_eq!(actual, "柏蘭蒂爾是一家公司");
+
+        opencc_string_free(output);
+        opencc_delete(instance);
+    }
+
+    #[test]
+    fn opencc_new_custom_rejects_invalid_slot() {
+        let specs = [OpenccCustomDictSpec {
+            slot: 999,
+            mode: OPENCC_CUSTOM_DICT_APPEND,
+            pairs: ptr::null(),
+            pair_count: 0,
+        }];
+
+        let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
+
+        assert!(instance.is_null());
+    }
+    
+    #[test]
+    fn parse_custom_dict_specs_rejects_invalid_slot() {
+        let specs = [OpenccCustomDictSpec {
+            slot: 999,
+            mode: OPENCC_CUSTOM_DICT_APPEND,
+            pairs: ptr::null(),
+            pair_count: 0,
+        }];
+
+        let error = unsafe { parse_custom_dict_specs(specs.as_ptr(), specs.len()) }
+            .expect_err("invalid slot should fail");
+
+        assert_eq!(error, "Invalid custom dictionary slot 999 in spec 0");
+    }
+
+    #[test]
+    fn parse_custom_dict_specs_rejects_invalid_mode() {
+        let specs = [OpenccCustomDictSpec {
+            slot: OPENCC_DICT_SLOT_ST_PHRASES,
+            mode: 999,
+            pairs: ptr::null(),
+            pair_count: 0,
+        }];
+
+        let error = unsafe { parse_custom_dict_specs(specs.as_ptr(), specs.len()) }
+            .expect_err("invalid mode should fail");
+
+        assert!(error.contains("Invalid custom dictionary mode 999"));
+    }
+
+    #[test]
+    fn opencc_new_custom_rejects_invalid_mode() {
+        let specs = [OpenccCustomDictSpec {
+            slot: OPENCC_DICT_SLOT_ST_PHRASES,
+            mode: 999,
+            pairs: ptr::null(),
+            pair_count: 0,
+        }];
+
+        let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
+
+        assert!(instance.is_null());
+    }
+
+    #[test]
+    fn opencc_new_custom_rejects_null_pairs_with_nonzero_count() {
+        let specs = [OpenccCustomDictSpec {
+            slot: OPENCC_DICT_SLOT_ST_PHRASES,
+            mode: OPENCC_CUSTOM_DICT_APPEND,
+            pairs: ptr::null(),
+            pair_count: 1,
+        }];
+
+        let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
+
+        assert!(instance.is_null());
+
+        let error = read_and_free(opencc_last_error());
+        assert!(error.contains("pairs is NULL"));
+    }
+
+    #[test]
+    fn opencc_new_custom_copies_caller_strings() {
+        let source = CString::new("帕兰蒂尔").unwrap();
+        let target = CString::new("柏蘭蒂爾").unwrap();
+
+        let pairs = [OpenccCustomPair {
+            source: source.as_ptr(),
+            target: target.as_ptr(),
+        }];
+
+        let specs = [OpenccCustomDictSpec {
+            slot: OPENCC_DICT_SLOT_ST_PHRASES,
+            mode: OPENCC_CUSTOM_DICT_APPEND,
+            pairs: pairs.as_ptr(),
+            pair_count: pairs.len(),
+        }];
+
+        let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
+
+        assert!(!instance.is_null());
+
+        drop(source);
+        drop(target);
+
+        let input = CString::new("帕兰蒂尔是一家公司").unwrap();
+
+        let output =
+            opencc_convert_cfg(instance, input.as_ptr(), OpenccConfig::S2t.to_ffi(), false);
+
+        assert!(!output.is_null());
+
+        let actual = unsafe { CStr::from_ptr(output).to_str().unwrap() };
+
+        assert_eq!(actual, "柏蘭蒂爾是一家公司");
+
+        opencc_string_free(output);
+        opencc_delete(instance);
     }
 }

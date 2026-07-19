@@ -1,5 +1,6 @@
 // UseOpenccFmmsegHelper.cpp
 #include <iostream>
+#include <vector>
 #include <windows.h>
 
 #include "OpenccFmmsegHelper.hpp"
@@ -74,6 +75,48 @@ int main(int argc, char** argv)
         OpenccFmmsegHelper::clearLastError();
 
         std::cout << "Last Error after clear: "
+                  << OpenccFmmsegHelper::lastError() << "\n";
+
+        // -------------------------------------------------------------
+        // Test 6: Immutable custom dictionary roundtrip
+        // -------------------------------------------------------------
+        std::cout << "\n== Test 6: immutable custom dictionary roundtrip ==\n";
+
+        const std::vector<OpenccFmmsegHelper::CustomDictSpec> customDicts = {
+            {
+                OPENCC_DICT_SLOT_ST_PHRASES,
+                OPENCC_CUSTOM_DICT_APPEND,
+                {
+                    {u8"帕兰蒂尔", u8"柏蘭蒂爾"},
+                }
+            },
+            {
+                OPENCC_DICT_SLOT_TS_PHRASES,
+                OPENCC_CUSTOM_DICT_APPEND,
+                {
+                    {u8"柏蘭蒂爾", u8"帕兰蒂尔"},
+                }
+            }
+        };
+
+        const OpenccFmmsegHelper customHelper(customDicts);
+
+        const std::string roundtripSource =
+            u8"帕兰蒂尔是一家软件公司。";
+
+        const std::string roundtripTraditional =
+            customHelper.convert_cfg(roundtripSource, OPENCC_CONFIG_S2T);
+
+        const std::string roundtripSimplified =
+            customHelper.convert_cfg(roundtripTraditional, OPENCC_CONFIG_T2S);
+
+        std::cout << "Source:      " << roundtripSource << "\n";
+        std::cout << "S2T custom:  " << roundtripTraditional << "\n";
+        std::cout << "T2S custom:  " << roundtripSimplified << "\n";
+        std::cout << "Roundtrip:   "
+                  << (roundtripSimplified == roundtripSource ? "PASS" : "FAIL")
+                  << "\n";
+        std::cout << "Last Error:  "
                   << OpenccFmmsegHelper::lastError() << "\n";
     }
     catch (const std::exception& ex)

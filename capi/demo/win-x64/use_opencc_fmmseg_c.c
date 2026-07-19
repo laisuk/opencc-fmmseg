@@ -217,6 +217,92 @@ int main(int argc, char **argv) {
     print_last_error_and_free();
 
     // ---------------------------------------------------------------------
+    // Test 6: Immutable custom dictionary roundtrip
+    // ---------------------------------------------------------------------
+    printf("\n== Test 6: immutable custom dictionary roundtrip ==\n");
+
+    opencc_custom_pair_t st_pairs[] = {
+        { u8"帕兰蒂尔", u8"柏蘭蒂爾" },
+        { u8"软件",     u8"軟體" }
+    };
+
+    opencc_custom_pair_t ts_pairs[] = {
+        { u8"柏蘭蒂爾", u8"帕兰蒂尔" },
+        { u8"軟體",     u8"软件" }
+    };
+
+    opencc_custom_dict_spec_t custom_specs[] = {
+        {
+            OPENCC_DICT_SLOT_ST_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            st_pairs,
+            sizeof(st_pairs) / sizeof(st_pairs[0])
+        },
+        {
+            OPENCC_DICT_SLOT_TS_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            ts_pairs,
+            sizeof(ts_pairs) / sizeof(ts_pairs[0])
+        }
+    };
+
+    void *custom_opencc =
+        opencc_new_custom(
+            custom_specs,
+            sizeof(custom_specs) / sizeof(custom_specs[0]));
+
+    if (custom_opencc == NULL) {
+        printf("❌ opencc_new_custom() failed\n");
+        print_last_error_and_free();
+    } else {
+
+        const char *source =
+            u8"帕兰蒂尔是一家软件公司。";
+
+        char *traditional =
+            opencc_convert_cfg(
+                custom_opencc,
+                source,
+                OPENCC_CONFIG_S2T,
+                false);
+
+        if (traditional == NULL) {
+            printf("❌ S2T conversion failed\n");
+            print_last_error_and_free();
+        } else {
+
+            char *simplified =
+                opencc_convert_cfg(
+                    custom_opencc,
+                    traditional,
+                    OPENCC_CONFIG_T2S,
+                    false);
+
+            if (simplified == NULL) {
+                printf("❌ T2S conversion failed\n");
+                print_last_error_and_free();
+            } else {
+
+                printf("Source:      %s\n", source);
+                printf("S2T custom:  %s\n", traditional);
+                printf("T2S custom:  %s\n", simplified);
+
+                printf(
+                    "Roundtrip:   %s\n",
+                    strcmp(source, simplified) == 0 ? "PASS" : "FAIL");
+
+                opencc_string_free(simplified);
+            }
+
+            opencc_string_free(traditional);
+        }
+
+        print_last_error_and_free();
+
+        opencc_delete(custom_opencc);
+    }
+
+    // ---------------------------------------------------------------------
     // Cleanup
     // ---------------------------------------------------------------------
     opencc_delete(opencc);

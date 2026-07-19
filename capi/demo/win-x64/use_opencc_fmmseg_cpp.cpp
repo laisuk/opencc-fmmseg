@@ -226,6 +226,86 @@ int main(int argc, char **argv) {
     print_last_error_and_free();
 
     // ---------------------------------------------------------------------
+    // Test 6: Immutable custom dictionary roundtrip (direct C API)
+    // ---------------------------------------------------------------------
+    std::cout << "\n== Test 6: immutable custom dictionary roundtrip ==\n";
+
+    const opencc_custom_pair_t st_pairs[] = {
+        { u8"帕兰蒂尔", u8"柏蘭蒂爾" },
+        { u8"软件",     u8"軟體" }
+    };
+
+    const opencc_custom_pair_t ts_pairs[] = {
+        { u8"柏蘭蒂爾", u8"帕兰蒂尔" },
+        { u8"軟體",     u8"软件" }
+    };
+
+    const opencc_custom_dict_spec_t custom_specs[] = {
+        {
+            OPENCC_DICT_SLOT_ST_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            st_pairs,
+            sizeof(st_pairs) / sizeof(st_pairs[0])
+        },
+        {
+            OPENCC_DICT_SLOT_TS_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            ts_pairs,
+            sizeof(ts_pairs) / sizeof(ts_pairs[0])
+        }
+    };
+
+    void *custom_opencc = opencc_new_custom(
+        custom_specs,
+        sizeof(custom_specs) / sizeof(custom_specs[0])
+    );
+
+    if (custom_opencc == nullptr) {
+        std::cout << "❌ opencc_new_custom() returned NULL\n";
+        print_last_error_and_free();
+    } else {
+        const char *source = u8"帕兰蒂尔是一家软件公司。";
+
+        char *traditional = opencc_convert_cfg(
+            custom_opencc,
+            source,
+            OPENCC_CONFIG_S2T,
+            false
+        );
+
+        if (traditional == nullptr) {
+            std::cout << "❌ S2T custom conversion failed\n";
+            print_last_error_and_free();
+        } else {
+            char *simplified = opencc_convert_cfg(
+                custom_opencc,
+                traditional,
+                OPENCC_CONFIG_T2S,
+                false
+            );
+
+            if (simplified == nullptr) {
+                std::cout << "❌ T2S custom conversion failed\n";
+                print_last_error_and_free();
+            } else {
+                std::cout << "Source:      " << source << "\n";
+                std::cout << "S2T custom:  " << traditional << "\n";
+                std::cout << "T2S custom:  " << simplified << "\n";
+                std::cout << "Roundtrip:   "
+                          << (std::strcmp(source, simplified) == 0 ? "PASS" : "FAIL")
+                          << "\n";
+
+                opencc_string_free(simplified);
+            }
+
+            opencc_string_free(traditional);
+        }
+
+        print_last_error_and_free();
+        opencc_delete(custom_opencc);
+    }
+
+    // ---------------------------------------------------------------------
     // Cleanup
     // ---------------------------------------------------------------------
     opencc_delete(opencc);
