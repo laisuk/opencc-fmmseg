@@ -850,7 +850,8 @@ arrays, source strings, and target strings. After successful construction, calle
 those inputs go out of scope. The resulting converter and its rebuilt lookup structures remain immutable.
 
 The following inputs are rejected. The constructor returns `NULL`, and the diagnostic can be retrieved with
-`opencc_last_error()`:
+`opencc_last_error()` on the same calling thread immediately after failure. The returned string is independently
+allocated and must be released with `opencc_error_free()`:
 
 - `specs == NULL` when `spec_count > 0`
 - an unknown slot or merge-mode value

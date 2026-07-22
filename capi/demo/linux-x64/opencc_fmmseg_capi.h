@@ -108,6 +108,10 @@ const char* opencc_version_string(void);
 /**
  * Creates and initializes a new OpenCC FMMSEG instance.
  *
+ * If embedded dictionary initialization fails, the function preserves its
+ * fallback behavior and records the exact initialization error in the calling
+ * thread's C API last-error state.
+ *
  * @return
  *     A pointer to a new OpenCC instance, or NULL if allocation fails.
  *
@@ -193,11 +197,11 @@ void opencc_set_parallel(void* instance, bool is_parallel);
  *
  *     Returns NULL if `instance`, `input`, or `config` is NULL, or if allocation
  *     fails. In those cases the function records a human-readable message for
- *     retrieval via `opencc_last_error()`.
+ *     retrieval on the same calling thread via `opencc_last_error()`.
  *
  *     On UTF-8/config/conversion errors after argument validation, this function
  *     returns an allocated error message string and also stores the same message
- *     internally for retrieval via `opencc_last_error()`.
+ *     for same-thread retrieval via `opencc_last_error()`.
  */
 char* opencc_convert(const void* instance, const char* input, const char* config, bool punctuation);
 
@@ -219,7 +223,7 @@ char* opencc_convert(const void* instance, const char* input, const char* config
  *
  *     If `config` is invalid, this function still returns a newly allocated
  *     error message string in the form `"Invalid config: <value>"`, and also
- *     stores the same message internally for retrieval via `opencc_last_error()`.
+ *     stores it for same-thread retrieval via `opencc_last_error()`.
  *
  *     Returns NULL only if `instance` or `input` is NULL, or if allocation fails.
  *
@@ -249,8 +253,8 @@ char* opencc_convert_cfg(const void* instance, const char* input, opencc_config_
  *     output. The returned string must be freed using `opencc_string_free()`.
  *
  *     Returns NULL if `config` is NULL, or if allocation fails. In those cases
- *     the function records a human-readable message for retrieval via
- *     `opencc_last_error()`.
+ *     the function records a human-readable message for immediate retrieval
+ *     via `opencc_last_error()` on the same calling thread.
  */
 char* opencc_convert_len(
     const void* instance,
@@ -318,7 +322,7 @@ char* opencc_convert_len(
  *     - `out_cap` is too small when `out_buf` is provided
  *
  * Error behavior:
- * - On failure, this function sets `opencc_last_error()` to a human-readable
+ * - On failure, this function sets the calling thread's `opencc_last_error()`
  *   message, including when `out_required` is NULL.
  * - If the caller provides a buffer, the function may also attempt to write an error
  *   message into `out_buf` if the buffer is large enough.
@@ -434,6 +438,9 @@ bool opencc_convert_cfg_mem_len(
  *     - `1` = Traditional Chinese
  *     - `2` = Simplified Chinese
  *     - `-1` = invalid input or NULL pointer
+ *
+ *     On `-1`, retrieve the error immediately on the same calling thread with
+ *     `opencc_last_error()`.
  */
 int opencc_zho_check(const void* instance, const char* input);
 
@@ -459,22 +466,28 @@ void opencc_string_free(char* ptr);
 /**
  * Returns the last error message as a newly allocated null-terminated UTF-8 string.
  *
- * The returned string must be freed using `opencc_error_free()`.
- * If there is no recorded error, this function returns `"No error"`.
+ * Last-error state belongs to the calling thread. Retrieve it on that same
+ * thread immediately after a failed C API call. If the calling thread has no
+ * recorded error, this function returns `"No error"`.
+ *
+ * Every call returns an independently heap-allocated string; it does not expose
+ * internal or thread-local storage. The returned string must be freed using
+ * `opencc_error_free()`.
  *
  * @return
- *     A heap-allocated error message string.
+ *     An independently heap-allocated error message string.
  */
 char* opencc_last_error(void);
 
 /**
- * Clears the internally stored last error message.
+ * Clears the calling thread's last error message.
  *
- * This function resets internal error state only. It does NOT free any memory
- * previously returned by `opencc_last_error()`.
+ * This function affects only the calling thread's C API error state. It does
+ * NOT free any independently allocated string previously returned by
+ * `opencc_last_error()`; those strings still require `opencc_error_free()`.
  *
- * After calling this function, `opencc_last_error()` returns `"No error"`
- * until a new error is recorded.
+ * After calling this function, `opencc_last_error()` returns `"No error"` on
+ * the calling thread until a new error is recorded there.
  *
  * @since
  *     Available since v0.8.4.
@@ -482,7 +495,8 @@ char* opencc_last_error(void);
 void opencc_clear_last_error(void);
 
 /**
- * Frees a string returned by `opencc_last_error()`.
+ * Frees an independently allocated string returned by `opencc_last_error()`.
+ * Every such returned string must be released with this function.
  *
  * Passing NULL is safe and does nothing.
  *

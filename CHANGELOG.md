@@ -6,25 +6,46 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.5] - Unreleased
+
+### Added
+
+- Added C API support for constructing immutable converters with in-memory custom dictionaries through
+  `opencc_new_custom()`.
+- Added ABI-stable C types and constants for custom dictionary pairs, specifications, all 21 dictionary slots, and
+  append/override modes. Input arrays and UTF-8 strings are validated and copied during construction.
+- Added custom-dictionary support to the header-only C++ RAII helper, together with C and C++ examples, ownership
+  guidance, validation documentation, and regression tests.
+- Added and embedded updated reverse Taiwan variant phrase dictionary data.
+
+### Changed
+
+- Updated Simplified/Traditional and Taiwan phrase dictionary data and regenerated the embedded CBOR/Zstd dictionaries
+  and packaged native libraries.
+- Updated the Windows C API headers, import library, demos, and example binaries for the custom-dictionary API.
+- Bumped the Rust workspace crates, C API crate, and Python package to
+  `0.11.5`, and refreshed locked dependencies including `regex`, `serde`, and
+  `serde_json`.
+
+---
+
 ## [0.11.4] - 2026-07-13
 
 ### Added
 
 - Added direct Hong Kong phrase conversion APIs `OpenCC::t2hkp()` and
   `OpenCC::hk2tp()`, together with the `t2hkp` and `hk2tp` string configs and
-  `OpenccConfig::{T2hkp, Hk2tp}` typed configs. The new stable C/FFI config IDs
-  are `19` and `20`, respectively.
+  `OpenccConfig::{T2hkp, Hk2tp}` typed configs. The new stable C/FFI config IDs are `19` and `20`, respectively.
 
 ### Changed
 
 - Update dictionary data.
-- Refactored direct Taiwan phrase conversions `t2twp` and `tw2tp` from two
-  dictionary rounds to one by sharing the combined `TwTriple` and
+- Refactored direct Taiwan phrase conversions `t2twp` and `tw2tp` from two dictionary rounds to one by sharing the
+  combined `TwTriple` and
   `TwRevTriple` starter unions. Removed the obsolete phrase-only union caches.
 - Generalized the Hong Kong phrase union caches to `HkTriple` and
-  `HkRevTriple`. The new direct `t2hkp` and `hk2tp` conversions reuse these
-  combined unions in one dictionary round and do not require a punctuation
-  parameter.
+  `HkRevTriple`. The new direct `t2hkp` and `hk2tp` conversions reuse these combined unions in one dictionary round and
+  do not require a punctuation parameter.
 
 ---
 
@@ -88,12 +109,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   mappings.
 * Added `OpenCC::detofu_with_custom_pairs(...)` convenience API for applying built-in DeTofu mappings plus custom
   in-memory fallback pairs.
-* Added support for loading user-supplied DeTofu fallback files. Custom mappings
-  are merged with the built-in fallback table, and custom entries take
-  precedence when duplicate tofu-risk characters exist.
-* Added docs and README examples for threshold-based DeTofu levels, direct
-  utility usage, reusable maps, custom fallback files, and post-load custom
-  fallback pairs.
+* Added support for loading user-supplied DeTofu fallback files. Custom mappings are merged with the built-in fallback
+  table, and custom entries take precedence when duplicate tofu-risk characters exist.
+* Added docs and README examples for threshold-based DeTofu levels, direct utility usage, reusable maps, custom fallback
+  files, and post-load custom fallback pairs.
 * Added tests for DeTofu custom pairs, built-in override behavior, and later-pair-wins behavior.
 * Added upstream-compatible Hong Kong phrase conversion configs `s2hkp` and
   `hk2sp`.
@@ -103,20 +122,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 * Mirrored upstream OpenCC Japanese dictionary naming by replacing the old
   `JPVariants` / `JPVariantsRev` model with `JPShinjitaiCharacters.txt`,
-  `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt`.
-  Custom dictionary users should use the `JPSCharactersRev` slot instead of
-  the removed `JPVariants` slot.
+  `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt`. Custom dictionary users should use the
+  `JPSCharactersRev` slot instead of the removed `JPVariants` slot.
 * Refactored `s2twp` to match the upstream OpenCC config restructure:
-  the Taiwan phrase mappings and Taiwan variant mappings now run together in
-  the second conversion round after the Simplified-to-Traditional round. This
-  preserves OpenCC-compatible output while removing one full conversion pass.
-* Reduced the size of the built-in DeTofu fallback table by switching extension
-  identifiers from `ExtB`–`ExtI` to the compact form `B`–`I` while maintaining
-  backward-compatible parsing support for both formats.
-* Improved DeTofu parser compatibility to accept both compact (`B`–`I`) and
-  legacy (`ExtB`–`ExtI`) extension identifiers in custom fallback files.
-* Missing plaintext `HKPhrases.txt` and `HKPhrasesRev.txt` files now load as
-  empty dictionaries for backward compatibility with older dictionary folders.
+  the Taiwan phrase mappings and Taiwan variant mappings now run together in the second conversion round after the
+  Simplified-to-Traditional round. This preserves OpenCC-compatible output while removing one full conversion pass.
+* Reduced the size of the built-in DeTofu fallback table by switching extension identifiers from `ExtB`–`ExtI` to the
+  compact form `B`–`I` while maintaining backward-compatible parsing support for both formats.
+* Improved DeTofu parser compatibility to accept both compact (`B`–`I`) and legacy (`ExtB`–`ExtI`) extension identifiers
+  in custom fallback files.
+* Missing plaintext `HKPhrases.txt` and `HKPhrasesRev.txt` files now load as empty dictionaries for backward
+  compatibility with older dictionary folders.
 
 ### Breaking
 
@@ -233,10 +249,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   of being silently normalized to `s2t` in `OpenccFmmsegHelper.hpp`.
 - C++ RAII helper: native conversion failures are now returned as last-error text instead of collapsing to empty
   strings, making wrapper behavior consistent with the underlying C API.
-- C API headers: moved canonical public headers to `capi/include/` for clearer packaging and user-facing include
-  layout.
-- C API header: corrected `opencc_set_parallel` to accept a mutable instance pointer in `opencc_fmmseg_capi.h`,
-  matching the actual mutating behavior and Rust implementation.
+- C API headers: moved canonical public headers to `capi/include/` for clearer packaging and user-facing include layout.
+- C API header: corrected `opencc_set_parallel` to accept a mutable instance pointer in `opencc_fmmseg_capi.h`, matching
+  the actual mutating behavior and Rust implementation.
 
 ---
 
@@ -295,8 +310,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - C API: added helper functions for OpenCC configuration name / ID mapping:
     - `opencc_config_name_to_id()`
     - `opencc_config_id_to_name()`
-- Enables clean, allocation-free Name ↔ ID conversion for bindings
-  (C / C++ / C# / Python / Java)
+- Enables clean, allocation-free Name ↔ ID conversion for bindings (C / C++ / C# / Python / Java)
 - C API: align deprecated `opencc_convert_len()` error behavior with
   `opencc_convert()` / `opencc_convert_cfg()`.
 
@@ -327,8 +341,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - `LoadFileError { path, lineno, message }`
 - Replaced all string-based errors with rich underlying error types.
 - Improved error messages surfaced through `Display` and the C API `opencc_last_error()`.
-- Updated dictionary loading/serialization functions
-  (`from_zstd`, `from_cbor`, `load_compressed`, `load_dict`, `serialize_to_cbor`)
+- Updated dictionary loading/serialization functions (`from_zstd`, `from_cbor`, `load_compressed`, `load_dict`,
+  `serialize_to_cbor`)
   to use the new unified error model.
 
 ### Added
@@ -339,22 +353,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Added numeric-config C API:
     - `opencc_config_t` (`uint32_t`) with ABI-stable constants.
     - `opencc_convert_cfg()` for conversion without string-based config parsing.
-- Preserved legacy string-based APIs
-  (`OpenCC::convert(&str, ...)`, `opencc_convert(...)`) for backward compatibility.
+- Preserved legacy string-based APIs (`OpenCC::convert(&str, ...)`, `opencc_convert(...)`) for backward compatibility.
 
 ### C API Improvements
 
 - Clarified ownership and lifetime rules:
     - Returned strings are always NUL-terminated and must be freed with
       `opencc_string_free()`.
-    - Numeric config parameters are passed by value and require no allocation
-      or cleanup.
+    - Numeric config parameters are passed by value and require no allocation or cleanup.
 - Standardized error behavior:
-    - Invalid configs return a readable error string
-      (e.g. `"Invalid config: 9999"`) and also populate
+    - Invalid configs return a readable error string (e.g. `"Invalid config: 9999"`) and also populate
       `opencc_last_error()`.
-- Deprecated unused length-based conversion entry points
-  (planned removal in a future release).
+- Deprecated unused length-based conversion entry points (planned removal in a future release).
 
 ### Developer Notes
 
@@ -362,8 +372,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     - FFI bindings (C / C++ / C# / Java / Python)
     - Performance-sensitive code paths
     - Avoiding runtime string validation
-- Header-only C++ helper (`OpenccFmmsegHelper.hpp`) updated to provide
-  RAII-safe lifetime management and typed-config usage on top of the C API.
+- Header-only C++ helper (`OpenccFmmsegHelper.hpp`) updated to provide RAII-safe lifetime management and typed-config
+  usage on top of the C API.
 
 ---
 
@@ -385,7 +395,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **Mask-first gating** in `starter_allows_dict()`:
     - For `1..=64`, test the bit in `first_len_mask64` (or sparse `starter_len_mask`).
     - For `>64` (BMP), fall back to `first_char_max_len` (derived during build).
-- **populate_starter_indexes()** now prefers `starter_len_mask` (single pass) and falls back to scanning `map` if empty.
+- **populate_starter_indexes ()** now prefers `starter_len_mask` (single pass) and falls back to scanning `map` if
+  empty.
 - **Pre-chunking logic** restructured for **sequential-safe range building** using
   `get_split_ranges(inclusive = true)`.  
   The number of subranges is reduced while maintaining delimiter safety, improving throughput and reducing peak
@@ -412,8 +423,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Replace any `starter_cap` usage with:
     - `dict.has_starter_len(c, len)` (precise for `1..=64`), or
     - `dict.first_char_max_len[u as usize] >= len` (dense BMP; covers `>64`).
-- If you previously serialized `DictMaxLen` directly to JSON (which failed due to `[char]` keys),
-  use DTOs: `DictionaryMaxlengthSerde` / `DictMaxLenSerde`.
+- If you previously serialized `DictMaxLen` directly to JSON (which failed due to `[char]` keys), use DTOs:
+  `DictionaryMaxlengthSerde` / `DictMaxLenSerde`.
 - Update tests to assert **semantic invariants** (mask coverage, min/max consistency) instead of file byte sizes.
 
 ### MSRV / Tooling
@@ -436,8 +447,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## Added
 
 - **dict-generate JSON export**: Human-readable JSON via DTOs with String keys;  
-  supports `--pretty` (pretty) and `--compact` (default). Core schema remains CBOR/Zstd.
-  Why: JSON is for reference/debug only; the canonical on-disk format stays CBOR.
+  supports `--pretty` (pretty) and `--compact` (default). Core schema remains CBOR/Zstd. Why: JSON is for
+  reference/debug only; the canonical on-disk format stays CBOR.
 - Added `min_len` field to `DictMaxLen`
 
 ### Fixed
@@ -470,9 +481,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## Moved
 
-- `serde (JSON) overrides`: Removed from core `DictMaxLen`; JSON adaptation now lives only in the `dict-generate` CLI (
-  DTO layer).
-  **Result**: Core CBOR/Zstd schema stays stable (snake_case), faster loads, less risk of format drift.
+- `serde (JSON) overrides`: Removed from core `DictMaxLen`; JSON adaptation now lives only in the `dict-generate` CLI
+  (DTO layer). **Result**: Core CBOR/Zstd schema stays stable (snake_case), faster loads, less risk of format drift.
 
 ### Performance
 
@@ -489,7 +499,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - opencc-clip CLI now use clap format as command arguments.
-- Retained legacy convert_by()
+- Retained legacy convert_by ()
 
 ### Fixed
 
@@ -541,8 +551,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - `DictRefs` API now requires a per-round `Arc<StarterUnion>` and the
   `apply_segment_replace` closure signature is:
-  `Fn(&str, &[&DictMaxLen], usize, &StarterUnion) -> String`.
-  (SemVer note: breaking changes are allowed in `0.y` minor versions.)
+  `Fn(&str, &[&DictMaxLen], usize, &StarterUnion) -> String`. (SemVer note: breaking changes are allowed in `0.y` minor
+  versions.)
 
 ### Internal
 
@@ -556,7 +566,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - dict-generate - add downloading dictionaries from GitHub if dicts/ folder missing
-- DictionaryLib - add function to_dicts()
+- DictionaryLib - add function to_dicts ()
 
 ### Changed
 

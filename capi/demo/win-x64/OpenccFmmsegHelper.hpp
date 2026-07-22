@@ -238,9 +238,10 @@ public:
         return opencc_zho_check(opencc_, tmp.c_str());
     }
 
-    // Returns the current native last-error string.
-    // This mirrors `opencc_last_error()`: when no error is recorded, the result
-    // is typically "No error".
+    // Returns the calling thread's native last-error string. Call this on the
+    // same thread immediately after a failed C API call. The C API returns an
+    // independent allocation, which this helper releases with
+    // `opencc_error_free()` after copying; no error produces "No error".
     [[nodiscard]] static std::string lastError() {
         char *err = opencc_last_error();
         if (!err) return {};
@@ -249,7 +250,7 @@ public:
         return result;
     }
 
-    // Clears the native last-error state.
+    // Clears only the calling thread's native last-error state.
     static void clearLastError() noexcept {
         opencc_clear_last_error();
     }

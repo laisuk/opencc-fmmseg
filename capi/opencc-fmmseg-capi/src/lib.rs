@@ -1,11 +1,37 @@
 use opencc_fmmseg::{
     CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
 };
+use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
 
 const OPENCC_ABI_NUMBER: u32 = 1;
+
+thread_local! {
+    static C_API_LAST_ERROR: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+#[inline]
+fn set_c_api_last_error(message: &str) {
+    C_API_LAST_ERROR.with(|last_error| {
+        *last_error.borrow_mut() = if message.is_empty() {
+            None
+        } else {
+            Some(message.to_owned())
+        };
+    });
+}
+
+#[inline]
+fn get_c_api_last_error() -> Option<String> {
+    C_API_LAST_ERROR.with(|last_error| last_error.borrow().clone())
+}
+
+#[inline]
+fn clear_c_api_last_error() {
+    C_API_LAST_ERROR.with(|last_error| *last_error.borrow_mut() = None);
+}
 
 // ============================================================================
 // Custom dictionary C ABI types
@@ -63,12 +89,22 @@ pub extern "C" fn opencc_version_string() -> *const c_char {
 
 /// C API function `opencc_new`.
 ///
+/// If embedded dictionary initialization fails, this preserves the existing
+/// fallback behavior by returning an instance with the default dictionary and
+/// records the exact initialization error in the calling thread's C API
+/// last-error state.
+///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// This function follows the opencc-fmmseg C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_new() -> *mut OpenCC {
-    Box::into_raw(Box::new(OpenCC::new()))
+    let dictionary = DictionaryMaxlength::new().unwrap_or_else(|error| {
+        set_c_api_last_error(&format!("Failed to create dictionary: {error}"));
+        DictionaryMaxlength::default()
+    });
+
+    Box::into_raw(Box::new(OpenCC::from_dictionary(dictionary)))
 }
 
 /// Creates an immutable OpenCC instance using the embedded dictionaries plus
@@ -81,7 +117,8 @@ pub extern "C" fn opencc_new() -> *mut OpenCC {
 /// `specs == NULL` is valid only when `spec_count == 0`.
 ///
 /// On failure, returns NULL and records a human-readable error retrievable
-/// through [`opencc_last_error`].
+/// through [`opencc_last_error`] on the calling thread. Callers should retrieve
+/// it on that same thread immediately after failure.
 ///
 /// # Safety
 ///
@@ -101,11 +138,11 @@ pub unsafe extern "C" fn opencc_new_custom(
 ) -> *mut OpenCC {
     match build_opencc_with_custom_dicts(specs, spec_count) {
         Ok(opencc) => {
-            OpenCC::clear_last_error();
+            clear_c_api_last_error();
             Box::into_raw(Box::new(opencc))
         }
         Err(message) => {
-            OpenCC::set_last_error(&message);
+            set_c_api_last_error(&message);
             ptr::null_mut()
         }
     }
@@ -191,7 +228,7 @@ pub extern "C" fn opencc_convert(
     punctuation: bool,
 ) -> *mut c_char {
     if config.is_null() {
-        OpenCC::set_last_error("Invalid argument: config is NULL");
+        set_c_api_last_error("Invalid argument: config is NULL");
         return ptr::null_mut();
     }
 
@@ -251,7 +288,7 @@ pub extern "C" fn opencc_convert_cfg_mem(
     out_required: *mut usize,
 ) -> bool {
     if out_required.is_null() {
-        OpenCC::set_last_error("Invalid argument: out_required is NULL");
+        set_c_api_last_error("Invalid argument: out_required is NULL");
         return false;
     }
 
@@ -315,7 +352,7 @@ pub extern "C" fn opencc_convert_cfg_mem_len(
     out_required: *mut usize,
 ) -> bool {
     if out_required.is_null() {
-        OpenCC::set_last_error("Invalid argument: out_required is NULL");
+        set_c_api_last_error("Invalid argument: out_required is NULL");
         return false;
     }
 
@@ -363,7 +400,7 @@ pub extern "C" fn opencc_convert_len(
     punctuation: bool,
 ) -> *mut c_char {
     if config.is_null() {
-        OpenCC::set_last_error("Invalid argument: config is NULL");
+        set_c_api_last_error("Invalid argument: config is NULL");
         return ptr::null_mut();
     }
 
@@ -410,6 +447,8 @@ pub extern "C" fn opencc_convert_cfg_len(
 /// C API function `opencc_zho_check`.
 ///
 /// Returns `-1` if `instance` or `input` is NULL, or if the input is invalid UTF-8.
+/// On either failure, the relevant error is recorded for retrieval on the same
+/// calling thread through [`opencc_last_error`].
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
@@ -417,13 +456,17 @@ pub extern "C" fn opencc_convert_cfg_len(
 #[no_mangle]
 pub extern "C" fn opencc_zho_check(instance: *const OpenCC, input: *const c_char) -> i32 {
     if instance.is_null() || input.is_null() {
+        set_c_api_last_error("Invalid argument: instance/input is NULL");
         return -1;
     }
 
     let opencc = unsafe { &*instance };
     let input_str = match unsafe { CStr::from_ptr(input) }.to_str() {
         Ok(s) => s,
-        Err(_) => return -1,
+        Err(_) => {
+            set_c_api_last_error("Invalid UTF-8 input");
+            return -1;
+        }
     };
 
     opencc.zho_check(input_str)
@@ -438,13 +481,17 @@ pub extern "C" fn opencc_zho_check(instance: *const OpenCC, input: *const c_char
 /// Contract:
 /// - Always returns a heap-allocated NUL-terminated string
 /// - Caller must free it using `opencc_error_free()`
-/// - Returns `"No error"` when there is no error
+/// - Returns `"No error"` when the calling thread has no error
+///
+/// The C API last-error state is thread-local. Callers should retrieve the
+/// error on the same thread immediately after a failed C API call. The returned
+/// string is an independent allocation and never borrows thread-local storage.
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 #[no_mangle]
 pub extern "C" fn opencc_last_error() -> *mut c_char {
-    let msg = match OpenCC::get_last_error() {
+    let msg = match get_c_api_last_error() {
         Some(err) if !err.is_empty() => err,
         _ => "No error".to_string(),
     };
@@ -458,11 +505,14 @@ pub extern "C" fn opencc_last_error() -> *mut c_char {
 ///
 /// Available since **v0.8.4**.
 ///
+/// Clears only the C API last-error state belonging to the calling thread. It
+/// does not free strings previously returned by [`opencc_last_error`].
+///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 #[no_mangle]
 pub extern "C" fn opencc_clear_last_error() {
-    OpenCC::clear_last_error();
+    clear_c_api_last_error();
 }
 
 /// C API function `opencc_error_free`.
@@ -564,7 +614,7 @@ fn make_c_string_or_fallback(s: &str, fallback: &'static str) -> *mut c_char {
 
 #[inline]
 fn fail_c_string(msg: &str) -> *mut c_char {
-    OpenCC::set_last_error(msg);
+    set_c_api_last_error(msg);
     make_c_string_or_fallback(msg, "Error")
 }
 
@@ -592,7 +642,7 @@ where
     F: FnOnce() -> Result<OpenccConfig, String>,
 {
     if instance.is_null() || input.is_null() {
-        OpenCC::set_last_error("Invalid argument: instance/input is NULL");
+        set_c_api_last_error("Invalid argument: instance/input is NULL");
         return ptr::null_mut();
     }
 
@@ -612,7 +662,7 @@ where
 
     match CString::new(result) {
         Ok(cstr) => {
-            OpenCC::clear_last_error();
+            clear_c_api_last_error();
             cstr.into_raw()
         }
         Err(_) => fail_c_string("Output contains NUL byte"),
@@ -628,7 +678,7 @@ fn convert_len_core(
     punctuation: bool,
 ) -> *mut c_char {
     if instance.is_null() || input.is_null() {
-        OpenCC::set_last_error("Invalid argument: instance/input is NULL");
+        set_c_api_last_error("Invalid argument: instance/input is NULL");
         return ptr::null_mut();
     }
 
@@ -644,7 +694,7 @@ fn convert_len_core(
 
     match CString::new(result) {
         Ok(cstr) => {
-            OpenCC::clear_last_error();
+            clear_c_api_last_error();
             cstr.into_raw()
         }
         Err(_) => fail_c_string("Output contains NUL byte"),
@@ -678,11 +728,11 @@ fn convert_cfg_mem_core(
 
     match unsafe { write_output_bytes(output.as_bytes(), out_buf, out_cap, out_required) } {
         Ok(()) => {
-            OpenCC::clear_last_error();
+            clear_c_api_last_error();
             true
         }
         Err(()) => {
-            OpenCC::set_last_error("Output buffer too small");
+            set_c_api_last_error("Output buffer too small");
             false
         }
     }
@@ -718,7 +768,7 @@ fn fail_with_buffer_msg(
     out_cap: usize,
     out_required: *mut usize,
 ) -> bool {
-    OpenCC::set_last_error(msg);
+    set_c_api_last_error(msg);
     let bytes = msg.as_bytes();
     let safe_bytes = if bytes.contains(&0) { b"Error" } else { bytes };
 
@@ -726,7 +776,7 @@ fn fail_with_buffer_msg(
         unsafe { write_output_bytes(safe_bytes, out_buf, out_cap, out_required).is_ok() };
 
     if !write_ok && !(out_buf.is_null() || out_cap == 0) {
-        OpenCC::set_last_error("Output buffer too small");
+        set_c_api_last_error("Output buffer too small");
     }
 
     false
@@ -1071,6 +1121,13 @@ mod tests {
 
         let result = opencc_zho_check(&opencc as *const OpenCC, input.as_ptr());
         assert_eq!(result, 2);
+
+        let result = opencc_zho_check(ptr::null(), input.as_ptr());
+        assert_eq!(result, -1);
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid argument: instance/input is NULL"
+        );
     }
 
     #[test]
@@ -1288,7 +1345,7 @@ mod tests {
 
     #[test]
     fn test_opencc_convert_cfg_mem_null_out_required_sets_last_error() {
-        OpenCC::clear_last_error();
+        opencc_clear_last_error();
 
         let opencc = OpenCC::new();
         let input = CString::new("你好，世界").unwrap();
@@ -1312,7 +1369,7 @@ mod tests {
 
     #[test]
     fn test_opencc_convert_cfg_mem_len_null_out_required_sets_last_error() {
-        OpenCC::clear_last_error();
+        opencc_clear_last_error();
 
         let opencc = OpenCC::new();
         let input = "你好，世界";
@@ -1337,7 +1394,7 @@ mod tests {
 
     #[test]
     fn test_opencc_invalid_config() {
-        OpenCC::set_last_error("");
+        opencc_clear_last_error();
 
         let opencc = OpenCC::new();
         let input = CString::new("你好，世界，欢迎！").unwrap();
@@ -1355,27 +1412,79 @@ mod tests {
         opencc_string_free(result_ptr);
 
         assert_eq!(result, "Invalid config: s2s");
-        assert!(OpenCC::get_last_error().unwrap().contains("Invalid"));
-
-        OpenCC::set_last_error("");
+        assert_eq!(read_and_free(opencc_last_error()), "Invalid config: s2s");
     }
 
     #[test]
     fn test_opencc_last_error_default() {
-        OpenCC::set_last_error("");
+        opencc_clear_last_error();
         let msg = read_and_free(opencc_last_error());
         assert_eq!(msg, "No error");
     }
 
     #[test]
     fn test_opencc_last_error_roundtrip() {
-        OpenCC::set_last_error("");
-        let _ = OpenCC::from_cbor("test.json");
+        opencc_clear_last_error();
+        let result = opencc_convert(ptr::null(), ptr::null(), ptr::null(), false);
 
-        let expected = OpenCC::get_last_error().unwrap_or_else(|| "No error".to_string());
-        let actual = read_and_free(opencc_last_error());
+        assert!(result.is_null());
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid argument: config is NULL"
+        );
+    }
 
-        assert_eq!(actual, expected);
+    #[test]
+    fn c_api_last_error_is_thread_local_and_clear_is_isolated() {
+        use std::sync::{Arc, Barrier};
+
+        let errors_set = Arc::new(Barrier::new(2));
+        let first_reads_done = Arc::new(Barrier::new(2));
+
+        let thread_a_errors_set = Arc::clone(&errors_set);
+        let thread_a_first_reads_done = Arc::clone(&first_reads_done);
+        let thread_a = std::thread::spawn(move || {
+            let result = opencc_convert(ptr::null(), ptr::null(), ptr::null(), false);
+            assert!(result.is_null());
+
+            thread_a_errors_set.wait();
+            assert_eq!(
+                read_and_free(opencc_last_error()),
+                "Invalid argument: config is NULL"
+            );
+
+            opencc_clear_last_error();
+            thread_a_first_reads_done.wait();
+            assert_eq!(read_and_free(opencc_last_error()), "No error");
+        });
+
+        let thread_b = std::thread::spawn(move || {
+            let ok = opencc_convert_cfg_mem(
+                ptr::null(),
+                ptr::null(),
+                0,
+                false,
+                ptr::null_mut(),
+                0,
+                ptr::null_mut(),
+            );
+            assert!(!ok);
+
+            errors_set.wait();
+            assert_eq!(
+                read_and_free(opencc_last_error()),
+                "Invalid argument: out_required is NULL"
+            );
+
+            first_reads_done.wait();
+            assert_eq!(
+                read_and_free(opencc_last_error()),
+                "Invalid argument: out_required is NULL"
+            );
+        });
+
+        thread_a.join().unwrap();
+        thread_b.join().unwrap();
     }
 
     #[test]
@@ -1447,8 +1556,10 @@ mod tests {
 
         assert!(instance.is_null());
 
-        let error = read_and_free(opencc_last_error());
-        assert!(error.contains("specs is NULL"));
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid argument: specs is NULL while spec_count is 1"
+        );
     }
 
     #[test]

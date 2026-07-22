@@ -11,6 +11,10 @@ extern "C" {
 /**
  * Creates and initializes a new OpenCC FMMSEG instance.
  *
+ * If embedded dictionary initialization fails, the function preserves its
+ * fallback behavior and records the exact initialization error in the calling
+ * thread's C API last-error state.
+ *
  * This function allocates and returns a new instance used for conversion.
  * The instance should be freed using `opencc_free()` when no longer needed.
  *
@@ -82,6 +86,9 @@ void opencc_set_parallel(const void *instance, bool is_parallel);
  *         1 = Traditional Chinese,
  *         2 = Simplified Chinese,
  *         -1 = Invalid.
+ *
+ *         On -1, retrieve the error immediately on the same calling thread
+ *         with `opencc_last_error()`.
  */
 int opencc_zho_check(const void *instance, const char *input);
 
@@ -115,15 +122,21 @@ void opencc_string_free(const char *ptr);
 /**
  * Returns the last error message as a null-terminated C string.
  *
- * The returned string is dynamically allocated and must be freed
- * using `opencc_error_free()`. If there is no error, returns "No error".
+ * Last-error state belongs to the calling thread and must be retrieved on that
+ * same thread immediately after a failed C API call. If the calling thread has
+ * no recorded error, this function returns "No error".
  *
- * @return A pointer to a null-terminated error message string.
+ * Every call returns an independently heap-allocated string; it does not expose
+ * internal or thread-local storage. The returned string must be freed using
+ * `opencc_error_free()`.
+ *
+ * @return An independently heap-allocated null-terminated error message string.
  */
 char *opencc_last_error();
 
 /**
- * Frees a string returned by `opencc_last_error`.
+ * Frees an independently allocated string returned by `opencc_last_error`.
+ * Every such returned string must be released with this function.
  *
  * @param ptr A pointer to a string previously returned by `opencc_last_error`.
  *            Passing NULL is safe and does nothing.

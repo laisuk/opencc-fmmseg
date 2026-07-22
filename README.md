@@ -433,16 +433,19 @@ Last Error: No error
     - `opencc_convert_cfg(...)`
 
 - `opencc_error_free(...)` frees memory returned by `opencc_last_error()` **only**.
-  It does **not** clear the internal error state.
+  It does **not** clear the calling thread's error state.
 
-- `opencc_clear_last_error()` clears the **internal error state**:
-    - After calling this, `opencc_last_error()` will return `"No error"`.
+- `opencc_clear_last_error()` clears the **calling thread's C API error state**:
+    - It does not affect errors recorded by other threads.
+    - After calling this, `opencc_last_error()` will return `"No error"` on that thread.
     - This function **does not free** any previously returned error strings.
     - It cannot replace `opencc_error_free()`.
 
-- `opencc_last_error()` returns the most recent error message:
-    - Returns a newly allocated string.
-    - Returns `"No error"` if no error is recorded.
+- `opencc_last_error()` returns the calling thread's most recent C API error:
+    - Retrieve it on the same thread immediately after a failed call.
+    - Returns an independently allocated string; it does not expose internal
+      thread-local storage.
+    - Returns `"No error"` if no error is recorded for that thread.
     - The returned string must always be freed with `opencc_error_free()`.
 
 - `opencc_delete(...)` destroys the OpenCC instance and frees its resources.
