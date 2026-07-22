@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Bumped the Rust workspace crates, C API crate, and Python package to
   `0.11.5`, and refreshed locked dependencies including `regex`, `serde`, and
   `serde_json`.
+- C API: Optimized `opencc_lst_error()` handling.
 
 ---
 
