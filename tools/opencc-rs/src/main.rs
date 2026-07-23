@@ -13,6 +13,7 @@ use opencc_tool_common::parse_custom_dict_spec;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
+use std::path::Path;
 use std::sync::OnceLock;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -216,7 +217,7 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
-        Some(file_name) => Box::new(BufReader::new(File::open(file_name)?)),
+        Some(file_name) => Box::new(open_input_file(file_name)?),
         None => {
             if io::stdin().is_terminal() {
                 println!("Input text to convert, <ctrl-z/d> to submit:");
@@ -284,6 +285,7 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
     let input_file = matches
         .get_one::<String>("input")
         .ok_or("❌  Input file is required for office mode")?;
+    validate_input_file(input_file)?;
 
     let output_file = matches.get_one::<String>("output");
     let config = matches.get_one::<String>("config").unwrap();
@@ -440,4 +442,37 @@ fn remove_utf8_bom(input: &mut Vec<u8>) {
     if input.starts_with(&[0xEF, 0xBB, 0xBF]) {
         input.drain(..3);
     }
+}
+
+fn open_input_file<P: AsRef<Path>>(path: P) -> io::Result<BufReader<File>> {
+    let path = path.as_ref();
+    validate_input_file(path)?;
+    Ok(BufReader::new(File::open(path)?))
+}
+
+fn validate_input_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    let path = path.as_ref();
+
+    let metadata = std::fs::metadata(path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Input file not found: {}", path.display()),
+            )
+        } else {
+            io::Error::new(
+                error.kind(),
+                format!("Cannot access input file {}: {error}", path.display()),
+            )
+        }
+    })?;
+
+    if !metadata.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Input path is not a file: {}", path.display()),
+        ));
+    }
+
+    Ok(())
 }
