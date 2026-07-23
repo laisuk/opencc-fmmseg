@@ -1599,6 +1599,8 @@ mod tests {
 
     #[test]
     fn opencc_new_custom_rejects_invalid_slot() {
+        opencc_clear_last_error();
+
         let specs = [OpenccCustomDictSpec {
             slot: 999,
             mode: OPENCC_CUSTOM_DICT_APPEND,
@@ -1609,40 +1611,17 @@ mod tests {
         let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
 
         assert!(instance.is_null());
-    }
 
-    #[test]
-    fn parse_custom_dict_specs_rejects_invalid_slot() {
-        let specs = [OpenccCustomDictSpec {
-            slot: 999,
-            mode: OPENCC_CUSTOM_DICT_APPEND,
-            pairs: ptr::null(),
-            pair_count: 0,
-        }];
-
-        let error = unsafe { parse_custom_dict_specs(specs.as_ptr(), specs.len()) }
-            .expect_err("invalid slot should fail");
-
-        assert_eq!(error, "Invalid custom dictionary slot 999 in spec 0");
-    }
-
-    #[test]
-    fn parse_custom_dict_specs_rejects_invalid_mode() {
-        let specs = [OpenccCustomDictSpec {
-            slot: OPENCC_DICT_SLOT_ST_PHRASES,
-            mode: 999,
-            pairs: ptr::null(),
-            pair_count: 0,
-        }];
-
-        let error = unsafe { parse_custom_dict_specs(specs.as_ptr(), specs.len()) }
-            .expect_err("invalid mode should fail");
-
-        assert!(error.contains("Invalid custom dictionary mode 999"));
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid custom dictionary slot 999 in spec 0"
+        );
     }
 
     #[test]
     fn opencc_new_custom_rejects_invalid_mode() {
+        opencc_clear_last_error();
+
         let specs = [OpenccCustomDictSpec {
             slot: OPENCC_DICT_SLOT_ST_PHRASES,
             mode: 999,
@@ -1653,28 +1632,17 @@ mod tests {
         let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
 
         assert!(instance.is_null());
-    }
-
-    #[test]
-    fn parse_custom_dict_specs_rejects_null_pairs_with_nonzero_count() {
-        let specs = [OpenccCustomDictSpec {
-            slot: OPENCC_DICT_SLOT_ST_PHRASES,
-            mode: OPENCC_CUSTOM_DICT_APPEND,
-            pairs: ptr::null(),
-            pair_count: 1,
-        }];
-
-        let error = unsafe { parse_custom_dict_specs(specs.as_ptr(), specs.len()) }
-            .expect_err("NULL pairs with a non-zero pair_count must be rejected");
 
         assert_eq!(
-            error,
-            "Invalid custom dictionary spec 0: pairs is NULL while pair_count is 1"
+            read_and_free(opencc_last_error()),
+            "Invalid custom dictionary mode 999 in spec 0"
         );
     }
 
     #[test]
     fn opencc_new_custom_rejects_null_pairs_with_nonzero_count() {
+        opencc_clear_last_error();
+
         let specs = [OpenccCustomDictSpec {
             slot: OPENCC_DICT_SLOT_ST_PHRASES,
             mode: OPENCC_CUSTOM_DICT_APPEND,
@@ -1685,6 +1653,11 @@ mod tests {
         let instance = unsafe { opencc_new_custom(specs.as_ptr(), specs.len()) };
 
         assert!(instance.is_null());
+
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid custom dictionary spec 0: pairs is NULL while pair_count is 1"
+        );
     }
 
     #[test]
