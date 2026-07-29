@@ -17,6 +17,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Added custom-dictionary support to the header-only C++ RAII helper, together with C and C++ examples, ownership
   guidance, validation documentation, and regression tests.
 - Added and embedded updated reverse Taiwan variant phrase dictionary data.
+- Added `DictSlot::ALL`, `DictSlot::canonical_name()`, and
+  `DictSlot::from_name_ignore_ascii_case()` as the single source of truth for enumerating, displaying, and parsing
+  public dictionary slot names.
 
 ### Changed
 
@@ -27,6 +30,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   `0.11.5`, and refreshed locked dependencies including `regex`, `serde`, and
   `serde_json`.
 - C API: Optimized `opencc_lst_error()` handling.
+
+### Fixed
+
+- Fixed canonical custom-dictionary slot parsing for Japanese Shinjitai dictionaries. `DictSlot::try_from()` now accepts
+  `JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases`, matching the documented SSOT slot names and shared CLI parsing.
+- Physical dictionary filenames such as `JPShinjitaiCharacters.txt` remain unchanged and are no longer confused with
+  public slot identifiers.
 
 ---
 

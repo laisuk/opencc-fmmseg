@@ -491,7 +491,7 @@ Options:
   -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
       --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
       --detofu-file <FILE>            Load additional DeTofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
-  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
+  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. HKPhrasesRev:append:my_hk_dict.txt (slot names are ASCII case-insensitive)
       --keep-ids                      Preserve Unicode IDS expressions during conversion
       --in-enc <in_enc>               Encoding for input [default: UTF-8]
       --out-enc <out_enc>             Encoding for output [default: UTF-8]
@@ -513,7 +513,7 @@ Options:
   -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
       --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
       --detofu-file <FILE>            Load additional DeTofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
-  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
+  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. HKPhrasesRev:append:my_hk_dict.txt (slot names are ASCII case-insensitive)
   -f, --format <ext>                  Force document format: docx, odt, epub...
   -k, --keep-font                     Preserve original font styles
   -F, --convert-filename              Convert the output filename using the selected OpenCC configuration
@@ -532,7 +532,7 @@ Options:
       --pretty                        Pretty-print JSON when --format json
   -o, --output <filename>             Write generated dictionary to <filename>. If not specified, a default filename is used.
   -b, --base-dir <dir>                Base directory containing OpenCC dictionary TXT files [default: dicts]
-  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt
+  -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. HKPhrasesRev:append:my_hk_dict.txt (slot names are ASCII case-insensitive)
   -h, --help                          Print help
 
 Examples:
@@ -551,7 +551,7 @@ The generated CBOR can be loaded with DictionaryMaxlength::deserialize_from_cbor
 ./opencc-rs convert -c s2t -i text_simplified.txt -o text_traditional.txt
 "俨骖𬴂于上路" | ./opencc-rs convert -c t2s --detofu all
 "𣭲毛" | ./opencc-rs convert -c t2s --detofu ext-b --detofu-file custom_tofu.txt
-"這個細路哥很靈活" | ./opencc-rs convert -c hk2sp --custom-dict hkphrasesrev:append:my_hk_dict.txt
+"這個細路哥很靈活" | ./opencc-rs convert -c hk2sp --custom-dict HKPhrasesRev:append:my_hk_dict.txt
 ```
 
 Example `custom_tofu.txt`:

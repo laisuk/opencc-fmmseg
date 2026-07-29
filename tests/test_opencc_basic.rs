@@ -1,5 +1,8 @@
 use opencc_fmmseg::dictionary_lib::DictMaxLen;
-use opencc_fmmseg::{normalize_compat_ideographs, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig};
+use opencc_fmmseg::{
+    normalize_compat_ideographs, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictSlot,
+    DictionaryMaxlength, OpenCC, OpenccConfig,
+};
 
 #[test]
 fn convert_clears_stale_last_error_on_success() {
@@ -220,13 +223,55 @@ fn opencc_normalize_compat_then_convert_golden() {
 
     let normalized = cc.normalize_compat("天龍八部書裡的喬峰是契丹人");
 
-    assert_eq!(
-        normalized,
-        "天龍八部書裡的喬峰是契丹人"
-    );
+    assert_eq!(normalized, "天龍八部書裡的喬峰是契丹人");
 
     assert_eq!(
         cc.convert(&normalized, "t2s", false),
         "天龙八部书里的乔峰是契丹人"
+    );
+}
+
+// Dict Slots Tests:
+
+#[test]
+fn parses_canonical_jps_slots() {
+    assert_eq!(
+        DictSlot::try_from("JPSCharacters"),
+        Ok(DictSlot::JPSCharacters)
+    );
+    assert_eq!(
+        DictSlot::try_from("JPSCharactersRev"),
+        Ok(DictSlot::JPSCharactersRev)
+    );
+    assert_eq!(DictSlot::try_from("JPSPhrases"), Ok(DictSlot::JPSPhrases));
+}
+
+#[test]
+fn rejects_dictionary_filename_stems_as_slots() {
+    assert!(DictSlot::try_from("JPShinjitaiCharacters").is_err());
+    assert!(DictSlot::try_from("JPShinjitaiCharactersRev").is_err());
+    assert!(DictSlot::try_from("JPShinjitaiPhrases").is_err());
+}
+
+#[test]
+fn dict_slot_names_roundtrip_and_case_insensitive_lookup_is_exhaustive() {
+    assert_eq!(DictSlot::ALL.len(), 21);
+
+    for &slot in DictSlot::ALL {
+        let canonical_name = slot.canonical_name();
+        assert_eq!(DictSlot::try_from(canonical_name), Ok(slot));
+        assert_eq!(
+            DictSlot::from_name_ignore_ascii_case(&canonical_name.to_ascii_lowercase()),
+            Some(slot)
+        );
+    }
+
+    assert_eq!(
+        DictSlot::from_name_ignore_ascii_case("  JPSCharacters  "),
+        Some(DictSlot::JPSCharacters)
+    );
+    assert_eq!(
+        DictSlot::from_name_ignore_ascii_case("JPShinjitaiCharacters"),
+        None
     );
 }

@@ -97,6 +97,12 @@ that slot for phrase conversion.
 | `STPunctuations`       | Simplified -> Traditional punctuation            | Punctuation conversion for Simplified-to-Traditional workflows                                   | `“ -> 「`                                           |
 | `TSPunctuations`       | Traditional -> Simplified punctuation            | Punctuation conversion for Traditional-to-Simplified workflows                                   | `「 -> “`                                           |
 
+These are the canonical public slot names used by the Rust API and CLI. CLI slot parsing is ASCII case-insensitive
+and ignores surrounding whitespace. Physical dictionary filenames are separate implementation details: for example,
+the `JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases` slots are loaded from the existing
+`JPShinjitaiCharacters.txt`, `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt` files. Filename stems and
+`.txt` filenames are not accepted as slot identifiers.
+
 For most terminology customization:
 
 - Use `STPhrases` for Simplified-to-Traditional terms.

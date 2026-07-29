@@ -122,9 +122,9 @@ pub enum DictSlot {
 /// - `HKVariantsPhrases`
 /// - `HKVariantsRev`
 /// - `HKVariantsRevPhrases`
-/// - `JPShinjitaiCharacters`
-/// - `JPShinjitaiCharactersRev`
-/// - `JPShinjitaiPhrases`
+/// - `JPSCharacters`
+/// - `JPSCharactersRev`
+/// - `JPSPhrases`
 ///
 /// # Notes
 ///
@@ -171,12 +171,118 @@ impl TryFrom<&str> for DictSlot {
             "HKVariantsRev" => Ok(Self::HKVariantsRev),
             "HKVariantsRevPhrases" => Ok(Self::HKVariantsRevPhrases),
 
-            "JPShinjitaiCharacters" => Ok(Self::JPSCharacters),
-            "JPShinjitaiCharactersRev" => Ok(Self::JPSCharactersRev),
-            "JPShinjitaiPhrases" => Ok(Self::JPSPhrases),
+            "JPSCharacters" => Ok(Self::JPSCharacters),
+            "JPSCharactersRev" => Ok(Self::JPSCharactersRev),
+            "JPSPhrases" => Ok(Self::JPSPhrases),
 
             _ => Err(()),
         }
+    }
+}
+
+impl DictSlot {
+    /// Every supported dictionary slot.
+    ///
+    /// This is useful for presenting slot choices or validating integrations
+    /// without maintaining a separate list. Each entry's stable public name is
+    /// returned by [`DictSlot::canonical_name`].
+    pub const ALL: &'static [Self] = &[
+        Self::STCharacters,
+        Self::STPhrases,
+        Self::STPunctuations,
+        Self::TSCharacters,
+        Self::TSPhrases,
+        Self::TSPunctuations,
+        Self::TWPhrases,
+        Self::TWPhrasesRev,
+        Self::HKPhrases,
+        Self::HKPhrasesRev,
+        Self::TWVariants,
+        Self::TWVariantsPhrases,
+        Self::TWVariantsRev,
+        Self::TWVariantsRevPhrases,
+        Self::HKVariants,
+        Self::HKVariantsPhrases,
+        Self::HKVariantsRev,
+        Self::HKVariantsRevPhrases,
+        Self::JPSCharacters,
+        Self::JPSCharactersRev,
+        Self::JPSPhrases,
+    ];
+
+    /// Returns the canonical public name of this dictionary slot.
+    ///
+    /// Canonical names identify logical slots and can be parsed by
+    /// [`DictSlot::try_from`]. They are not necessarily the stems of the
+    /// corresponding physical dictionary filenames. In particular, the
+    /// Japanese slots use `JPSCharacters`, `JPSCharactersRev`, and
+    /// `JPSPhrases`, while their bundled files retain the `JPShinjitai...`
+    /// names.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::DictSlot;
+    ///
+    /// assert_eq!(DictSlot::JPSCharacters.canonical_name(), "JPSCharacters");
+    /// assert_eq!(
+    ///     DictSlot::try_from(DictSlot::JPSCharacters.canonical_name()),
+    ///     Ok(DictSlot::JPSCharacters),
+    /// );
+    /// ```
+    #[must_use]
+    pub const fn canonical_name(self) -> &'static str {
+        match self {
+            Self::STCharacters => "STCharacters",
+            Self::STPhrases => "STPhrases",
+            Self::STPunctuations => "STPunctuations",
+            Self::TSCharacters => "TSCharacters",
+            Self::TSPhrases => "TSPhrases",
+            Self::TSPunctuations => "TSPunctuations",
+            Self::TWPhrases => "TWPhrases",
+            Self::TWPhrasesRev => "TWPhrasesRev",
+            Self::HKPhrases => "HKPhrases",
+            Self::HKPhrasesRev => "HKPhrasesRev",
+            Self::TWVariants => "TWVariants",
+            Self::TWVariantsPhrases => "TWVariantsPhrases",
+            Self::TWVariantsRev => "TWVariantsRev",
+            Self::TWVariantsRevPhrases => "TWVariantsRevPhrases",
+            Self::HKVariants => "HKVariants",
+            Self::HKVariantsPhrases => "HKVariantsPhrases",
+            Self::HKVariantsRev => "HKVariantsRev",
+            Self::HKVariantsRevPhrases => "HKVariantsRevPhrases",
+            Self::JPSCharacters => "JPSCharacters",
+            Self::JPSCharactersRev => "JPSCharactersRev",
+            Self::JPSPhrases => "JPSPhrases",
+        }
+    }
+
+    /// Parses a canonical slot name without regard to ASCII case.
+    ///
+    /// Leading and trailing whitespace is ignored. Filename stems, filename
+    /// suffixes, and other aliases are not accepted. Use [`DictSlot::try_from`]
+    /// when parsing must be case-sensitive and must not trim whitespace.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::DictSlot;
+    ///
+    /// assert_eq!(
+    ///     DictSlot::from_name_ignore_ascii_case("  jpscharactersrev  "),
+    ///     Some(DictSlot::JPSCharactersRev),
+    /// );
+    /// assert_eq!(
+    ///     DictSlot::from_name_ignore_ascii_case("JPShinjitaiCharactersRev"),
+    ///     None,
+    /// );
+    /// ```
+    #[must_use]
+    pub fn from_name_ignore_ascii_case(value: &str) -> Option<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|slot| slot.canonical_name().eq_ignore_ascii_case(value.trim()))
     }
 }
 

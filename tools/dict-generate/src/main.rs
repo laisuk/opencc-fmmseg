@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("custom-dict")
                 .value_name("SLOT:MODE:FILE")
                 .action(clap::ArgAction::Append)
-                .help("Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt"),
+                .help("Custom dictionary file, e.g. HKPhrasesRev:append:my_hk_dict.txt (slot names are ASCII case-insensitive)"),
         )
         .get_matches();
 

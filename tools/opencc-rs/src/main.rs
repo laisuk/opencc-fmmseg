@@ -199,7 +199,7 @@ fn common_args() -> Vec<Arg> {
             .long("custom-dict")
             .value_name("SLOT:MODE:FILE")
             .action(clap::ArgAction::Append)
-            .help("Custom dictionary file, e.g. hkphrasesrev:append:my_hk_dict.txt"),
+            .help("Custom dictionary file, e.g. HKPhrasesRev:append:my_hk_dict.txt (slot names are ASCII case-insensitive)"),
     ]
 }
 
@@ -297,7 +297,7 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
     let office_format = if let Some(f) = format {
         f.to_lowercase()
     } else {
-        let ext = std::path::Path::new(input_file)
+        let ext = Path::new(input_file)
             .extension()
             .and_then(|e| e.to_str())
             .ok_or("❌  Cannot infer file extension. Please provide --format.")?
@@ -322,7 +322,7 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
 
     let final_output = match output_file {
         Some(path) => {
-            let output_path = std::path::Path::new(path);
+            let output_path = Path::new(path);
 
             if output_path.extension().is_none() {
                 format!("{path}.{}", office_format)
@@ -331,7 +331,7 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
             }
         }
         None => {
-            let input_path = std::path::Path::new(input_file);
+            let input_path = Path::new(input_file);
             let file_stem = input_path
                 .file_stem()
                 .and_then(|s| s.to_str())

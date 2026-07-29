@@ -10,9 +10,8 @@ pub fn parse_custom_dict_spec(
     let mode = parts.next().ok_or("Missing custom dict mode")?;
     let file = parts.next().ok_or("Missing custom dict file")?;
 
-    let slot_name = normalize_dict_slot_name(slot);
-    let slot = DictSlot::try_from(slot_name.as_str())
-        .map_err(|_| format!("Unknown custom dictionary slot: {slot}"))?;
+    let slot = DictSlot::from_name_ignore_ascii_case(slot)
+        .ok_or_else(|| format!("Unknown custom dictionary slot: {slot}"))?;
 
     let mode = match mode.to_ascii_lowercase().as_str() {
         "append" => CustomDictMode::Append,
@@ -27,35 +26,26 @@ pub fn parse_custom_dict_spec(
     })
 }
 
-fn normalize_dict_slot_name(s: &str) -> String {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "stcharacters" => "STCharacters",
-        "stphrases" => "STPhrases",
-        "stpunctuations" => "STPunctuations",
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        "tscharacters" => "TSCharacters",
-        "tsphrases" => "TSPhrases",
-        "tspunctuations" => "TSPunctuations",
+    #[test]
+    fn parses_custom_dict_slots_case_insensitively() {
+        let spec = parse_custom_dict_spec(" jpscharactersrev :append:custom.txt").unwrap();
 
-        "twphrases" => "TWPhrases",
-        "twphrasesrev" => "TWPhrasesRev",
-        "twvariants" => "TWVariants",
-        "twvariantsphrases" => "TWVariantsPhrases",
-        "twvariantsrev" => "TWVariantsRev",
-        "twvariantsrevphrases" => "TWVariantsRevPhrases",
-
-        "hkphrases" => "HKPhrases",
-        "hkphrasesrev" => "HKPhrasesRev",
-        "hkvariants" => "HKVariants",
-        "hkvariantsphrases" => "HKVariantsPhrases",
-        "hkvariantsrev" => "HKVariantsRev",
-        "hkvariantsrevphrases" => "HKVariantsRevPhrases",
-
-        "jpscharacters" => "JPSCharacters",
-        "jpscharactersrev" => "JPSCharactersRev",
-        "jpsphrases" => "JPSPhrases",
-
-        _ => s.trim(),
+        assert_eq!(spec.slot, DictSlot::JPSCharactersRev);
+        assert_eq!(spec.mode, CustomDictMode::Append);
+        assert_eq!(spec.files, [PathBuf::from("custom.txt")]);
     }
-    .to_string()
+
+    #[test]
+    fn rejects_physical_japanese_dictionary_filename_stems() {
+        let error =
+            parse_custom_dict_spec("JPShinjitaiCharactersRev:override:custom.txt").unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("Unknown custom dictionary slot: JPShinjitaiCharactersRev"));
+    }
 }
