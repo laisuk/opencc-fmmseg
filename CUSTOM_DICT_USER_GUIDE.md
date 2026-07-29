@@ -75,14 +75,14 @@ that slot for phrase conversion.
 
 | Slot                   | Direction / Role                                 | Intended Usage                                                                                   | Example Pair                                       |
 |------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| `STCharacters`         | Simplified -> Traditional characters             | Single-character Simplified-to-Traditional mappings                                              | `汉 -> 漢`                                           |
-| `STPhrases`            | Simplified -> Traditional phrases                | Multi-character phrase and terminology conversion for `s2t`, `s2tw`, `s2hk`, and related configs | `帕兰蒂尔 -> 柏蘭蒂爾`                                     |
-| `TSCharacters`         | Traditional -> Simplified characters             | Single-character Traditional-to-Simplified mappings                                              | `漢 -> 汉`                                           |
-| `TSPhrases`            | Traditional -> Simplified phrases                | Multi-character phrase and terminology conversion for `t2s`, `tw2s`, `hk2s`, and related configs | `人工智慧 -> 人工智能`                                     |
-| `TWPhrases`            | Traditional -> Taiwan phrases                    | Taiwan phrase preferences layered onto Traditional output                                        | `滑鼠 -> 滑鼠`                                         |
+| `STCharacters`         | Simplified -> Traditional characters             | Single-character Simplified-to-Traditional mappings                                              | `汉 -> 漢`                                         |
+| `STPhrases`            | Simplified -> Traditional phrases                | Multi-character phrase and terminology conversion for `s2t`, `s2tw`, `s2hk`, and related configs | `帕兰蒂尔 -> 柏蘭蒂爾`                             |
+| `TSCharacters`         | Traditional -> Simplified characters             | Single-character Traditional-to-Simplified mappings                                              | `漢 -> 汉`                                         |
+| `TSPhrases`            | Traditional -> Simplified phrases                | Multi-character phrase and terminology conversion for `t2s`, `tw2s`, `hk2s`, and related configs | `人工智慧 -> 人工智能`                             |
+| `TWPhrases`            | Traditional -> Taiwan phrases                    | Taiwan phrase preferences layered onto Traditional output                                        | `滑鼠 -> 滑鼠`                                     |
 | `TWPhrasesRev`         | Taiwan -> Traditional reverse phrases            | Reverse phrase normalization from Taiwan-specific wording                                        | `-{Taiwan term}- -> -{Traditional term}-`          |
-| `HKPhrases`            | Traditional -> Hong Kong phrases                 | Hong Kong phrase preferences layered onto Traditional output                                     | `小女孩 -> 妹丁`                                        |
-| `HKPhrasesRev`         | Hong Kong -> Traditional reverse phrases         | Reverse phrase normalization from Hong Kong-specific wording                                     | `妹丁 -> 小女孩`                                        |
+| `HKPhrases`            | Traditional -> Hong Kong phrases                 | Hong Kong phrase preferences layered onto Traditional output                                     | `小女孩 -> 妹丁`                                   |
+| `HKPhrasesRev`         | Hong Kong -> Traditional reverse phrases         | Reverse phrase normalization from Hong Kong-specific wording                                     | `妹丁 -> 小女孩`                                   |
 | `TWVariants`           | Traditional -> Taiwan variants                   | Taiwan regional character variants                                                               | `-{Traditional variant}- -> -{Taiwan variant}-`    |
 | `TWVariantsPhrases`    | Traditional -> Taiwan phrase variants            | Taiwan regional phrase variants applied before character fallback                                | `-{Traditional phrase}- -> -{Taiwan phrase}-`      |
 | `TWVariantsRev`        | Taiwan -> Traditional reverse variants           | Reverse conversion from Taiwan variants                                                          | `-{Taiwan variant}- -> -{Traditional variant}-`    |
@@ -94,12 +94,12 @@ that slot for phrase conversion.
 | `JPSCharacters`        | Japanese Shinjitai characters                    | Japanese Shinjitai character mappings                                                            | `-{old form}- -> -{new form}-`                     |
 | `JPSCharactersRev`     | Japanese Shinjitai reverse characters            | Japanese Shinjitai reverse character mappings                                                    | `-{Traditional form}- -> -{Japanese form}-`        |
 | `JPSPhrases`           | Japanese Shinjitai phrases                       | Japanese Shinjitai phrase mappings                                                               | `-{old phrase}- -> -{new phrase}-`                 |
-| `STPunctuations`       | Simplified -> Traditional punctuation            | Punctuation conversion for Simplified-to-Traditional workflows                                   | `“ -> 「`                                           |
-| `TSPunctuations`       | Traditional -> Simplified punctuation            | Punctuation conversion for Traditional-to-Simplified workflows                                   | `「 -> “`                                           |
+| `STPunctuations`       | Simplified -> Traditional punctuation            | Punctuation conversion for Simplified-to-Traditional workflows                                   | `“ -> 「`                                          |
+| `TSPunctuations`       | Traditional -> Simplified punctuation            | Punctuation conversion for Traditional-to-Simplified workflows                                   | `「 -> “`                                          |
 
-These are the canonical public slot names used by the Rust API and CLI. CLI slot parsing is ASCII case-insensitive
-and ignores surrounding whitespace. Physical dictionary filenames are separate implementation details: for example,
-the `JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases` slots are loaded from the existing
+These are the canonical public slot names used by the Rust API and CLI. CLI slot parsing is ASCII case-insensitive and
+ignores surrounding whitespace. Physical dictionary filenames are separate implementation details: for example, the
+`JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases` slots are loaded from the existing
 `JPShinjitaiCharacters.txt`, `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt` files. Filename stems and
 `.txt` filenames are not accepted as slot identifiers.
 
@@ -118,9 +118,9 @@ If a custom entry appears to do nothing, first check that it was placed in the s
 
 Regional phrase-level variant retention dictionaries applied before single-character regional variant conversion.
 
-These dictionaries help preserve region-specific phrase semantics before fallback character-level conversion occurs.
-Use `TWVariantsPhrases` for Taiwan regional phrase variants and `HKVariantsPhrases` for Hong Kong regional phrase
-variants when the phrase should win over character-level `TWVariants` or `HKVariants` entries.
+These dictionaries help preserve region-specific phrase semantics before fallback character-level conversion occurs. Use
+`TWVariantsPhrases` for Taiwan regional phrase variants and `HKVariantsPhrases` for Hong Kong regional phrase variants
+when the phrase should win over character-level `TWVariants` or `HKVariants` entries.
 
 ## Custom Dictionary Merge Modes
 
@@ -128,9 +128,9 @@ Custom entries are merged into a slot with one of two modes.
 
 ### Append
 
-`CustomDictMode::Append` merges custom pairs into the selected slot. If the same source key appears more than once,
-the later value wins. The construction-time `from_dicts_custom()` helper applies the same source-key behavior while
-building each slot from the built-in OpenCC pairs plus custom pairs.
+`CustomDictMode::Append` merges custom pairs into the selected slot. If the same source key appears more than once, the
+later value wins. The construction-time `from_dicts_custom()` helper applies the same source-key behavior while building
+each slot from the built-in OpenCC pairs plus custom pairs.
 
 Use append when you want to extend OpenCC without replacing the selected slot.
 
@@ -513,11 +513,11 @@ Custom dictionaries use OpenCC-compatible source → target semantics. The selec
 custom entries affect only that slot and the conversion config path that reads it. Custom dictionaries are applied
 before runtime conversion begins.
 
-Append mode merges pairs into the selected slot. When custom pairs conflict with existing entries or with earlier
-custom pairs, the later value wins. Override mode clears the selected slot first, then inserts the custom pairs.
+Append mode merges pairs into the selected slot. When custom pairs conflict with existing entries or with earlier custom
+pairs, the later value wins. Override mode clears the selected slot first, then inserts the custom pairs.
 
-Indexes, masks, and length metadata are rebuilt once during customization. After `OpenCC::from_dictionary()` is
-created, conversion uses the normal fast immutable lookup path.
+Indexes, masks, and length metadata are rebuilt once during customization. After `OpenCC::from_dictionary()` is created,
+conversion uses the normal fast immutable lookup path.
 
 ### In-Memory Post-Load Pairs
 
@@ -901,8 +901,8 @@ Examples:
 
 | Traditional | Simplified | Risk                    |
 |-------------|------------|-------------------------|
-| `驂騑`        | `骖𬴂`      | `𬴂` may render as tofu |
-| `齧合`        | `啮𫜩`      | `𫜩` may render as tofu |
+| `驂騑`      | `骖𬴂`     | `𬴂` may render as tofu |
+| `齧合`      | `啮𫜩`     | `𫜩` may render as tofu |
 
 ### DeTofu Custom Pairs Are Separate
 
@@ -991,8 +991,8 @@ after converting Traditional Chinese to Simplified Chinese.
 
 | Traditional | Default Simplified | Risk                    |
 |-------------|--------------------|-------------------------|
-| `驂騑`        | `骖𬴂`              | `𬴂` may render as tofu |
-| `齧`         | `𫜩`               | `𫜩` may render as tofu |
+| `驂騑`      | `骖𬴂`             | `𬴂` may render as tofu |
+| `齧`        | `𫜩`               | `𫜩` may render as tofu |
 
 If your target platform has poor font support for these characters, you can intentionally prefer BMP-safe output for
 selected characters:
@@ -1037,10 +1037,10 @@ This lets users deliberately trade some rare canonical Simplified forms for:
 - safer browser and mobile rendering
 - legacy platform support
 
-For `t2s`, `tw2s`, `tw2sp`, and `hk2s`, the normal T2S conversion stack probes `TSPhrases` before `TSCharacters`.
-Custom entries added to `TSCharacters` therefore affect character-level fallback behavior when no longer phrase match
-takes precedence. Within `TSCharacters` itself, append mode uses last-wins semantics, so custom fallback entries can
-override built-in character mappings in a user-controlled way.
+For `t2s`, `tw2s`, `tw2sp`, and `hk2s`, the normal T2S conversion stack probes `TSPhrases` before `TSCharacters`. Custom
+entries added to `TSCharacters` therefore affect character-level fallback behavior when no longer phrase match takes
+precedence. Within `TSCharacters` itself, append mode uses last-wins semantics, so custom fallback entries can override
+built-in character mappings in a user-controlled way.
 
 ## Alternate Dictionary Directories
 
