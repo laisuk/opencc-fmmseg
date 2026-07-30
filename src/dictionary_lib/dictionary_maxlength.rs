@@ -80,46 +80,67 @@ static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 /// dictionary and can be used as a drop-in replacement.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DictionaryMaxlength {
+    /// Simplified-to-Traditional character mappings.
     #[serde(default)]
     pub st_characters: DictMaxLen,
+    /// Simplified-to-Traditional phrase mappings.
     #[serde(default)]
     pub st_phrases: DictMaxLen,
+    /// Traditional-to-Simplified character mappings.
     #[serde(default)]
     pub ts_characters: DictMaxLen,
+    /// Traditional-to-Simplified phrase mappings.
     #[serde(default)]
     pub ts_phrases: DictMaxLen,
+    /// Traditional-to-Taiwan phrase mappings.
     #[serde(default)]
     pub tw_phrases: DictMaxLen,
+    /// Taiwan-to-Traditional reverse phrase mappings.
     #[serde(default)]
     pub tw_phrases_rev: DictMaxLen,
+    /// Traditional-to-Hong Kong phrase mappings.
     #[serde(default)]
     pub hk_phrases: DictMaxLen,
+    /// Hong Kong-to-Traditional reverse phrase mappings.
     #[serde(default)]
     pub hk_phrases_rev: DictMaxLen,
+    /// Traditional-to-Taiwan regional phrase-variant mappings.
     #[serde(default)]
     pub tw_variants_phrases: DictMaxLen,
+    /// Traditional-to-Taiwan regional character-variant mappings.
     #[serde(default)]
     pub tw_variants: DictMaxLen,
+    /// Taiwan-to-Traditional reverse character-variant mappings.
     #[serde(default)]
     pub tw_variants_rev: DictMaxLen,
+    /// Taiwan-to-Traditional reverse phrase-variant mappings.
     #[serde(default)]
     pub tw_variants_rev_phrases: DictMaxLen,
+    /// Traditional-to-Hong Kong regional phrase-variant mappings.
     #[serde(default)]
     pub hk_variants_phrases: DictMaxLen,
+    /// Traditional-to-Hong Kong regional character-variant mappings.
     #[serde(default)]
     pub hk_variants: DictMaxLen,
+    /// Hong Kong-to-Traditional reverse character-variant mappings.
     #[serde(default)]
     pub hk_variants_rev: DictMaxLen,
+    /// Hong Kong-to-Traditional reverse phrase-variant mappings.
     #[serde(default)]
     pub hk_variants_rev_phrases: DictMaxLen,
+    /// Japanese Shinjitai-to-Kyūjitai character mappings.
     #[serde(default)]
     pub jps_characters: DictMaxLen,
+    /// Kyūjitai-to-Japanese Shinjitai reverse character mappings.
     #[serde(default)]
     pub jps_characters_rev: DictMaxLen,
+    /// Japanese Shinjitai-to-Kyūjitai phrase mappings.
     #[serde(default)]
     pub jps_phrases: DictMaxLen,
+    /// Simplified-to-Traditional punctuation mappings.
     #[serde(default)]
     pub st_punctuations: DictMaxLen,
+    /// Traditional-to-Simplified punctuation mappings.
     #[serde(default)]
     pub ts_punctuations: DictMaxLen,
 
@@ -443,6 +464,14 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         self.populate_all();
         self
     }
+    /// Validates that every dictionary has populated starter indexes.
+    ///
+    /// Available only in debug builds, this helper verifies the runtime lookup
+    /// accelerators after loading or modifying dictionary data.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any contained dictionary has not been fully populated.
     #[cfg(debug_assertions)]
     pub fn debug_assert_populated(&self) {
         let all = [

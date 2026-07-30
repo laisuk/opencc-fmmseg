@@ -45,6 +45,23 @@ pub enum DetofuLevel {
 }
 
 impl DetofuLevel {
+    /// Parses a DeTofu threshold level.
+    ///
+    /// Parsing is ASCII case-insensitive and ignores surrounding whitespace.
+    /// Each level accepts its compact letter (for example `"b"`), compact
+    /// extension name (`"extb"`), and hyphenated extension name
+    /// (`"ext-b"`). The `"all"` alias selects [`DetofuLevel::ExtB`].
+    ///
+    /// Returns a message listing the supported values when parsing fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::DetofuLevel;
+    ///
+    /// assert_eq!(DetofuLevel::parse(" ext-c "), Ok(DetofuLevel::ExtC));
+    /// assert!(DetofuLevel::parse("unsupported").is_err());
+    /// ```
     pub fn parse(s: &str) -> Result<Self, String> {
         match s.trim().to_ascii_lowercase().as_str() {
             "all" | "ext-b" | "extb" | "b" => Ok(Self::ExtB),

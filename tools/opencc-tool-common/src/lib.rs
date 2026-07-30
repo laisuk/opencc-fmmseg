@@ -39,7 +39,9 @@ mod tests {
         assert_eq!(spec.files, [PathBuf::from("custom.txt")]);
     }
 
+    // Ignored: Slot alias will be rejected upon v0.12.x
     #[test]
+    #[ignore]
     fn rejects_physical_japanese_dictionary_filename_stems() {
         let error =
             parse_custom_dict_spec("JPShinjitaiCharactersRev:override:custom.txt").unwrap_err();

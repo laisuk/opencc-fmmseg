@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.11.5] - Unreleased
+## [0.11.5] - 2026-07-30
 
 ### Added
 
@@ -35,8 +35,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - Fixed canonical custom-dictionary slot parsing for Japanese Shinjitai dictionaries. `DictSlot::try_from()` now accepts
   `JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases`, matching the documented SSOT slot names and shared CLI parsing.
-- Physical dictionary filenames such as `JPShinjitaiCharacters.txt` remain unchanged and are no longer confused with
-  public slot identifiers.
+- Preserved the v0.11.4 Japanese filename stems `JPShinjitaiCharacters`, `JPShinjitaiCharactersRev`, and
+  `JPShinjitaiPhrases` as deprecated parsing aliases. They will be removed in the 0.12.x release series; physical
+  dictionary filenames remain unchanged, and names including the `.txt` suffix are not accepted as slot identifiers.
 
 ---
 

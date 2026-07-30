@@ -96,11 +96,11 @@ pub struct OpenCC {
 }
 
 impl OpenCC {
-    /// Creates a new `OpenCC` instance using built-in dictionary constants.
+    /// Creates a new `OpenCC` instance using the embedded dictionary artifact.
     ///
-    /// This is the recommended method for most users. It loads all dictionaries
-    /// compiled into the binary at build time (e.g., via `include_str!`), allowing for
-    /// fast startup and zero I/O cost.
+    /// This is the recommended method for most users. It loads the bundled
+    /// Zstandard-compressed CBOR dictionary embedded in the binary with
+    /// `include_bytes!`, providing fast startup without runtime dictionary I/O.
     ///
     /// Internally, this loads the default `DictionaryMaxlength` via `DictionaryMaxlength::new()`,
     /// and sets up default Chinese delimiters and regular expressions.

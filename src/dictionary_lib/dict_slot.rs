@@ -97,10 +97,10 @@ pub enum DictSlot {
     TSPunctuations,
 }
 
-/// Parses a canonical OpenCC dictionary slot name into a [`DictSlot`].
+/// Parses a canonical OpenCC dictionary slot name or a supported compatibility
+/// alias into a [`DictSlot`].
 ///
-/// This conversion is intentionally strict and only accepts canonical
-/// slot identifiers used by the OpenCC dictionary pipeline.
+/// This conversion is case-sensitive and does not trim whitespace.
 ///
 /// # Supported slot names
 ///
@@ -126,11 +126,15 @@ pub enum DictSlot {
 /// - `JPSCharactersRev`
 /// - `JPSPhrases`
 ///
-/// # Notes
+/// # Compatibility aliases
 ///
-/// File suffixes such as `.txt` are not accepted here.
-/// Higher-level bindings (for example Python wrappers) may provide
-/// additional normalization or compatibility handling.
+/// For compatibility with `opencc-fmmseg` v0.11.4, the physical Japanese
+/// dictionary filename stems `JPShinjitaiCharacters`,
+/// `JPShinjitaiCharactersRev`, and `JPShinjitaiPhrases` are also accepted.
+/// These aliases are deprecated and will be removed in the 0.12.x release
+/// series; use the canonical `JPS*` names in new code and configuration.
+///
+/// File suffixes such as `.txt` are not accepted.
 ///
 /// # Examples
 ///
@@ -174,6 +178,11 @@ impl TryFrom<&str> for DictSlot {
             "JPSCharacters" => Ok(Self::JPSCharacters),
             "JPSCharactersRev" => Ok(Self::JPSCharactersRev),
             "JPSPhrases" => Ok(Self::JPSPhrases),
+
+            // Compatibility aliases accepted by v0.11.4. Remove in 0.12.x.
+            "JPShinjitaiCharacters" => Ok(Self::JPSCharacters),
+            "JPShinjitaiCharactersRev" => Ok(Self::JPSCharactersRev),
+            "JPShinjitaiPhrases" => Ok(Self::JPSPhrases),
 
             _ => Err(()),
         }
@@ -257,11 +266,15 @@ impl DictSlot {
         }
     }
 
-    /// Parses a canonical slot name without regard to ASCII case.
+    /// Parses a canonical slot name or supported compatibility alias without
+    /// regard to ASCII case.
     ///
-    /// Leading and trailing whitespace is ignored. Filename stems, filename
-    /// suffixes, and other aliases are not accepted. Use [`DictSlot::try_from`]
-    /// when parsing must be case-sensitive and must not trim whitespace.
+    /// Leading and trailing whitespace is ignored. The deprecated
+    /// `JPShinjitaiCharacters`, `JPShinjitaiCharactersRev`, and
+    /// `JPShinjitaiPhrases` aliases remain accepted for v0.11.4 compatibility
+    /// and will be removed in the 0.12.x release series. Filename suffixes and
+    /// other aliases are not accepted. Use [`DictSlot::try_from`] when parsing
+    /// must be case-sensitive and must not trim whitespace.
     ///
     /// # Examples
     ///
@@ -274,15 +287,29 @@ impl DictSlot {
     /// );
     /// assert_eq!(
     ///     DictSlot::from_name_ignore_ascii_case("JPShinjitaiCharactersRev"),
-    ///     None,
+    ///     Some(DictSlot::JPSCharactersRev),
     /// );
     /// ```
     #[must_use]
     pub fn from_name_ignore_ascii_case(value: &str) -> Option<Self> {
+        let value = value.trim();
+
         Self::ALL
             .iter()
             .copied()
-            .find(|slot| slot.canonical_name().eq_ignore_ascii_case(value.trim()))
+            .find(|slot| slot.canonical_name().eq_ignore_ascii_case(value))
+            .or_else(|| {
+                // Compatibility aliases accepted by v0.11.4. Remove in 0.12.x.
+                if "JPShinjitaiCharacters".eq_ignore_ascii_case(value) {
+                    Some(Self::JPSCharacters)
+                } else if "JPShinjitaiCharactersRev".eq_ignore_ascii_case(value) {
+                    Some(Self::JPSCharactersRev)
+                } else if "JPShinjitaiPhrases".eq_ignore_ascii_case(value) {
+                    Some(Self::JPSPhrases)
+                } else {
+                    None
+                }
+            })
     }
 }
 

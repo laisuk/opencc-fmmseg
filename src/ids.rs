@@ -1,3 +1,8 @@
+//! Ideographic Description Sequence (IDS) parsing support.
+//!
+//! This module is public for API compatibility, but its parsing helpers remain
+//! crate-internal. Most users should configure IDS handling through
+//! [`OpenCC::set_preserve_ids`](crate::OpenCC::set_preserve_ids).
 use std::ops::Range;
 
 /// Maximum recursive nesting accepted for an IDS sequence.

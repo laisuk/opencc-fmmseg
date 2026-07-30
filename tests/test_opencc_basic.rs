@@ -247,10 +247,21 @@ fn parses_canonical_jps_slots() {
 }
 
 #[test]
-fn rejects_dictionary_filename_stems_as_slots() {
-    assert!(DictSlot::try_from("JPShinjitaiCharacters").is_err());
-    assert!(DictSlot::try_from("JPShinjitaiCharactersRev").is_err());
-    assert!(DictSlot::try_from("JPShinjitaiPhrases").is_err());
+fn accepts_v0_11_4_japanese_slot_aliases() {
+    assert_eq!(
+        DictSlot::try_from("JPShinjitaiCharacters"),
+        Ok(DictSlot::JPSCharacters)
+    );
+    assert_eq!(
+        DictSlot::try_from("JPShinjitaiCharactersRev"),
+        Ok(DictSlot::JPSCharactersRev)
+    );
+    assert_eq!(
+        DictSlot::try_from("JPShinjitaiPhrases"),
+        Ok(DictSlot::JPSPhrases)
+    );
+
+    assert!(DictSlot::try_from("JPShinjitaiCharacters.txt").is_err());
 }
 
 #[test]
@@ -272,6 +283,14 @@ fn dict_slot_names_roundtrip_and_case_insensitive_lookup_is_exhaustive() {
     );
     assert_eq!(
         DictSlot::from_name_ignore_ascii_case("JPShinjitaiCharacters"),
-        None
+        Some(DictSlot::JPSCharacters)
+    );
+    assert_eq!(
+        DictSlot::from_name_ignore_ascii_case("  jpshinjitaicharactersrev  "),
+        Some(DictSlot::JPSCharactersRev)
+    );
+    assert_eq!(
+        DictSlot::from_name_ignore_ascii_case("jpshinjitaiphrases"),
+        Some(DictSlot::JPSPhrases)
     );
 }
