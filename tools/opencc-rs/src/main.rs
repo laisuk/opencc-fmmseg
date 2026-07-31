@@ -16,13 +16,18 @@ use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
 use std::path::Path;
 use std::sync::OnceLock;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let matches = build_cli().get_matches();
 
-    match matches.subcommand() {
+    let result = match matches.subcommand() {
         Some(("convert", sub)) => handle_convert(sub),
         Some(("office", sub)) => handle_office(sub),
         _ => unreachable!(),
+    };
+
+    if let Err(error) = result {
+        eprintln!("❌  Error: {error}");
+        std::process::exit(1);
     }
 }
 
