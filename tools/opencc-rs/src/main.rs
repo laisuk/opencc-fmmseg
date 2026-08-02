@@ -8,7 +8,7 @@ use clap::{
 };
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use opencc_fmmseg::{DetofuLevel, DictionaryMaxlength, OpenCC, OpenccConfig};
+use opencc_fmmseg::{DetofuLevel, DetofuMap, DictionaryMaxlength, OpenCC, OpenccConfig};
 use opencc_tool_common::parse_custom_dict_spec;
 use std::collections::HashSet;
 use std::fs::File;
@@ -130,6 +130,37 @@ mod tests {
         let _ = fs::remove_file(input_path);
         let _ = fs::remove_file(output_path);
     }
+
+    #[test]
+    fn validation_rejects_invalid_encoding_and_output_paths() {
+        assert_eq!(
+            validate_encoding("definitely-not-an-encoding")
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            validate_output_path("").unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            validate_output_path(std::env::temp_dir())
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::InvalidInput
+        );
+    }
+
+    #[test]
+    fn validation_rejects_same_input_and_output() {
+        let path = Path::new("same.txt");
+        assert_eq!(
+            validate_distinct_input_output(path, path)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::InvalidInput
+        );
+    }
 }
 
 fn get_supported_configs() -> &'static str {
@@ -195,6 +226,7 @@ fn common_args() -> Vec<Arg> {
         Arg::new("detofu-file")
             .long("detofu-file")
             .value_name("FILE")
+            .requires("detofu")
             .help(
                 "Load additional DeTofu fallback mappings from a UTF-8 text file. \
          Custom mappings override built-in mappings (requires --detofu)",
@@ -216,9 +248,33 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let out_enc = matches.get_one::<String>("out_enc").unwrap();
     let punctuation = matches.get_flag("punct");
 
-    if matches.contains_id("detofu-file") && matches.get_one::<String>("detofu").is_none() {
-        return Err("--detofu-file requires --detofu".into());
+    validate_encoding(in_enc)?;
+    validate_encoding(out_enc)?;
+    if let Some(input) = input_file {
+        validate_input_file(input)?;
     }
+    if let Some(path) = output_file {
+        validate_output_path(path)?;
+        if let Some(input) = input_file {
+            validate_distinct_input_output(input, path)?;
+        }
+    }
+
+    let detofu_map = match matches.get_one::<String>("detofu") {
+        Some(level) => {
+            let level = DetofuLevel::parse(level)?;
+            match matches.get_one::<String>("detofu-file") {
+                Some(path) => {
+                    validate_input_file(path)?;
+                    Some(DetofuMap::builtin(level).with_custom_file(path)?)
+                }
+                None => Some(DetofuMap::builtin(level)),
+            }
+        }
+        None => None,
+    };
+
+    let mut cc = build_opencc(matches)?;
 
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
@@ -237,7 +293,6 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    let mut cc = build_opencc(matches)?;
 
     let normalized_input;
     let convert_input: &str = if matches.get_flag("norm-compat") {
@@ -253,14 +308,8 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 
     let output_str = cc.convert(convert_input, config, punctuation);
 
-    let output_str = if let Some(level) = matches.get_one::<String>("detofu") {
-        let level = DetofuLevel::parse(level)?;
-
-        if let Some(path) = matches.get_one::<String>("detofu-file") {
-            cc.detofu_with_custom_file(&output_str, level, path)?
-        } else {
-            cc.detofu(&output_str, level)
-        }
+    let output_str = if let Some(map) = detofu_map {
+        map.detofu(&output_str)
     } else {
         output_str
     };
@@ -298,6 +347,9 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
     let keep_font = matches.get_flag("keep_font");
     let convert_filename = matches.get_flag("convert_filename");
     let format = matches.get_one::<String>("format").map(String::as_str);
+    if let Some(path) = output_file {
+        validate_output_path(path)?;
+    }
 
     let office_format = if let Some(f) = format {
         f.to_lowercase()
@@ -356,6 +408,8 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
                 .to_string()
         }
     };
+    validate_output_path(&final_output)?;
+    validate_distinct_input_output(input_file, &final_output)?;
 
     match OfficeConverter::convert(
         input_file,
@@ -389,6 +443,12 @@ fn build_opencc(matches: &ArgMatches) -> Result<OpenCC, Box<dyn std::error::Erro
         .map(|v| parse_custom_dict_spec(v))
         .collect::<Result<Vec<_>, _>>()?;
 
+    for spec in &specs {
+        for file in &spec.files {
+            validate_input_file(file)?;
+        }
+    }
+
     let dictionary = DictionaryMaxlength::from_zstd()?.with_custom_dict_files(&specs)?;
 
     Ok(OpenCC::from_dictionary(dictionary))
@@ -411,6 +471,7 @@ fn read_input(input: &mut dyn Read, is_console: bool) -> io::Result<Vec<u8>> {
 }
 
 fn decode_input(buffer: &[u8], enc: &str) -> io::Result<String> {
+    validate_encoding(enc)?;
     if enc.eq_ignore_ascii_case("UTF-8") {
         return Ok(String::from_utf8_lossy(buffer).into_owned());
     }
@@ -429,6 +490,7 @@ fn decode_input(buffer: &[u8], enc: &str) -> io::Result<String> {
 }
 
 fn encode_and_write_output(output_str: &str, enc: &str, output: &mut dyn Write) -> io::Result<()> {
+    validate_encoding(enc)?;
     if enc.eq_ignore_ascii_case("UTF-8") {
         write!(output, "{}", output_str)
     } else {
@@ -453,6 +515,95 @@ fn open_input_file<P: AsRef<Path>>(path: P) -> io::Result<BufReader<File>> {
     let path = path.as_ref();
     validate_input_file(path)?;
     Ok(BufReader::new(File::open(path)?))
+}
+
+fn validate_encoding(enc: &str) -> io::Result<()> {
+    if enc.eq_ignore_ascii_case("UTF-8") || Encoding::for_label(enc.as_bytes()).is_some() {
+        Ok(())
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Unsupported encoding: {enc}"),
+        ))
+    }
+}
+
+fn validate_output_path<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    let path = path.as_ref();
+
+    if path.as_os_str().is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Output path cannot be empty",
+        ));
+    }
+
+    if path.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Output path is a directory: {}", path.display()),
+        ));
+    }
+
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        let metadata = std::fs::metadata(parent).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!(
+                    "Cannot access output directory {}: {error}",
+                    parent.display()
+                ),
+            )
+        })?;
+        if !metadata.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Output parent is not a directory: {}", parent.display()),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_distinct_input_output<I: AsRef<Path>, O: AsRef<Path>>(
+    input: I,
+    output: O,
+) -> io::Result<()> {
+    let input_path = input.as_ref();
+    let output_path = output.as_ref();
+
+    if input_path == output_path {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "Input and output refer to the same file: {}",
+                output_path.display()
+            ),
+        ));
+    }
+
+    if output_path.exists() {
+        if let (Ok(input), Ok(output)) = (
+            std::fs::canonicalize(input_path),
+            std::fs::canonicalize(output_path),
+        ) {
+            if output == input {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "Input and output refer to the same file: {}",
+                        output_path.display()
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_input_file<P: AsRef<Path>>(path: P) -> io::Result<()> {

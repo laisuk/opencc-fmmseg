@@ -8,12 +8,15 @@ pub fn parse_custom_dict_spec(
 
     let slot = parts.next().ok_or("Missing custom dict slot")?;
     let mode = parts.next().ok_or("Missing custom dict mode")?;
-    let file = parts.next().ok_or("Missing custom dict file")?;
+    let file = parts.next().ok_or("Missing custom dict file")?.trim();
+    if file.is_empty() {
+        return Err("Custom dictionary path cannot be empty".into());
+    }
 
     let slot = DictSlot::from_name_ignore_ascii_case(slot)
         .ok_or_else(|| format!("Unknown custom dictionary slot: {slot}"))?;
 
-    let mode = match mode.to_ascii_lowercase().as_str() {
+    let mode = match mode.trim().to_ascii_lowercase().as_str() {
         "append" => CustomDictMode::Append,
         "override" => CustomDictMode::Override,
         other => return Err(format!("Unknown custom dict mode: {other}").into()),
@@ -32,11 +35,16 @@ mod tests {
 
     #[test]
     fn parses_custom_dict_slots_case_insensitively() {
-        let spec = parse_custom_dict_spec(" jpscharactersrev :append:custom.txt").unwrap();
+        let spec = parse_custom_dict_spec(" jpscharactersrev : APPEND : custom.txt ").unwrap();
 
         assert_eq!(spec.slot, DictSlot::JPSCharactersRev);
         assert_eq!(spec.mode, CustomDictMode::Append);
         assert_eq!(spec.files, [PathBuf::from("custom.txt")]);
+    }
+
+    #[test]
+    fn rejects_empty_custom_dictionary_paths() {
+        assert!(parse_custom_dict_spec("STPhrases:append:   ").is_err());
     }
 
     // Ignored: Slot alias will be rejected upon v0.12.x
