@@ -569,6 +569,7 @@ impl OpenCC {
 
         let is_multi_dicts = dictionaries.len() > 1;
         let mut start_pos = 0;
+        let text_ptr = text_chars.as_ptr();
 
         while start_pos < text_length {
             let c0 = text_chars[start_pos];
@@ -579,7 +580,14 @@ impl OpenCC {
             // Pull precomputed mask + cap.
             let (mask, cap_u8) = if u0 <= 0xFFFF {
                 let idx = u0 as usize;
-                (union.bmp_mask[idx], union.bmp_cap[idx])
+                // SAFETY: `StarterUnion` owns full BMP-sized dense tables, and
+                // `idx` is bounded by the BMP check above.
+                unsafe {
+                    (
+                        *union.bmp_mask.get_unchecked(idx),
+                        *union.bmp_cap.get_unchecked(idx),
+                    )
+                }
             } else {
                 (
                     *union.astral_mask.get(&c0).unwrap_or(&0),
@@ -595,8 +603,6 @@ impl OpenCC {
 
             let cap_here = global_cap.min(cap_u8 as usize);
             let mut matched = false;
-
-            let text_ptr = text_chars.as_ptr();
 
             for_each_len_dec(mask, cap_here, |length| {
                 let cap_bit = if length >= 64 { 63 } else { length - 1 };
