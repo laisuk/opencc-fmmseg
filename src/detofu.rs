@@ -400,7 +400,9 @@ impl DetofuMap {
 /// assert_eq!(output, "骖騑");
 /// ```
 ///
-/// Existing output is preserved:
+/// Existing output is preserved so that the same buffer can be reused for
+/// multiple conversions or combined with other output. Call
+/// [`String::clear`] first when an independent result is desired.
 ///
 /// ```rust
 /// use opencc_fmmseg::{detofu_into, DetofuLevel};
