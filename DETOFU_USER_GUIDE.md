@@ -29,16 +29,24 @@ fn main() {
 ## Public APIs
 
 * `DetofuLevel` selects the fallback threshold.
-* `OpenCC::detofu(&self, input: &str, level: DetofuLevel) -> String` applies DeTofu through an `OpenCC` instance.
-* `OpenCC::detofu_with_custom_file(&self, input, level, path)` applies DeTofu using the built-in fallback table plus a
-  user-supplied fallback file.
-* `OpenCC::detofu_with_custom_pairs(&self, input, level, pairs)` applies DeTofu using the built-in fallback table plus
-  in-memory custom fallback pairs.
-* `detofu(text: &str, level: DetofuLevel) -> String` applies DeTofu as a direct utility function.
-* `DetofuMap::builtin(level)` builds a reusable map from the built-in fallback data.
-* `DetofuMap::with_custom_pairs(...)` adds post-load custom fallback pairs.
+
+### High-level convenience APIs
+
+* `OpenCC::detofu(&self, input: &str, level: DetofuLevel) -> String` applies DeToFu through an `OpenCC` instance.
+* `OpenCC::detofu_into(&self, input: &str, level: DetofuLevel, output: &mut String)` appends the DeToFu result to an existing output buffer for allocation reuse.
+* `OpenCC::detofu_with_custom_file(&self, input, level, path)` applies DeToFu using the built-in fallback table plus a user-supplied fallback file.
+* `OpenCC::detofu_with_custom_pairs(&self, input, level, pairs)` applies DeToFu using the built-in fallback table plus in-memory custom fallback pairs.
+* `detofu(input: &str, level: DetofuLevel) -> String` applies DeToFu as a direct utility function.
+* `detofu_into(input: &str, level: DetofuLevel, output: &mut String)` appends the DeToFu result to an existing output buffer for allocation reuse.
+
+### Reusable `DetofuMap`
+
+* `DetofuMap::builtin(level)` creates a reusable DeToFu map backed by the shared built-in fallback table.
+* `DetofuMap::with_custom_pairs(...)` adds custom fallback pairs that override built-in mappings.
 * `DetofuMap::with_custom_file(...)` loads additional fallback mappings from a UTF-8 text file.
-* `DetofuMap::detofu(...)` applies a reusable map to text.
+* `DetofuMap::detofu(...)` applies a reusable map and returns a newly allocated `String`.
+* `DetofuMap::detofu_into(...)` applies a reusable map and appends the result to an existing output buffer for allocation reuse.
+
 
 ## OpenCC Instance Usage
 

@@ -1939,6 +1939,43 @@ impl OpenCC {
         detofu::detofu(text, level)
     }
 
+
+    /// Converts built-in non-BMP CJK extension characters into
+    /// display-compatible fallback characters and appends the result to
+    /// `output`.
+    ///
+    /// This is the allocation-reuse counterpart of [`OpenCC::detofu`].
+    /// The built-in DeTofu table is initialized once and shared across calls.
+    ///
+    /// The function appends to `output`; it does not clear existing contents.
+    /// Call [`String::clear`] first when reusing a buffer for an independent
+    /// result.
+    ///
+    /// DeTofu is independent of this `OpenCC` instance's conversion
+    /// dictionaries. The method is provided as a convenient high-level entry
+    /// point for callers that already use `OpenCC`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use opencc_fmmseg::{DetofuLevel, OpenCC};
+    ///
+    /// let cc = OpenCC::new();
+    /// let mut output = String::new();
+    ///
+    /// cc.detofu_into("骖𬴂", DetofuLevel::ExtB, &mut output);
+    ///
+    /// assert_eq!(output, "骖騑");
+    /// ```
+    pub fn detofu_into(
+        &self,
+        input: &str,
+        level: DetofuLevel,
+        output: &mut String,
+    ) {
+        detofu::detofu_into(input, level, output);
+    }
+
     /// Converts non-BMP CJK extension characters using the built-in DeTofu
     /// mappings plus a user-supplied fallback file.
     ///

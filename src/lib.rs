@@ -111,6 +111,7 @@ pub use compat_ideographs::normalize_compat_ideographs;
 pub use compat_ideographs::CompatIdeographs;
 /// Converts rare non-BMP CJK extension characters to compatibility fallbacks.
 pub use detofu::detofu;
+pub use detofu::detofu_into;
 /// Threshold level used by DeTofu display-compatibility fallback.
 pub use detofu::DetofuLevel;
 /// Reusable and customizable DeTofu fallback map.

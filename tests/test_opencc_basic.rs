@@ -103,6 +103,8 @@ fn test_opencc_from_dictionary_custom_palantir() {
     );
 }
 
+// DeTofu Tests
+
 #[test]
 fn test_opencc_detofu() {
     let cc = OpenCC::new();
@@ -119,6 +121,20 @@ fn test_opencc_t2s_detofu() {
     let output = cc.detofu(
         &cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false),
         DetofuLevel::ExtB,
+    );
+
+    assert_eq!(output, "俨骖騑于上路，访风景于崇阿");
+}
+
+#[test]
+fn test_opencc_t2s_detofu_into() {
+    let cc = OpenCC::new();
+    let mut output = String::new();
+
+    cc.detofu_into(
+        &cc.convert("儼驂騑於上路，訪風景於崇阿", "t2s", false),
+        DetofuLevel::ExtB,
+        &mut output,
     );
 
     assert_eq!(output, "俨骖騑于上路，访风景于崇阿");
@@ -208,6 +224,15 @@ fn test_detofu_custom_pairs_later_wins() {
 
     assert_eq!(map.detofu("𣭲毛"), "氄毛");
 }
+
+#[test]
+fn test_detofu_custom_pairs_support_bmp_characters() {
+    let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('A', 'B')]);
+
+    assert_eq!(map.detofu("A𬴂"), "B騑");
+}
+
+// Norm Compat Tests
 
 #[test]
 fn normalize_compat_golden() {
