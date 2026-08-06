@@ -9,6 +9,7 @@ pub fn parse_custom_dict_spec(
     let slot = parts.next().ok_or("Missing custom dict slot")?;
     let mode = parts.next().ok_or("Missing custom dict mode")?;
     let file = parts.next().ok_or("Missing custom dict file")?.trim();
+
     if file.is_empty() {
         return Err("Custom dictionary path cannot be empty".into());
     }
@@ -22,9 +23,15 @@ pub fn parse_custom_dict_spec(
         other => return Err(format!("Unknown custom dict mode: {other}").into()),
     };
 
+    let path = PathBuf::from(file);
+
+    if !path.is_file() {
+        return Err(format!("Custom dictionary file not found: {}", path.display()).into());
+    }
+
     Ok(CustomDictFileSpec {
         slot,
-        files: vec![PathBuf::from(file)],
+        files: vec![path],
         mode,
     })
 }
@@ -35,11 +42,19 @@ mod tests {
 
     #[test]
     fn parses_custom_dict_slots_case_insensitively() {
-        let spec = parse_custom_dict_spec(" jpscharactersrev : APPEND : custom.txt ").unwrap();
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/data/my_hk_dict.txt");
+
+        let arg = format!(
+            " jpscharactersrev : APPEND : {} ",
+            path.display()
+        );
+
+        let spec = parse_custom_dict_spec(&arg).unwrap();
 
         assert_eq!(spec.slot, DictSlot::JPSCharactersRev);
         assert_eq!(spec.mode, CustomDictMode::Append);
-        assert_eq!(spec.files, [PathBuf::from("custom.txt")]);
+        assert_eq!(spec.files, [path]);
     }
 
     #[test]
