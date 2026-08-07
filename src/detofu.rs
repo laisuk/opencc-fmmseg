@@ -1,6 +1,6 @@
 //! Display compatibility fallback utilities.
 //!
-//! This module provides optional DeToFu processing for non-BMP CJK extension
+//! This module provides optional DeTofu processing for non-BMP CJK extension
 //! characters that may not render correctly on some systems, fonts, browsers,
 //! or e-book readers.
 //!
@@ -15,9 +15,9 @@ use std::sync::OnceLock;
 
 static TOFU_DATA: &[u8] = include_bytes!("data/TSCharactersTofu.txt");
 
-/// Controls which CJK extension ranges are replaced by DeToFu.
+/// Controls which CJK extension ranges are replaced by DeTofu.
 ///
-/// DeToFu levels are threshold-based: the selected level is the earliest
+/// DeTofu levels are threshold-based: the selected level is the earliest
 /// extension block to replace, and all supported later extension blocks are
 /// replaced too.
 ///
@@ -50,7 +50,7 @@ pub enum DetofuLevel {
 }
 
 impl DetofuLevel {
-    /// Parses a DeToFu threshold level.
+    /// Parses a DeTofu threshold level.
     ///
     /// Parsing is ASCII case-insensitive and ignores surrounding whitespace.
     /// Each level accepts its compact letter (for example `"b"`), compact
@@ -78,7 +78,7 @@ impl DetofuLevel {
             "ext-h" | "exth" | "h" => Ok(Self::ExtH),
             "ext-i" | "exti" | "i" => Ok(Self::ExtI),
             _ => Err(
-                "supported DeToFu levels: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"
+                "supported DeTofu levels: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i"
                     .to_string(),
             ),
         }
@@ -147,7 +147,7 @@ fn detofu_builtin_into(input: &str, level: DetofuLevel, output: &mut String) {
     output.reserve(input.len());
 
     for ch in input.chars() {
-        // The built-in DeToFu table starts at CJK Extension B (U+20000).
+        // The built-in DeTofu table starts at CJK Extension B (U+20000).
         // Ordinary BMP text therefore bypasses hashing completely.
         if ch < '\u{20000}' {
             output.push(ch);
@@ -161,7 +161,7 @@ fn detofu_builtin_into(input: &str, level: DetofuLevel, output: &mut String) {
     }
 }
 
-/// A reusable, customizable DeToFu display-compatibility map.
+/// A reusable, customizable DeTofu display-compatibility map.
 ///
 /// `DetofuMap` combines:
 ///
@@ -171,7 +171,7 @@ fn detofu_builtin_into(input: &str, level: DetofuLevel, output: &mut String) {
 /// Custom entries take precedence over built-in entries. Creating a
 /// `DetofuMap` does not clone or filter the built-in table.
 ///
-/// DeToFu is independent of OpenCC conversion dictionaries. It does not
+/// DeTofu is independent of OpenCC conversion dictionaries. It does not
 /// participate in Simplified/Traditional phrase matching, regional variant
 /// selection, punctuation conversion, or any other OpenCC conversion logic.
 /// It is best treated as a display-compatibility pass that can run after
@@ -196,7 +196,7 @@ pub struct DetofuMap {
 }
 
 impl DetofuMap {
-    /// Creates a reusable DeToFu map backed by the shared built-in table.
+    /// Creates a reusable DeTofu map backed by the shared built-in table.
     ///
     /// The selected [`DetofuLevel`] is threshold-based. For example,
     /// [`DetofuLevel::ExtB`] enables all supported non-BMP mappings, while
@@ -385,9 +385,9 @@ impl DetofuMap {
 /// This function appends to `output`; it does not clear existing contents.
 /// Call [`String::clear`] first when reusing a buffer for an independent result.
 ///
-/// DeToFu is independent of OpenCC conversion dictionaries and does not modify
+/// DeTofu is independent of OpenCC conversion dictionaries and does not modify
 /// OpenCC conversion behavior. In a typical workflow, perform OpenCC conversion
-/// first and then apply DeToFu to the converted text.
+/// first and then apply DeTofu to the converted text.
 ///
 /// # Examples
 ///
@@ -426,9 +426,9 @@ pub fn detofu_into(input: &str, level: DetofuLevel, output: &mut String) {
 /// This convenience function allocates a new result [`String`]. Use
 /// [`detofu_into`] when processing many inputs and reusing an output buffer.
 ///
-/// DeToFu is independent of OpenCC conversion dictionaries and does not modify
+/// DeTofu is independent of OpenCC conversion dictionaries and does not modify
 /// OpenCC conversion behavior. In a typical workflow, perform OpenCC conversion
-/// first and then apply DeToFu to the converted text.
+/// first and then apply DeTofu to the converted text.
 ///
 /// # Examples
 ///

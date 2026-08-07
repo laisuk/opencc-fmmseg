@@ -10,17 +10,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-* Added allocation-reuse DeToFu APIs: `detofu_into(...)`, `OpenCC::detofu_into(...)`, and
+* Added allocation-reuse DeTofu APIs: `detofu_into(...)`, `OpenCC::detofu_into(...)`, and
   `DetofuMap::detofu_into(...)`, allowing callers to append results into an existing `String`
   buffer while reusing allocations across multiple conversions.
 
 ### Changed
 
-* Refactored DeToFu around a shared, lazily initialized built-in fallback table backed by
+* Refactored DeTofu around a shared, lazily initialized built-in fallback table backed by
   `OnceLock<FxHashMap<...>>`. Built-in mappings are now initialized only once and reused by all conversions.
 * Redesigned `DetofuMap` to store only custom override mappings while sharing the immutable built-in fallback table,
   substantially reducing initialization overhead and memory usage.
-* Optimized built-in DeToFu conversion with a dedicated fast path while preserving custom override precedence and full
+* Optimized built-in DeTofu conversion with a dedicated fast path while preserving custom override precedence and full
   API compatibility.
 * Updated the free-function, `OpenCC`, and `DetofuMap` APIs to share the same reusable backend implementation, improving
   consistency across Rust, WASM, and downstream bindings.
