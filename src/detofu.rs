@@ -4,6 +4,11 @@
 //! characters that may not render correctly on some systems, fonts, browsers,
 //! or e-book readers.
 //!
+//! The built-in fallback table covers rare characters that may be produced by
+//! both Simplified-to-Traditional and Traditional-to-Simplified conversion.
+//! DeTofu is direction-independent and can also be applied directly to
+//! arbitrary text.
+//!
 //! The built-in fallback table is parsed and hashed lazily on first use, then
 //! shared immutably by all calls and [`DetofuMap`] instances. A customizable
 //! [`DetofuMap`] stores only application-specific overrides, so creating one
@@ -13,7 +18,7 @@ use rustc_hash::FxHashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
-static TOFU_DATA: &[u8] = include_bytes!("data/TSCharactersTofu.txt");
+static TOFU_DATA: &[u8] = include_bytes!("data/CharactersTofu.txt");
 
 /// Controls which CJK extension ranges are replaced by DeTofu.
 ///
@@ -132,10 +137,10 @@ fn parse_tofu_entries(text: &str) -> Result<Vec<(char, char, DetofuLevel)>, Stri
 fn tofu_map() -> &'static FxHashMap<char, (char, DetofuLevel)> {
     TOFU_MAP.get_or_init(|| {
         let text =
-            std::str::from_utf8(TOFU_DATA).expect("TSCharactersTofu.txt must be valid UTF-8");
+            std::str::from_utf8(TOFU_DATA).expect("CharactersTofu.txt must be valid UTF-8");
 
         parse_tofu_entries(text)
-            .unwrap_or_else(|err| panic!("invalid built-in TSCharactersTofu.txt: {err}"))
+            .unwrap_or_else(|err| panic!("invalid built-in CharactersTofu.txt: {err}"))
             .into_iter()
             .map(|(tofu, fallback, level)| (tofu, (fallback, level)))
             .collect()
@@ -435,9 +440,8 @@ pub fn detofu_into(input: &str, level: DetofuLevel, output: &mut String) {
 /// ```rust
 /// use opencc_fmmseg::{detofu, DetofuLevel};
 ///
-/// let safe = detofu("骖𬴂", DetofuLevel::ExtB);
-///
-/// assert_eq!(safe, "骖騑");
+/// assert_eq!(detofu("𠗣𧜗", DetofuLevel::ExtB), "㓆䘞");
+/// assert_eq!(detofu("𬴂", DetofuLevel::ExtB), "騑");
 /// ```
 pub fn detofu(input: &str, level: DetofuLevel) -> String {
     let mut output = String::with_capacity(input.len());

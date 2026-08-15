@@ -1,7 +1,7 @@
 use opencc_fmmseg::dictionary_lib::DictMaxLen;
 use opencc_fmmseg::{
-    normalize_compat_ideographs, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictSlot,
-    DictionaryMaxlength, OpenCC, OpenccConfig,
+    detofu, normalize_compat_ideographs, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap,
+    DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
 };
 
 #[test]
@@ -230,6 +230,21 @@ fn test_detofu_custom_pairs_support_bmp_characters() {
     let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('A', 'B')]);
 
     assert_eq!(map.detofu("A𬴂"), "B騑");
+}
+
+#[test]
+fn builtin_detofu_replaces_known_st_mappings() {
+    assert_eq!(detofu("𠗣𧜗", DetofuLevel::ExtB), "㓆䘞");
+}
+
+#[test]
+fn test_opencc_s2t_detofu() {
+    let cc = OpenCC::new();
+
+    let converted = cc.convert("㓆䘞", "s2t", false);
+    assert_eq!(converted, "𠗣𧜗");
+
+    assert_eq!(cc.detofu(&converted, DetofuLevel::ExtB), "㓆䘞");
 }
 
 // Norm Compat Tests

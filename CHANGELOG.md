@@ -10,19 +10,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-* Added allocation-reuse DeTofu APIs: `detofu_into(...)`, `OpenCC::detofu_into(...)`, and
+- Added allocation-reuse DeTofu APIs: `detofu_into(...)`, `OpenCC::detofu_into(...)`, and
   `DetofuMap::detofu_into(...)`, allowing callers to append results into an existing `String`
   buffer while reusing allocations across multiple conversions.
+- Expanded the built-in DeTofu fallback data to cover rare non-BMP characters produced by both Simplified-to-Traditional
+  and Traditional-to-Simplified conversion, with direction-independent display-compatible fallbacks.
 
 ### Changed
 
-* Refactored DeTofu around a shared, lazily initialized built-in fallback table backed by
+- Replaced the TS-specific DeTofu data with the unified `CharactersTofu.txt` fallback table, reflecting DeTofu's broader
+  ST + TS coverage.
+- Refactored DeTofu around a shared, lazily initialized built-in fallback table backed by
   `OnceLock<FxHashMap<...>>`. Built-in mappings are now initialized only once and reused by all conversions.
-* Redesigned `DetofuMap` to store only custom override mappings while sharing the immutable built-in fallback table,
+- Redesigned `DetofuMap` to store only custom override mappings while sharing the immutable built-in fallback table,
   substantially reducing initialization overhead and memory usage.
-* Optimized built-in DeTofu conversion with a dedicated fast path while preserving custom override precedence and full
+- Optimized built-in DeTofu conversion with a dedicated fast path while preserving custom override precedence and full
   API compatibility.
-* Updated the free-function, `OpenCC`, and `DetofuMap` APIs to share the same reusable backend implementation, improving
+- Updated the free-function, `OpenCC`, and `DetofuMap` APIs to share the same reusable backend implementation, improving
   consistency across Rust, WASM, and downstream bindings.
 
 ---
@@ -135,41 +139,41 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-* Added public DeTofu display-compatibility fallback APIs for rare non-BMP CJK extension characters:
+- Added public DeTofu display-compatibility fallback APIs for rare non-BMP CJK extension characters:
   `DetofuLevel`, `DetofuMap`, `detofu()`, `OpenCC::detofu()`, and
   `OpenCC::detofu_with_custom_file()`.
-* Added `DetofuMap::with_custom_pairs(...)` for applying in-memory DeTofu fallback pairs after loading built-in
+- Added `DetofuMap::with_custom_pairs(...)` for applying in-memory DeTofu fallback pairs after loading built-in
   mappings.
-* Added `OpenCC::detofu_with_custom_pairs(...)` convenience API for applying built-in DeTofu mappings plus custom
+- Added `OpenCC::detofu_with_custom_pairs(...)` convenience API for applying built-in DeTofu mappings plus custom
   in-memory fallback pairs.
-* Added support for loading user-supplied DeTofu fallback files. Custom mappings are merged with the built-in fallback
+- Added support for loading user-supplied DeTofu fallback files. Custom mappings are merged with the built-in fallback
   table, and custom entries take precedence when duplicate tofu-risk characters exist.
-* Added docs and README examples for threshold-based DeTofu levels, direct utility usage, reusable maps, custom fallback
+- Added docs and README examples for threshold-based DeTofu levels, direct utility usage, reusable maps, custom fallback
   files, and post-load custom fallback pairs.
-* Added tests for DeTofu custom pairs, built-in override behavior, and later-pair-wins behavior.
-* Added upstream-compatible Hong Kong phrase conversion configs `s2hkp` and
+- Added tests for DeTofu custom pairs, built-in override behavior, and later-pair-wins behavior.
+- Added upstream-compatible Hong Kong phrase conversion configs `s2hkp` and
   `hk2sp`.
-* Added optional HK phrase dictionary slots `HKPhrases` and `HKPhrasesRev`.
+- Added optional HK phrase dictionary slots `HKPhrases` and `HKPhrasesRev`.
 
 ### Changed
 
-* Mirrored upstream OpenCC Japanese dictionary naming by replacing the old
+- Mirrored upstream OpenCC Japanese dictionary naming by replacing the old
   `JPVariants` / `JPVariantsRev` model with `JPShinjitaiCharacters.txt`,
   `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt`. Custom dictionary users should use the
   `JPSCharactersRev` slot instead of the removed `JPVariants` slot.
-* Refactored `s2twp` to match the upstream OpenCC config restructure:
+- Refactored `s2twp` to match the upstream OpenCC config restructure:
   the Taiwan phrase mappings and Taiwan variant mappings now run together in the second conversion round after the
   Simplified-to-Traditional round. This preserves OpenCC-compatible output while removing one full conversion pass.
-* Reduced the size of the built-in DeTofu fallback table by switching extension identifiers from `ExtB`–`ExtI` to the
+- Reduced the size of the built-in DeTofu fallback table by switching extension identifiers from `ExtB`–`ExtI` to the
   compact form `B`–`I` while maintaining backward-compatible parsing support for both formats.
-* Improved DeTofu parser compatibility to accept both compact (`B`–`I`) and legacy (`ExtB`–`ExtI`) extension identifiers
+- Improved DeTofu parser compatibility to accept both compact (`B`–`I`) and legacy (`ExtB`–`ExtI`) extension identifiers
   in custom fallback files.
-* Missing plaintext `HKPhrases.txt` and `HKPhrasesRev.txt` files now load as empty dictionaries for backward
+- Missing plaintext `HKPhrases.txt` and `HKPhrasesRev.txt` files now load as empty dictionaries for backward
   compatibility with older dictionary folders.
 
 ### Breaking
 
-* Removed the old Japanese custom dictionary slots `JPVariants` and
+- Removed the old Japanese custom dictionary slots `JPVariants` and
   `JPVariantsRev`. Use `JPSCharactersRev` and `JPSCharacters` respectively.
 
 ---
