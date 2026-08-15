@@ -161,6 +161,60 @@ mod tests {
             io::ErrorKind::InvalidInput
         );
     }
+
+    #[test]
+    fn detofu_file_requires_existing_regular_file() {
+        let matches = build_cli()
+            .try_get_matches_from([
+                "opencc-rs",
+                "convert",
+                "-c",
+                "t2s",
+                "--detofu",
+                "all",
+                "--detofu-file",
+                "definitely-missing-tofu-file.txt",
+            ])
+            .unwrap();
+
+        let (_, sub) = matches.subcommand().unwrap();
+        let err = build_detofu_map(sub).unwrap_err();
+
+        assert!(err.to_string().contains("Input file not found:"));
+    }
+
+    #[test]
+    fn detofu_file_loads_custom_mapping() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let temp_dir = std::env::temp_dir();
+        let my_dict_path = temp_dir.join(format!("opencc-rs-detofu-{nonce}.dict.txt"));
+
+        // Deliberately differs from the built-in mapping.
+        fs::write(&my_dict_path, "𧜗\t測\tB\n").unwrap();
+
+        let matches = build_cli()
+            .try_get_matches_from([
+                "opencc-rs",
+                "convert",
+                "-c",
+                "s2t",
+                "--detofu",
+                "all",
+                "--detofu-file",
+                my_dict_path.to_str().unwrap(),
+            ])
+            .unwrap();
+
+        let (_, sub) = matches.subcommand().unwrap();
+        let map = build_detofu_map(sub).unwrap().unwrap();
+
+        assert_eq!(map.detofu("𧜗"), "測");
+
+        let _ = fs::remove_file(my_dict_path);
+    }
 }
 
 fn get_supported_configs() -> &'static str {
@@ -260,19 +314,7 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
         }
     }
 
-    let detofu_map = match matches.get_one::<String>("detofu") {
-        Some(level) => {
-            let level = DetofuLevel::parse(level)?;
-            match matches.get_one::<String>("detofu-file") {
-                Some(path) => {
-                    validate_input_file(path)?;
-                    Some(DetofuMap::builtin(level).with_custom_file(path)?)
-                }
-                None => Some(DetofuMap::builtin(level)),
-            }
-        }
-        None => None,
-    };
+    let detofu_map = build_detofu_map(matches)?;
 
     let mut cc = build_opencc(matches)?;
 
@@ -631,4 +673,21 @@ fn validate_input_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
     }
 
     Ok(())
+}
+
+fn build_detofu_map(matches: &ArgMatches) -> Result<Option<DetofuMap>, Box<dyn std::error::Error>> {
+    let Some(level) = matches.get_one::<String>("detofu") else {
+        return Ok(None);
+    };
+
+    let level = DetofuLevel::parse(level)?;
+    let map = DetofuMap::builtin(level);
+
+    match matches.get_one::<String>("detofu-file") {
+        Some(path) => {
+            validate_input_file(path)?;
+            Ok(Some(map.with_custom_file(path)?))
+        }
+        None => Ok(Some(map)),
+    }
 }
