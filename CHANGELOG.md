@@ -36,6 +36,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   consistency across Rust, WASM, and downstream bindings.
 - Extended compatibility normalization without changing the existing `OpenCC::normalize_compat(...)` behavior; callers
   can opt into the broader curated normalization with `OpenCC::normalize_compat_extended(...)`.
+- Updated conversion dictionary data.
 
 ---
 
