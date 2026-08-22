@@ -15,10 +15,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   buffer while reusing allocations across multiple conversions.
 - Expanded the built-in DeTofu fallback data to cover rare non-BMP characters produced by both Simplified-to-Traditional
   and Traditional-to-Simplified conversion, with direction-independent display-compatible fallbacks.
+- Added curated Unicode compatibility normalization backed by `Unicode_Compatibility.txt`, covering selected CJK
+  radicals, glyph variants, punctuation forms, and text-extraction artifacts while preserving one-Unicode-scalar-to-one-
+  Unicode-scalar mappings.
+- Added `OpenCC::normalize_unicode_compat(...)` for applying only the curated Unicode compatibility table.
+- Added `OpenCC::normalize_compat_extended(...)` for combined CJK Compatibility Ideograph and curated Unicode
+  compatibility normalization.
 
 ### Changed
 
-- Replaced the TS-specific DeTofu data with the unified `CharactersTofu.txt` fallback table, reflecting DeTofu's broader
+- Replaced the TS-specific DeTofu data with the unified `CharactersTofu.txt` fallback table, reflecting DeToFu's broader
   ST + TS coverage.
 - Refactored DeTofu around a shared, lazily initialized built-in fallback table backed by
   `OnceLock<FxHashMap<...>>`. Built-in mappings are now initialized only once and reused by all conversions.
@@ -28,6 +34,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   API compatibility.
 - Updated the free-function, `OpenCC`, and `DetofuMap` APIs to share the same reusable backend implementation, improving
   consistency across Rust, WASM, and downstream bindings.
+- Extended compatibility normalization without changing the existing `OpenCC::normalize_compat(...)` behavior; callers
+  can opt into the broader curated normalization with `OpenCC::normalize_compat_extended(...)`.
 
 ---
 

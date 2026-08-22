@@ -117,13 +117,12 @@ impl CompatIdeographs {
 
         for (index, raw_line) in text.lines().enumerate() {
             let line_no = index + 1;
-            let line = raw_line.trim();
 
-            if line.is_empty() || line.starts_with('#') {
+            if raw_line.trim().is_empty() || raw_line.trim_start().starts_with('#') {
                 continue;
             }
 
-            let mut parts = line.split('\t');
+            let mut parts = raw_line.split('\t');
 
             let src_text = parts
                 .next()

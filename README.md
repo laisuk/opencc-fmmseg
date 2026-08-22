@@ -238,11 +238,27 @@ Last Error after clear: <none>
 
 ---
 
-## CJK Compatibility Ideograph normalization
+## Unicode compatibility normalization
+
+`opencc-fmmseg` provides optional Unicode compatibility normalization as a **pre-processing** step before OpenCC
+segmentation and conversion. This is useful for legacy text, extracted PDF/document text, and other input that may
+contain compatibility or presentation-oriented Unicode forms.
+
+Three Rust APIs are available:
+
+- `OpenCC::normalize_compat(...)` — normalize Unicode CJK Compatibility Ideographs only, using the built-in
+  `CJK_Compatibility_Ideographs.txt` table.
+- `OpenCC::normalize_unicode_compat(...)` — apply only the curated `Unicode_Compatibility.txt` table.
+- `OpenCC::normalize_compat_extended(...)` — apply the full compatibility pre-pass: CJK Compatibility Ideographs plus
+  the curated Unicode compatibility table.
+
+The existing `normalize_compat(...)` behavior is unchanged. Callers that want the broader normalization can opt in to
+`normalize_compat_extended(...)` without changing existing code.
+
+### CJK Compatibility Ideographs
 
 Some legacy text contains Unicode CJK Compatibility Ideographs such as `金`. These are uncommon in ordinary Chinese
-text, but callers that need upstream OpenCC-compatible behavior can run the optional compatibility pre-pass before
-segmentation and conversion.
+text, but callers that need upstream OpenCC-compatible behavior can normalize them before conversion:
 
 ```rust
 use opencc_fmmseg::OpenCC;
@@ -250,6 +266,7 @@ use opencc_fmmseg::OpenCC;
 fn main() {
     let cc = OpenCC::new();
     let normalized = cc.normalize_compat("天龍八部書裡的喬峰是契丹人");
+
     assert_eq!(normalized, "天龍八部書裡的喬峰是契丹人");
 }
 ```
@@ -269,9 +286,68 @@ fn main() {
 }
 ```
 
-This normalization is optional because it changes Unicode code points, compatibility ideographs are rare in normal text,
-and some callers need exact code-point preservation. Compatibility normalization is a pre-processing step; DeTofu is a
-post-processing/display fallback for rare CJK extension characters.
+### Extended Unicode compatibility normalization
+
+`normalize_compat_extended(...)` combines the CJK Compatibility Ideograph table with the curated
+`Unicode_Compatibility.txt` mappings. The extended table covers selected Unicode radicals, glyph variants, punctuation
+forms, and known text-extraction artifacts useful when cleaning Chinese text from documents and PDFs.
+
+```rust
+use opencc_fmmseg::OpenCC;
+
+fn main() {
+    let cc = OpenCC::new();
+
+    let normalized = cc.normalize_compat_extended("天龍八部書裡的聼眾");
+    assert_eq!(normalized, "天龍八部書裡的聽眾");
+}
+```
+
+The extended normalization can be used in the same pre-processing pipeline before conversion:
+
+```rust
+use opencc_fmmseg::{OpenCC, OpenccConfig};
+
+fn main() {
+    let cc = OpenCC::new();
+    let input = "天龍八部書裡的聼眾";
+
+    let normalized = cc.normalize_compat_extended(input);
+    let converted = cc.convert_with_config(&normalized, OpenccConfig::T2s, false);
+
+    assert_eq!(converted, "天龙八部书里的听众");
+}
+```
+
+For advanced callers that need only the curated table, `normalize_unicode_compat(...)` intentionally skips the CJK
+Compatibility Ideograph table:
+
+```rust
+use opencc_fmmseg::OpenCC;
+
+fn main() {
+    let cc = OpenCC::new();
+
+    assert_eq!(cc.normalize_unicode_compat("聼"), "聽");
+    assert_eq!(cc.normalize_unicode_compat("金"), "金");
+    assert_eq!(cc.normalize_compat_extended("金"), "金");
+}
+```
+
+All curated extended mappings are one Unicode scalar value to one Unicode scalar value. Unmapped characters are
+preserved unchanged. These APIs are independent of OpenCC conversion dictionaries, segmentation, regional variants, IDS
+handling, script detection, and punctuation conversion.
+
+Compatibility normalization remains optional because it changes Unicode code points and some callers need exact
+code-point preservation. The recommended processing order when all compatibility features are needed is:
+
+```text
+compatibility normalization -> OpenCC conversion -> DeTofu display fallback
+```
+
+Use `normalize_compat(...)` for the standard compatibility-ideograph pass, or `normalize_compat_extended(...)` when
+working with broader legacy/document-extraction forms. DeTofu remains a separate **post-processing** display fallback
+for rare CJK extension characters.
 
 ---
 

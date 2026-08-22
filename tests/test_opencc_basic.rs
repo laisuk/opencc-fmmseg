@@ -271,6 +271,52 @@ fn opencc_normalize_compat_then_convert_golden() {
     );
 }
 
+#[test]
+fn opencc_normalize_unicode_compat_golden() {
+    let cc = OpenCC::new();
+
+    // Curated Unicode compatibility normalization only.
+    assert_eq!(cc.normalize_unicode_compat("聼"), "聽");
+
+    // CJK Compatibility Ideographs are intentionally not handled here.
+    assert_eq!(cc.normalize_unicode_compat("金"), "金");
+}
+
+#[test]
+fn opencc_normalize_compat_extended_golden() {
+    let cc = OpenCC::new();
+
+    // Combines CJK Compatibility Ideographs with the curated
+    // Unicode_Compatibility.txt mappings.
+    assert_eq!(
+        cc.normalize_compat_extended("天龍八部書裡的聼眾"),
+        "天龍八部書裡的聽眾"
+    );
+}
+
+#[test]
+fn opencc_normalize_compat_extended_then_convert_golden() {
+    let cc = OpenCC::new();
+
+    let normalized = cc.normalize_compat_extended("天龍八部書裡的聼眾");
+
+    assert_eq!(normalized, "天龍八部書裡的聽眾");
+
+    assert_eq!(cc.convert(&normalized, "t2s", false), "天龙八部书里的听众");
+}
+
+#[test]
+fn normalize_compat_extended_is_superset_of_basic_compat_golden() {
+    let cc = OpenCC::new();
+
+    let input = "天龍八部書裡的喬峰是契丹人";
+
+    assert_eq!(
+        cc.normalize_compat_extended(input),
+        cc.normalize_compat(input)
+    );
+}
+
 // Dict Slots Tests:
 
 #[test]

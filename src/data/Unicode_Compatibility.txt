@@ -1,0 +1,525 @@
+# Experimental Kangxi Radicals normalization
+#
+# Unicode extraction-artifact normalization table.
+#
+# Section 1 contains the complete 214-entry Kangxi radical mapping
+# used mainly for zh-Hant text.
+#
+# Intended ONLY for repairing malformed PDF text extraction
+# (notably PdfPig output that substitutes Kangxi Radical code points
+# for ordinary CJK ideographs).
+#
+# Unicode block:
+#   U+2F00–U+2FD5  Kangxi Radicals (214 entries)
+#
+# Format:
+#   <source>\t<replacement>
+#
+⼀	一
+⼁	丨
+⼂	丶
+⼃	丿
+⼄	乙
+⼅	亅
+⼆	二
+⼇	亠
+⼈	人
+⼉	儿
+⼊	入
+⼋	八
+⼌	冂
+⼍	冖
+⼎	冫
+⼏	几
+⼐	凵
+⼑	刀
+⼒	力
+⼓	勹
+⼔	匕
+⼕	匚
+⼖	匸
+⼗	十
+⼘	卜
+⼙	卩
+⼚	厂
+⼛	厶
+⼜	又
+⼝	口
+⼞	囗
+⼟	土
+⼠	士
+⼡	夂
+⼢	夊
+⼣	夕
+⼤	大
+⼥	女
+⼦	子
+⼧	宀
+⼨	寸
+⼩	小
+⼪	尢
+⼫	尸
+⼬	屮
+⼭	山
+⼮	巛
+⼯	工
+⼰	己
+⼱	巾
+⼲	干
+⼳	幺
+⼴	广
+⼵	廴
+⼶	廾
+⼷	弋
+⼸	弓
+⼹	彐
+⼺	彡
+⼻	彳
+⼼	心
+⼽	戈
+⼾	戶
+⼿	手
+⽀	支
+⽁	攴
+⽂	文
+⽃	斗
+⽄	斤
+⽅	方
+⽆	无
+⽇	日
+⽈	曰
+⽉	月
+⽊	木
+⽋	欠
+⽌	止
+⽍	歹
+⽎	殳
+⽏	毋
+⽐	比
+⽑	毛
+⽒	氏
+⽓	气
+⽔	水
+⽕	火
+⽖	爪
+⽗	父
+⽘	爻
+⽙	爿
+⽚	片
+⽛	牙
+⽜	牛
+⽝	犬
+⽞	玄
+⽟	玉
+⽠	瓜
+⽡	瓦
+⽢	甘
+⽣	生
+⽤	用
+⽥	田
+⽦	疋
+⽧	疒
+⽨	癶
+⽩	白
+⽪	皮
+⽫	皿
+⽬	目
+⽭	矛
+⽮	矢
+⽯	石
+⽰	示
+⽱	禸
+⽲	禾
+⽳	穴
+⽴	立
+⽵	竹
+⽶	米
+⽷	糸
+⽸	缶
+⽹	网
+⽺	羊
+⽻	羽
+⽼	老
+⽽	而
+⽾	耒
+⽿	耳
+⾀	聿
+⾁	肉
+⾂	臣
+⾃	自
+⾄	至
+⾅	臼
+⾆	舌
+⾇	舛
+⾈	舟
+⾉	艮
+⾊	色
+⾋	艸
+⾌	虍
+⾍	虫
+⾎	血
+⾏	行
+⾐	衣
+⾑	襾
+⾒	見
+⾓	角
+⾔	言
+⾕	谷
+⾖	豆
+⾗	豕
+⾘	豸
+⾙	貝
+⾚	赤
+⾛	走
+⾜	足
+⾝	身
+⾞	車
+⾟	辛
+⾠	辰
+⾡	辵
+⾢	邑
+⾣	酉
+⾤	釆
+⾥	里
+⾦	金
+⾧	長
+⾨	門
+⾩	阜
+⾪	隶
+⾫	隹
+⾬	雨
+⾭	靑
+⾮	非
+⾯	面
+⾰	革
+⾱	韋
+⾲	韭
+⾳	音
+⾴	頁
+⾵	風
+⾶	飛
+⾷	食
+⾸	首
+⾹	香
+⾺	馬
+⾻	骨
+⾼	高
+⾽	髟
+⾾	鬥
+⾿	鬯
+⿀	鬲
+⿁	鬼
+⿂	魚
+⿃	鳥
+⿄	鹵
+⿅	鹿
+⿆	麥
+⿇	麻
+⿈	黃
+⿉	黍
+⿊	黑
+⿋	黹
+⿌	黽
+⿍	鼎
+⿎	鼓
+⿏	鼠
+⿐	鼻
+⿑	齊
+⿒	齒
+⿓	龍
+⿔	龜
+⿕	龠
+
+# ----------------------------------------------------------------------
+# zh-Hans / CJK Radicals Supplement
+#
+# Simplified radical forms that PdfPig may emit instead of ordinary
+# Simplified Chinese ideographs. The neutral forms at the end were also
+# observed in PdfPig-extracted zh-Hans text.
+#
+# CJK Radicals Supplement: U+2E80–U+2EFF
+#
+⺦	丬
+⺰	纟
+⻅	见
+⻆	角
+⻈	讠
+⻉	贝
+⻋	车
+⻌	辶
+⻐	钅
+⻓	长
+⻔	门
+⻙	韦
+⻚	页
+⻛	风
+⻜	飞
+⻠	饣
+⻢	马
+⻥	鱼
+⻦	鸟
+⻧	卤
+⻨	麦
+⻩	黄
+⻪	黾
+⻬	齐
+⻮	齿
+⻰	龙
+⻳	龟
+
+# Additional CJK Radicals Supplement forms mined from CText normalization data
+⺋	㔾
+⺖	忄
+⺘	扌
+⺞	歺
+⺡	氵
+⺣	灬
+⺤	爫
+⺨	犭
+⺩	𤣩
+⺫	罒
+⺭	礻
+⺮	𥫗
+⺯	糹
+⺲	罒
+⺴	⺳
+⺷	𦍌
+⺼	月
+⺾	艹
+⻂	衤
+⻃	覀
+⻊	𧾷
+⻏	阝
+⻑	長
+⻒	镸
+⻖	阝
+⻗	雨
+
+# Neutral radical forms observed in zh-Hans PdfPig output
+⺟	母
+⻘	青
+⻤	鬼
+
+# ----------------------------------------------------------------------
+# Chinese allograph / legacy glyph normalization candidates
+#
+# Unicode code points representing legacy, variant, or allographic forms
+# of the same Han character, excluding mappings already covered by
+# CJK_Compatibility_Ideographs.txt.
+#
+# Initial entries were mined from the Chinese Text Project normalization
+# table. Additional conservative candidates were cross-checked against
+# OpenCC's staging Allographs.txt. Groups with competing modern regional
+# or Japanese standard forms are intentionally omitted here.
+#
+# Intended for NormalizeUnicodeCompat() only.
+#
+〸	十
+ム	厶
+㑹	會
+㓂	寇
+㓜	幼
+㕘	參
+㝎	定
+㝛	宿
+㝠	冥
+㝡	最
+㡳	底
+㢲	巽
+㣲	微
+㤗	泰
+㤙	恩
+㦯	或
+㦳	㘽
+㦸	戟
+㧞	拔
+㨗	捷
+㫖	旨
+㭊	析
+㳙	涓
+㴠	涵
+㸑	爨
+㸔	看
+㺯	弄
+㾗	痕
+䂖	石
+䆒	究
+䎛	㖈
+䑕	鼠
+䒭	等
+䟦	跋
+䧏	降
+丗	世
+乆	久
+亊	事
+亷	廉
+亾	亡
+仭	仞
+兊	兌
+兠	兜
+冐	冒
+冝	宜
+冦	寇
+凢	凡
+刄	刃
+刋	刊
+卽	即
+厯	歷
+叅	參
+吿	告
+呑	吞
+噐	器
+圅	函
+圡	土
+埀	垂
+塡	填
+夘	卯
+宻	密
+寃	冤
+寕	寧
+寜	寧
+尙	尚
+屛	屏
+岀	出
+嵗	歲
+庻	庶
+彚	彙
+彛	彝
+彞	彝
+徃	往
+恱	悅
+愼	慎
+戞	戛
+戱	戲
+扄	扃
+揑	捏
+揷	插
+敎	教
+敻	夐
+旣	既
+昬	昏
+昻	昂
+曁	暨
+曵	曳
+曺	曹
+槩	概
+槪	概
+淸	清
+湼	涅
+漑	溉
+濓	濂
+濳	潛
+熈	熙
+甞	嘗
+畧	略
+皷	鼓
+眀	明
+硏	研
+竒	奇
+羙	美
+羣	群
+耈	耇
+聼	聽
+苖	苗
+襃	褒
+觧	解
+譛	譖
+賔	賓
+軰	輩
+逹	達
+逺	遠
+邜	卯
+鄕	鄉
+鄷	酆
+鐡	鐵
+閠	閏
+隂	陰
+靣	面
+頥	頤
+顚	顛
+飮	飲
+髙	高
+鼔	鼓
+龺	𠦝
+𠀋	丈
+𠁊	爽
+𠂻	衷
+𠉀	候
+𠊱	候
+𠑗	㒨
+𠑽	充
+𠕂	再
+𠩄	所
+𠫵	參
+𠰥	若
+𡈽	土
+𡨋	冥
+𡨕	冥
+𡨚	冤
+𡨜	寂
+𡨥	寇
+𡩋	寧
+𡮢	嘗
+𡵯	步
+𡸁	垂
+𡻕	歲
+𢃄	帶
+𢑱	彝
+𢑴	彝
+𢕄	微
+𢖍	衡
+𢦙	或
+𢷤	擯
+𣆨	鼠
+𣔕	𠓲
+𣱵	永
+𣳚	沒
+𣴑	流
+𣵀	涅
+𣶬	涵
+𤈎	㶷
+𤑕	爋
+𤓰	瓜
+𤕤	爽
+𤣥	玄
+𤤽	珍
+𤧩	𤦼
+𤲢	留
+𤼵	發
+𥧌	寐
+𦔳	助
+𦬆	芒
+𧅄	虁
+𧥙	𣁀
+𧺫	起
+𨓜	逸
+𨹓	降
+𨽻	隸
+𨽾	隸
+𪧐	宿
+𫑗	卯
+𫠦	所
+𭁵	寇
+
+# ----------------------------------------------------------------------
+# Punctuation / symbol extraction artifacts
+#
+# Compatibility-like glyph substitutions observed by comparing PdfPig
+# extraction with Pdfium extraction from the same PDF.
+#
+〈	〈
+〉	〉
+# PdfPig may extract an em-dash-like glyph as U+2E3A TWO-EM DASH.
+# Normalize it to U+2014 EM DASH for ordinary CJK text.
+# Comment out this mapping if the original long-dash form should be preserved.
+⸺	—
+
+# Additional punctuation forms mined from CText normalization data
+‧	·
+︰	：
+﹐	，
+﹑	、
+﹔	；
+﹕	：
+﹖	？
+﹗	！
