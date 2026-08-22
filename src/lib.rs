@@ -32,6 +32,9 @@
 //!   useful for CLI/config-file compatibility.
 //! - [`OpenCC::normalize_compat`] and [`normalize_compat_ideographs()`] provide
 //!   optional CJK Compatibility Ideograph normalization before conversion.
+//! - [`OpenCC::normalize_compat_extended`], [`OpenCC::normalize_unicode_compat`],
+//!   and [`UnicodeCompat`] provide broader curated Unicode compatibility
+//!   normalization when needed.
 //! - [`OpenCC::detofu`] and [`detofu()`] provide optional display compatibility
 //!   fallback for rare non-BMP CJK extension characters after conversion.
 //! - [`DetofuMap`] is the advanced reusable/customizable DeTofu map API.
@@ -97,9 +100,10 @@ pub mod ids;
 mod opencc;
 /// Configurations for conversion.
 mod opencc_config;
+/// Extended Unicode compatibility normalization utilities for CJK text.
+pub mod unicode_compat;
 /// Common helpers for opencc-fmmseg.
 mod utils;
-pub mod unicode_compat;
 
 pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
 pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};
@@ -117,3 +121,10 @@ pub use detofu::detofu_into;
 pub use detofu::DetofuLevel;
 /// Reusable and customizable DeTofu fallback map.
 pub use detofu::DetofuMap;
+/// Normalizes text using the curated Unicode compatibility table.
+pub use unicode_compat::normalize_unicode_compat;
+/// Applies CJK Compatibility Ideograph normalization together with the curated
+/// Unicode compatibility table.
+pub use unicode_compat::normalize_unicode_compat_all;
+/// Reusable curated Unicode compatibility normalization table.
+pub use unicode_compat::UnicodeCompat;
