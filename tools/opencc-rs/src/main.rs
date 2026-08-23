@@ -271,6 +271,11 @@ fn common_args() -> Vec<Arg> {
             .long("norm-compat")
             .action(clap::ArgAction::SetTrue)
             .help("Normalize CJK Compatibility Ideographs before conversion."),
+        Arg::new("norm-compat-extended")
+            .short('E')
+            .long("norm-compat-extended")
+            .action(clap::ArgAction::SetTrue)
+            .help("Normalize extended Unicode compatibility forms before conversion."),
         Arg::new("detofu")
             .long("detofu")
             .value_name("LEVEL")
@@ -337,7 +342,10 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let input_str = decode_input(&buffer, in_enc)?;
 
     let normalized_input;
-    let convert_input: &str = if matches.get_flag("norm-compat") {
+    let convert_input: &str = if matches.get_flag("norm-compat-extended") {
+        normalized_input = cc.normalize_compat_extended(&input_str);
+        &normalized_input
+    } else if matches.get_flag("norm-compat") {
         normalized_input = cc.normalize_compat(&input_str);
         &normalized_input
     } else {
