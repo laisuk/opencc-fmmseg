@@ -560,6 +560,7 @@ Options:
   -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp)
   -p, --punct                         Enable punctuation conversion
   -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
+  -E, --norm-compat-extended          Normalize extended Unicode compatibility forms before conversion.
       --detofu [<LEVEL>]              Apply tofu-safe fallback after conversion: all, ext-b, ext-c, ext-d, ext-e, ext-f, ext-g, ext-h, ext-i
       --detofu-file <FILE>            Load additional DeTofu fallback mappings from a UTF-8 text file. Custom mappings override built-in mappings (requires --detofu)
   -D, --custom-dict <SLOT:MODE:FILE>  Custom dictionary file, e.g. HKPhrasesRev:append:my_hk_dict.txt (slot names are ASCII case-insensitive)
