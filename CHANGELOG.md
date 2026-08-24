@@ -24,6 +24,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The `compat_ideographs` and `unicode_compat` modules, their reusable normalizer types, and their normalization free
+  functions are no longer publicly exposed. The supported public normalization API is
+  `OpenCC::normalize_compat(...)`, `OpenCC::normalize_unicode_compat(...)`, and
+  `OpenCC::normalize_compat_extended(...)`.
 - Replaced the TS-specific DeTofu data with the unified `CharactersTofu.txt` fallback table, reflecting DeToFu's broader
   ST + TS coverage.
 - Refactored DeTofu around a shared, lazily initialized built-in fallback table backed by

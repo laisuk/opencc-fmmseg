@@ -136,8 +136,7 @@ fn parse_tofu_entries(text: &str) -> Result<Vec<(char, char, DetofuLevel)>, Stri
 
 fn tofu_map() -> &'static FxHashMap<char, (char, DetofuLevel)> {
     TOFU_MAP.get_or_init(|| {
-        let text =
-            std::str::from_utf8(TOFU_DATA).expect("CharactersTofu.txt must be valid UTF-8");
+        let text = std::str::from_utf8(TOFU_DATA).expect("CharactersTofu.txt must be valid UTF-8");
 
         parse_tofu_entries(text)
             .unwrap_or_else(|err| panic!("invalid built-in CharactersTofu.txt: {err}"))

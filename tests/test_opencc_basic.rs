@@ -1,7 +1,7 @@
 use opencc_fmmseg::dictionary_lib::DictMaxLen;
 use opencc_fmmseg::{
-    detofu, normalize_compat_ideographs, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap,
-    DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
+    detofu, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictSlot, DictionaryMaxlength,
+    OpenCC, OpenccConfig,
 };
 
 #[test]
@@ -250,14 +250,6 @@ fn test_opencc_s2t_detofu() {
 // Norm Compat Tests
 
 #[test]
-fn normalize_compat_golden() {
-    assert_eq!(
-        normalize_compat_ideographs("天龍八部書裡的喬峰是契丹人"),
-        "天龍八部書裡的喬峰是契丹人"
-    );
-}
-
-#[test]
 fn opencc_normalize_compat_then_convert_golden() {
     let cc = OpenCC::new();
 
@@ -325,10 +317,7 @@ fn opencc_normalize_compat_extended_variant_forms_golden() {
     let normalized = cc.normalize_compat_extended(input);
 
     assert_eq!(normalized, "聽聽奇美玉石瓶器音");
-    assert_eq!(
-        cc.convert(&normalized, "t2s", false),
-        "听听奇美玉石瓶器音"
-    );
+    assert_eq!(cc.convert(&normalized, "t2s", false), "听听奇美玉石瓶器音");
 }
 
 // Dict Slots Tests:

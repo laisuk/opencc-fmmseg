@@ -1824,9 +1824,8 @@ impl OpenCC {
 
     /// Normalizes CJK Compatibility Ideographs with the built-in Unicode table.
     ///
-    /// This is a convenience wrapper around
-    /// [`compat_ideographs::normalize_compat_ideographs`]. It performs an
-    /// optional Unicode compatibility normalization pre-pass and does not change
+    /// It performs an optional Unicode compatibility normalization pre-pass and
+    /// does not change
     /// this [`OpenCC`] instance, the selected OpenCC config, conversion
     /// dictionaries, segmentation behavior, script detection, or punctuation
     /// conversion.
@@ -1867,9 +1866,8 @@ impl OpenCC {
 
     /// Applies the full built-in compatibility normalization pre-pass.
     ///
-    /// This combines the standard CJK Compatibility Ideograph mappings from
-    /// [`compat_ideographs`] with the curated mappings from
-    /// `data/Unicode_Compatibility.txt`.
+    /// This combines the standard CJK Compatibility Ideograph mappings with the
+    /// curated mappings from `data/Unicode_Compatibility.txt`.
     ///
     /// It is the extended form of [`OpenCC::normalize_compat`]. In addition to
     /// Unicode CJK Compatibility Ideographs, it normalizes selected Unicode
@@ -1925,7 +1923,7 @@ impl OpenCC {
     /// assert_eq!(display, "金庸小說");
     /// ```
     pub fn normalize_compat_extended(&self, text: &str) -> String {
-        crate::unicode_compat::UnicodeCompat::builtin().normalize_all(text)
+        crate::unicode_compat::normalize_unicode_compat_all(text)
     }
 
     /// Normalizes text using only the curated Unicode compatibility table.
@@ -1968,7 +1966,7 @@ impl OpenCC {
     /// assert_eq!(cc.normalize_compat_extended("金"), "金");
     /// ```
     pub fn normalize_unicode_compat(&self, text: &str) -> String {
-        crate::unicode_compat::UnicodeCompat::builtin().normalize(text)
+        crate::unicode_compat::normalize_unicode_compat(text)
     }
 
     /// Converts non-BMP CJK extension characters to display-safe fallbacks.

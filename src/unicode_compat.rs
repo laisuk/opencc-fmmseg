@@ -1,56 +1,8 @@
-//! Curated Unicode compatibility normalization for Chinese text.
+//! Internal curated Unicode compatibility normalization.
 //!
-//! This module provides an optional Unicode compatibility pre-processing pass
-//! for Chinese text, especially text originating from PDF extraction and other
-//! glyph-oriented sources.
-//!
-//! The built-in extended table is loaded from
-//! `data/Unicode_Compatibility.txt` with [`include_bytes!`], parsed once, and
-//! cached with [`std::sync::OnceLock`]. The table contains curated one-scalar to
-//! one-scalar mappings such as Unicode radicals, glyph variants, punctuation
-//! forms, and known text-extraction artifacts.
-//!
-//! This is intentionally **not** a general-purpose Unicode normalization
-//! implementation such as NFC, NFD, NFKC, or NFKD.
-//!
-//! # Two normalization levels
-//!
-//! [`UnicodeCompat::normalize`] applies only the curated mappings from
-//! `Unicode_Compatibility.txt`.
-//!
-//! [`UnicodeCompat::normalize_all`] first gives the built-in
-//! [`CompatIdeographs`] table precedence for CJK Compatibility Ideographs, then
-//! falls back to the curated extended table. This is the intended implementation
-//! behind higher-level "extended compatibility" normalization.
-//!
-//! # Invariants
-//!
-//! Every mapping is exactly one Unicode scalar value to one Unicode scalar
-//! value. Multi-scalar sources and targets are rejected when the table is
-//! parsed. This keeps normalization position-stable at the Unicode-scalar level.
-//!
-//! ASCII source mappings are also rejected so that the extended table cannot
-//! accidentally rewrite ASCII markup or structured-text syntax.
-//!
-//! # Examples
-//!
-//! Apply only the curated extended table:
-//!
-//! ```rust
-//! use opencc_fmmseg::unicode_compat::UnicodeCompat;
-//!
-//! let table = UnicodeCompat::from_text("⺙\t攵\n").unwrap();
-//! assert_eq!(table.normalize("⺙學"), "攵學");
-//! ```
-//!
-//! Apply both CJK Compatibility Ideograph normalization and the curated table:
-//!
-//! ```rust
-//! use opencc_fmmseg::unicode_compat::UnicodeCompat;
-//!
-//! let table = UnicodeCompat::from_text("⺙\t攵\n").unwrap();
-//! assert_eq!(table.normalize_all("金⺙"), "金攵");
-//! ```
+//! This is not general-purpose NFC, NFD, NFKC, or NFKD normalization. Public
+//! callers use [`crate::OpenCC::normalize_unicode_compat`] or
+//! [`crate::OpenCC::normalize_compat_extended`].
 
 use crate::compat_ideographs::CompatIdeographs;
 use rustc_hash::FxHashMap;
@@ -73,7 +25,7 @@ static UNICODE_COMPAT_TABLE: OnceLock<UnicodeCompat> = OnceLock::new();
 /// The built-in instance is immutable after initialization and can be shared
 /// safely across threads.
 #[derive(Debug, Clone)]
-pub struct UnicodeCompat {
+pub(crate) struct UnicodeCompat {
     compat: &'static CompatIdeographs,
     extended: FxHashMap<char, char>,
 }
@@ -90,7 +42,7 @@ impl UnicodeCompat {
     /// Panics if the bundled table is not valid UTF-8 or violates the mapping
     /// format documented by [`UnicodeCompat::from_text`]. Such a failure
     /// indicates invalid crate data rather than invalid user input.
-    pub fn builtin() -> &'static Self {
+    pub(crate) fn builtin() -> &'static Self {
         UNICODE_COMPAT_TABLE.get_or_init(|| {
             let text = std::str::from_utf8(UNICODE_COMPAT_DATA)
                 .expect("Unicode_Compatibility.txt must be valid UTF-8");
@@ -133,18 +85,7 @@ impl UnicodeCompat {
     /// - has a source or target containing more than one Unicode scalar; or
     /// - uses an ASCII source character.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::unicode_compat::UnicodeCompat;
-    ///
-    /// let table = UnicodeCompat::from_text(
-    ///     "# custom compatibility mappings\n⺙\t攵\n聼\t聽\n"
-    /// ).unwrap();
-    ///
-    /// assert_eq!(table.normalize("⺙聼"), "攵聽");
-    /// ```
-    pub fn from_text(text: &str) -> Result<Self, String> {
+    pub(crate) fn from_text(text: &str) -> Result<Self, String> {
         let mut extended = FxHashMap::default();
 
         for (index, raw_line) in text.lines().enumerate() {
@@ -197,17 +138,8 @@ impl UnicodeCompat {
     ///
     /// Characters without an extended mapping are returned unchanged.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::unicode_compat::UnicodeCompat;
-    ///
-    /// let table = UnicodeCompat::from_text("⺙\t攵\n").unwrap();
-    /// assert_eq!(table.normalize_char('⺙'), '攵');
-    /// assert_eq!(table.normalize_char('金'), '金');
-    /// ```
     #[inline(always)]
-    pub fn normalize_char(&self, ch: char) -> char {
+    pub(crate) fn normalize_char(&self, ch: char) -> char {
         if ch.is_ascii() {
             return ch;
         }
@@ -226,17 +158,8 @@ impl UnicodeCompat {
     /// This precedence matches the stable OpenccNet `UnicodeCompat.NormalizeAll`
     /// behavior and avoids accidental chained remapping between the two tables.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::unicode_compat::UnicodeCompat;
-    ///
-    /// let table = UnicodeCompat::from_text("⺙\t攵\n").unwrap();
-    /// assert_eq!(table.normalize_all_char('金'), '金');
-    /// assert_eq!(table.normalize_all_char('⺙'), '攵');
-    /// ```
     #[inline(always)]
-    pub fn normalize_all_char(&self, ch: char) -> char {
+    pub(crate) fn normalize_all_char(&self, ch: char) -> char {
         if ch.is_ascii() {
             return ch;
         }
@@ -259,15 +182,7 @@ impl UnicodeCompat {
     /// number of Unicode scalar values in the output is identical to the input,
     /// although the UTF-8 byte length may differ.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::unicode_compat::UnicodeCompat;
-    ///
-    /// let table = UnicodeCompat::from_text("⺙\t攵\n聼\t聽\n").unwrap();
-    /// assert_eq!(table.normalize("A⺙聼B"), "A攵聽B");
-    /// ```
-    pub fn normalize(&self, input: &str) -> String {
+    pub(crate) fn normalize(&self, input: &str) -> String {
         self.normalize_impl(input, false)
     }
 
@@ -282,15 +197,7 @@ impl UnicodeCompat {
     /// This is the intended low-level implementation for a higher-level
     /// `normalize_compat_extended()` API.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::unicode_compat::UnicodeCompat;
-    ///
-    /// let table = UnicodeCompat::from_text("⺙\t攵\n").unwrap();
-    /// assert_eq!(table.normalize_all("金⺙ABC"), "金攵ABC");
-    /// ```
-    pub fn normalize_all(&self, input: &str) -> String {
+    pub(crate) fn normalize_all(&self, input: &str) -> String {
         self.normalize_impl(input, true)
     }
 
@@ -314,18 +221,8 @@ impl UnicodeCompat {
     /// This is useful when callers already own a reusable `Vec<char>` before
     /// segmentation or conversion.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::unicode_compat::UnicodeCompat;
-    ///
-    /// let table = UnicodeCompat::from_text("⺙\t攵\n").unwrap();
-    /// let mut chars: Vec<char> = "A⺙B".chars().collect();
-    /// table.normalize_in_place(&mut chars);
-    ///
-    /// assert_eq!(chars.into_iter().collect::<String>(), "A攵B");
-    /// ```
-    pub fn normalize_in_place(&self, chars: &mut [char]) {
+    #[cfg(test)]
+    pub(crate) fn normalize_in_place(&self, chars: &mut [char]) {
         for ch in chars {
             *ch = self.normalize_char(*ch);
         }
@@ -336,18 +233,8 @@ impl UnicodeCompat {
     /// [`CompatIdeographs`] has precedence over the curated extended table for
     /// each character, exactly as in [`normalize_all`](Self::normalize_all).
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::unicode_compat::UnicodeCompat;
-    ///
-    /// let table = UnicodeCompat::from_text("⺙\t攵\n").unwrap();
-    /// let mut chars: Vec<char> = "金⺙".chars().collect();
-    /// table.normalize_all_in_place(&mut chars);
-    ///
-    /// assert_eq!(chars.into_iter().collect::<String>(), "金攵");
-    /// ```
-    pub fn normalize_all_in_place(&self, chars: &mut [char]) {
+    #[cfg(test)]
+    pub(crate) fn normalize_all_in_place(&self, chars: &mut [char]) {
         for ch in chars {
             *ch = self.normalize_all_char(*ch);
         }
@@ -377,14 +264,7 @@ fn single_char(text: &str, line_no: usize, field: &str) -> Result<char, String> 
 /// normalization. Use [`normalize_unicode_compat_all`] when both tables are
 /// desired.
 ///
-/// # Examples
-///
-/// ```rust
-/// use opencc_fmmseg::unicode_compat::normalize_unicode_compat;
-///
-/// let _normalized = normalize_unicode_compat("中文文本");
-/// ```
-pub fn normalize_unicode_compat(input: &str) -> String {
+pub(crate) fn normalize_unicode_compat(input: &str) -> String {
     UnicodeCompat::builtin().normalize(input)
 }
 
@@ -398,14 +278,7 @@ pub fn normalize_unicode_compat(input: &str) -> String {
 /// This function is useful as the implementation behind a higher-level
 /// `OpenCC::normalize_compat_extended()` method.
 ///
-/// # Examples
-///
-/// ```rust
-/// use opencc_fmmseg::unicode_compat::normalize_unicode_compat_all;
-///
-/// assert_eq!(normalize_unicode_compat_all("金庸"), "金庸");
-/// ```
-pub fn normalize_unicode_compat_all(input: &str) -> String {
+pub(crate) fn normalize_unicode_compat_all(input: &str) -> String {
     UnicodeCompat::builtin().normalize_all(input)
 }
 
