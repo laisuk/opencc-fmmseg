@@ -317,6 +317,20 @@ fn normalize_compat_extended_is_superset_of_basic_compat_golden() {
     );
 }
 
+#[test]
+fn opencc_normalize_compat_extended_variant_forms_golden() {
+    let cc = OpenCC::new();
+
+    let input = "聼聼竒羙⽟䂖甁噐⾳";
+    let normalized = cc.normalize_compat_extended(input);
+
+    assert_eq!(normalized, "聽聽奇美玉石瓶器音");
+    assert_eq!(
+        cc.convert(&normalized, "t2s", false),
+        "听听奇美玉石瓶器音"
+    );
+}
+
 // Dict Slots Tests:
 
 #[test]
