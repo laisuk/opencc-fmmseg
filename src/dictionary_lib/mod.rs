@@ -17,10 +17,11 @@
 //! will interact only with the high-level [`OpenCC`](crate::OpenCC) API.
 mod dict_max_len;
 mod dict_slot;
-pub(crate) mod dictionary_maxlength;
+mod dictionary_maxlength;
 mod starter_union;
 
 pub use self::dict_max_len::*;
 pub use self::dict_slot::*;
 pub use self::dictionary_maxlength::{DictionaryError, DictionaryMaxlength};
 pub(crate) use self::starter_union::*;
+pub(crate) use self::dictionary_maxlength::UnionKey;

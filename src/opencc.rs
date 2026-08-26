@@ -21,7 +21,7 @@
 
 use crate::delimiter_set::is_delimiter;
 use crate::dict_refs::DictRefs;
-use crate::dictionary_lib::dictionary_maxlength::UnionKey;
+use crate::dictionary_lib::UnionKey;
 use crate::dictionary_lib::{DictMaxLen, DictionaryMaxlength, StarterUnion};
 use crate::utils::{find_max_utf8_length, for_each_len_dec};
 use crate::{compat_ideographs, detofu, ids, DetofuLevel, DetofuMap, OpenccConfig};
