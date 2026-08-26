@@ -59,9 +59,7 @@ mod tests {
         assert!(parse_custom_dict_spec("STPhrases:append:   ").is_err());
     }
 
-    // Ignored: Slot alias will be rejected upon v0.12.x
     #[test]
-    #[ignore]
     fn rejects_physical_japanese_dictionary_filename_stems() {
         let error =
             parse_custom_dict_spec("JPShinjitaiCharactersRev:override:custom.txt").unwrap_err();

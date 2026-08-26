@@ -212,7 +212,7 @@ impl DictionaryMaxlength {
     /// use opencc_fmmseg::DictionaryMaxlength;
     ///
     /// let dicts = DictionaryMaxlength::from_zstd().unwrap();
-    /// assert!(dicts.st_characters.is_populated());
+    /// assert!(!dicts.st_characters.is_empty());
     /// ```
     ///
     /// # Errors
@@ -371,8 +371,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// use opencc_fmmseg::DictionaryMaxlength;
     ///
     /// let dicts = DictionaryMaxlength::from_dicts().unwrap();
-    /// assert!(dicts.st_characters.is_populated());
-    /// assert!(dicts.ts_phrases.is_populated());
+    /// assert!(!dicts.st_characters.is_empty());
+    /// assert!(!dicts.ts_phrases.is_empty());
     /// ```
     ///
     /// # Errors
@@ -388,7 +388,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
     /// Populates starter indexes for all inner [`DictMaxLen`] tables in this structure.
     ///
-    /// This calls [`DictMaxLen::populate_starter_indexes`] on each dictionary field,
+    /// This rebuilds private starter indexes on each dictionary field,
     /// rebuilding both the **BMP length masks** (`first_len_mask64`) and the **per-starter
     /// maximum length arrays** (`first_char_max_len`).
     ///
@@ -408,8 +408,8 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// use opencc_fmmseg::DictionaryMaxlength;
     /// # let mut dicts = DictionaryMaxlength::default(); // assume default exists
     /// dicts.populate_all();
-    /// assert!(dicts.st_characters.is_populated());
-    /// assert!(dicts.ts_characters.is_populated());
+    /// assert!(dicts.st_characters.is_empty());
+    /// assert!(dicts.ts_characters.is_empty());
     /// ```
     pub fn populate_all(&mut self) {
         self.st_characters.populate_starter_indexes();
@@ -445,7 +445,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// [`populate_all`](Self::populate_all), ensuring that:
     ///
     /// - All `DictMaxLen` tables have accurate `max_len` values
-    /// - Starter masks used by [`StarterUnion`](crate::dictionary_lib::StarterUnion) are correctly computed
+    /// - Starter masks used by the internal union cache are correctly computed
     /// - Internal structures required for longest-match segmentation are prepared
     ///
     /// Once finalized, the dictionary instance is fully ready for high-performance
@@ -641,7 +641,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///     }
     /// ]).unwrap();
     ///
-    /// assert!(dictionary.st_phrases.is_populated());
+    /// assert!(!dictionary.st_phrases.is_empty());
     /// ```
     ///
     /// # Notes
@@ -697,7 +697,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///     }
     /// ]).unwrap();
     ///
-    /// assert!(dictionary.st_phrases.is_populated());
+    /// assert!(!dictionary.st_phrases.is_empty());
     /// ```
     ///
     /// # Multiple files
@@ -723,7 +723,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///     }
     /// ]).unwrap();
     ///
-    /// assert!(dictionary.st_phrases.is_populated());
+    /// assert!(!dictionary.st_phrases.is_empty());
     /// ```
     ///
     /// Files are loaded sequentially in the provided order.
@@ -779,7 +779,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// let dictionary = DictionaryMaxlength::from_dicts_at("./my_opencc_dicts")
     ///     .unwrap();
     ///
-    /// assert!(dictionary.st_phrases.is_populated());
+    /// assert!(!dictionary.st_phrases.is_empty());
     /// ```
     ///
     /// # Expected structure
@@ -1479,7 +1479,7 @@ impl Default for DictionaryMaxlength {
 
 /// Error type for dictionary loading, parsing, and serialization.
 ///
-/// `DictionaryError` is used throughout the `dictionary_lib` module to wrap
+/// `DictionaryError` is used by the crate's dictionary APIs to wrap
 /// low-level I/O failures, CBOR (de)serialization errors, and plaintext
 /// dictionary format issues. It provides a single, ergonomic error type that
 /// integrates with standard Rust error handling (`?`, `std::error::Error`).

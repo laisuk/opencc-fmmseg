@@ -100,9 +100,8 @@ that slot for phrase conversion.
 These are the canonical public slot names used by the Rust API and CLI. CLI slot parsing is ASCII case-insensitive and
 ignores surrounding whitespace. Physical dictionary filenames are separate implementation details: for example, the
 `JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases` slots are loaded from the existing
-`JPShinjitaiCharacters.txt`, `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt` files. For compatibility with
-v0.11.4, the filename stems without `.txt` remain accepted as deprecated aliases. Those aliases will be removed in the
-0.12.x release series; `.txt` filenames are not accepted as slot identifiers.
+`JPShinjitaiCharacters.txt`, `JPShinjitaiCharactersRev.txt`, and `JPShinjitaiPhrases.txt` files. As of v0.12.0, neither
+the physical filename stems nor names with the `.txt` suffix are accepted as slot identifiers.
 
 For most terminology customization:
 

@@ -38,6 +38,12 @@
 //! - [`DetofuMap`] is the advanced reusable/customizable DeTofu map API.
 //! - [`DictionaryMaxlength`] and [`CustomDictSpec`] are for advanced users who
 //!   need custom dictionaries or externally generated dictionary artifacts.
+//! - [`DictMaxLen`] exposes the low-level dictionary representation for
+//!   advanced integrations.
+//!
+//! Public types and functions are exported directly from this crate root. The
+//! implementation modules are intentionally private, so use paths such as
+//! `opencc_fmmseg::DictionaryMaxlength` rather than internal module paths.
 //!
 //! # Supported Configurations
 //!

@@ -70,8 +70,8 @@ include/ # C API header + C++ helper header
 - 📦 **Unified CLI & Library** — Convert between Simplified and Traditional Chinese via a single, consistent interface.
 - 🔍 **Lexicon-driven segmentation** — Uses OpenCC dictionaries with maximum-matching (FMM) and phrase-level masking for
   accurate linguistic conversion.
-- ⚡ **High performance** — Optimized with **Rayon parallelism**, **bit-mask gating** (`key_length_mask`,
-  `starter_len_mask`), and **zero-copy string views** for near-native throughput.
+- ⚡ **High performance** — Optimized with **Rayon parallelism**, private bit-mask gating, and zero-copy string views for
+  near-native throughput.
 - 🧠 **Smart gating engine** — Automatically skips impossible probes using global and per-starter length masks, ensuring
   consistent O (n) scaling.
 - 🧩 **Modular integration** — Usable as a **Rust crate**, **C API (FFI)**, or **Qt/.NET/Python binding** with identical
@@ -97,8 +97,27 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.11.5"  # or latest version
+opencc-fmmseg = "0.12.0"  # or latest version
 ```
+
+### Public Rust API paths
+
+The crate root is the single public entry point. Import supported APIs directly from `opencc_fmmseg`, including the
+advanced dictionary types:
+
+```rust
+use opencc_fmmseg::{
+    DictMaxLen, DictionaryError, DictionaryMaxlength,
+};
+```
+
+`DictMaxLen` keeps its backing map and matching indexes private. Use
+`build_from_pairs`, `append_pairs`, and `replace_pairs` for safe updates, and
+`get`, `iter`, `len`, `is_empty`, `min_key_len`, and `max_key_len` for read-only inspection.
+
+Implementation modules and accelerators such as `dictionary_lib`,
+`dictionary_maxlength`, `starter_union`, and `StarterUnion` are private. Downstream code should not use their former
+nested paths; the crate-root re-exports above are the supported, docs.rs-visible dictionary API.
 
 Then use it in your code:
 
@@ -756,4 +775,3 @@ continues to deliver stable near-linear scaling across large text corpora.
 
 - Issues and pull requests are welcome.
 - If you find this tool useful, please ⭐ star the repo or fork it.
-

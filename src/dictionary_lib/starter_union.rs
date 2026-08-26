@@ -60,7 +60,7 @@ use rustc_hash::FxHashMap;
 ///
 /// A `StarterUnion` is created once for each logical OpenCC configuration
 /// (e.g., S2T, T2S+punc, TW-variants-only) and cached inside
-/// [`DictionaryMaxlength`](crate::dictionary_lib::DictionaryMaxlength).
+/// [`DictionaryMaxlength`](crate::DictionaryMaxlength).
 ///
 /// It is then reused across:
 ///
@@ -70,31 +70,31 @@ use rustc_hash::FxHashMap;
 ///
 /// ensuring consistent, high-performance starter gating across the entire engine.
 #[derive(Default, Debug)]
-pub struct StarterUnion {
+pub(crate) struct StarterUnion {
     /// Dense BMP per-starter bitmask.
     ///
     /// Indexed by `starter as usize`, giving a `u64` bitmask with one bit per
     /// possible length (1..=64). The most common case (CJK characters, ASCII,
     /// punctuation) is handled here.
-    pub bmp_mask: Vec<u64>, // size: 0x10000
+    pub(crate) bmp_mask: Vec<u64>, // size: 0x10000
 
     /// Dense BMP per-starter maximum phrase length.
     ///
     /// Same indexing as [`Self::bmp_mask`]. This provides the upper bound on the
     /// candidate window size during longest-match probing.
-    pub bmp_cap: Vec<u8>, // size: 0x10000
+    pub(crate) bmp_cap: Vec<u8>, // size: 0x10000
 
     /// Sparse per-starter bitmask for astral (non-BMP) codepoints.
     ///
     /// Keys are `char > 0xFFFF`. These starters are rare, so storing them in a
     /// map saves memory and avoids scanning large unused ranges.
-    pub astral_mask: FxHashMap<char, u64>,
+    pub(crate) astral_mask: FxHashMap<char, u64>,
 
     /// Sparse per-starter maximum phrase length for astral starters.
     ///
     /// Mirrors [`Self::astral_mask`], but stores the maximum key length instead of
     /// the full bitmask.
-    pub astral_cap: FxHashMap<char, u8>,
+    pub(crate) astral_cap: FxHashMap<char, u8>,
 }
 
 impl StarterUnion {
@@ -145,13 +145,13 @@ impl StarterUnion {
     /// which is automatically guaranteed if it was created via:
     ///
     /// - [`DictMaxLen::build_from_pairs`]
-    /// - [`DictionaryMaxlength::finish`](crate::dictionary_lib::DictionaryMaxlength::finish)
+    /// - [`DictionaryMaxlength::finish`](crate::DictionaryMaxlength::finish)
     ///
     /// # Returns
     ///
     /// A fully merged [`StarterUnion`] containing the union of all starters,
     /// masks, and maximum lengths across all provided dictionaries.
-    pub fn build(dicts: &[&DictMaxLen]) -> Self {
+    pub(crate) fn build(dicts: &[&DictMaxLen]) -> Self {
         const N: usize = 0x10000;
         let mut bmp_mask = vec![0u64; N];
         let mut bmp_cap = vec![0u8; N];

@@ -1,6 +1,3 @@
-// Enable cfg badges on docs.rs (optional)
-#![cfg_attr(docsrs, feature(doc_cfg))]
-
 //! High-performance Chinese text converter using OpenCC lexicons and FMM segmentation.
 //!
 //! This crate provides efficient segment-based conversion between Simplified and Traditional Chinese.
@@ -526,7 +523,7 @@ impl OpenCC {
     ///
     /// # Example (internal)
     /// ```ignore
-    /// use opencc_fmmseg::{DictMaxLen, StarterUnion};
+    /// use crate::dictionary_lib::{DictMaxLen, StarterUnion};
     ///
     /// let d1 = DictMaxLen::build_from_pairs(vec![("你好".into(), "您好".into())]);
     /// let d2 = DictMaxLen::build_from_pairs(vec![("世界".into(), "世間".into())]);

@@ -32,7 +32,7 @@ fn map_key(key: &str) -> Vec<char> {
 #[ignore]
 fn test_dictionary_from_dicts_then_to_cbor() {
     let dictionary = DictionaryMaxlength::from_dicts().unwrap();
-    assert_eq!(dictionary.st_phrases.max_len, 12);
+    assert_eq!(dictionary.st_phrases.max_key_len(), 12);
 
     let filename = "dictionary_maxlength.cbor";
     dictionary.serialize_to_cbor(filename).unwrap();
@@ -89,7 +89,7 @@ fn test_dictionary_from_dicts_then_to_zstd() {
 fn test_dictionary_from_zstd() {
     let dictionary = DictionaryMaxlength::from_zstd().expect("Failed to load dictionary from zstd");
 
-    assert_eq!(dictionary.st_phrases.max_len, 12);
+    assert_eq!(dictionary.st_phrases.max_key_len(), 12);
 }
 
 #[test]
@@ -138,8 +138,8 @@ fn old_cbor_without_forward_variant_phrase_fields_deserializes() {
     let dictionary: DictionaryMaxlength =
         from_slice(&bytes).expect("legacy CBOR should deserialize");
 
-    assert!(dictionary.tw_variants_phrases.map.is_empty());
-    assert!(dictionary.hk_variants_phrases.map.is_empty());
+    assert!(dictionary.tw_variants_phrases.is_empty());
+    assert!(dictionary.hk_variants_phrases.is_empty());
 }
 
 #[test]
@@ -176,10 +176,10 @@ fn from_dicts_at_missing_forward_variant_phrase_files_defaults_empty() {
     let dictionary =
         DictionaryMaxlength::from_dicts_at(&dir).expect("old plaintext dict set should load");
 
-    assert!(dictionary.tw_variants_phrases.map.is_empty());
-    assert!(dictionary.hk_variants_phrases.map.is_empty());
-    assert!(dictionary.hk_phrases.map.is_empty());
-    assert!(dictionary.hk_phrases_rev.map.is_empty());
+    assert!(dictionary.tw_variants_phrases.is_empty());
+    assert!(dictionary.hk_variants_phrases.is_empty());
+    assert!(dictionary.hk_phrases.is_empty());
+    assert!(dictionary.hk_phrases_rev.is_empty());
 
     fs::remove_dir_all(&dir).expect("temp dict dir should be removed");
 }
@@ -228,7 +228,8 @@ fn test_save_and_load_compressed() {
     let loaded_dictionary = load_result.unwrap();
 
     assert_eq!(
-        dictionary.st_phrases.max_len, loaded_dictionary.st_phrases.max_len,
+        dictionary.st_phrases.max_key_len(),
+        loaded_dictionary.st_phrases.max_key_len(),
         "Loaded dictionary does not match the original"
     );
 
@@ -281,10 +282,7 @@ fn test_from_dicts_custom_append_st_phrases_palantir() {
     );
     let key = map_key("帕兰蒂尔");
 
-    assert_eq!(
-        dictionary.st_phrases.map.get(key.as_slice()),
-        Some(&"柏蘭蒂爾".into())
-    );
+    assert_eq!(dictionary.st_phrases.get(key.as_slice()), Some("柏蘭蒂爾"));
 }
 
 #[test]
@@ -297,10 +295,7 @@ fn test_from_dicts_custom_override_st_phrases_ai_company() {
     .expect("Failed to create custom dictionary");
     let key = map_key("人工智能公司");
 
-    assert_eq!(
-        dictionary.st_phrases.map.get(key.as_slice()),
-        Some(&"AI公司".into())
-    );
+    assert_eq!(dictionary.st_phrases.get(key.as_slice()), Some("AI公司"));
 }
 
 #[test]
@@ -322,12 +317,12 @@ fn test_from_dicts_custom_multiple_slots() {
     let ts_key = map_key("柏蘭蒂爾");
 
     assert_eq!(
-        dictionary.st_phrases.map.get(st_key.as_slice()),
-        Some(&"柏蘭蒂爾".into())
+        dictionary.st_phrases.get(st_key.as_slice()),
+        Some("柏蘭蒂爾")
     );
     assert_eq!(
-        dictionary.ts_phrases.map.get(ts_key.as_slice()),
-        Some(&"帕兰蒂尔".into())
+        dictionary.ts_phrases.get(ts_key.as_slice()),
+        Some("帕兰蒂尔")
     );
 }
 
@@ -342,8 +337,8 @@ fn test_from_dicts_custom_append_tw_variants_phrases() {
     let key = map_key("程式碼");
 
     assert_eq!(
-        dictionary.tw_variants_phrases.map.get(key.as_slice()),
-        Some(&"程式碼TW".into())
+        dictionary.tw_variants_phrases.get(key.as_slice()),
+        Some("程式碼TW")
     );
 }
 
@@ -358,10 +353,10 @@ fn test_from_dicts_custom_override_tw_variants_phrases() {
     let key = map_key("程式碼");
 
     assert_eq!(
-        dictionary.tw_variants_phrases.map.get(key.as_slice()),
-        Some(&"程式碼TW".into())
+        dictionary.tw_variants_phrases.get(key.as_slice()),
+        Some("程式碼TW")
     );
-    assert_eq!(dictionary.tw_variants_phrases.map.len(), 1);
+    assert_eq!(dictionary.tw_variants_phrases.len(), 1);
 }
 
 #[test]
@@ -375,8 +370,8 @@ fn test_from_dicts_custom_append_hk_variants_phrases() {
     let key = map_key("程式碼");
 
     assert_eq!(
-        dictionary.hk_variants_phrases.map.get(key.as_slice()),
-        Some(&"程式碼HK".into())
+        dictionary.hk_variants_phrases.get(key.as_slice()),
+        Some("程式碼HK")
     );
 }
 
@@ -390,10 +385,7 @@ fn test_from_dicts_custom_append_hk_phrases() {
     );
     let key = map_key("小女孩");
 
-    assert_eq!(
-        dictionary.hk_phrases.map.get(key.as_slice()),
-        Some(&"妹丁".into())
-    );
+    assert_eq!(dictionary.hk_phrases.get(key.as_slice()), Some("妹丁"));
 }
 
 #[test]
@@ -407,10 +399,10 @@ fn test_from_dicts_custom_override_hk_phrases_rev() {
     let key = map_key("妹丁");
 
     assert_eq!(
-        dictionary.hk_phrases_rev.map.get(key.as_slice()),
-        Some(&"小女孩".into())
+        dictionary.hk_phrases_rev.get(key.as_slice()),
+        Some("小女孩")
     );
-    assert_eq!(dictionary.hk_phrases_rev.map.len(), 1);
+    assert_eq!(dictionary.hk_phrases_rev.len(), 1);
 }
 
 #[test]
@@ -424,10 +416,10 @@ fn test_from_dicts_custom_override_hk_variants_phrases() {
     let key = map_key("程式碼");
 
     assert_eq!(
-        dictionary.hk_variants_phrases.map.get(key.as_slice()),
-        Some(&"程式碼HK".into())
+        dictionary.hk_variants_phrases.get(key.as_slice()),
+        Some("程式碼HK")
     );
-    assert_eq!(dictionary.hk_variants_phrases.map.len(), 1);
+    assert_eq!(dictionary.hk_variants_phrases.len(), 1);
 }
 
 #[test]
@@ -485,11 +477,8 @@ fn test_with_custom_dicts_override_st_phrases_only_custom_pairs_remain() {
         .expect("Failed to apply custom dictionary");
     let key = map_key("人工智能公司");
 
-    assert_eq!(
-        dictionary.st_phrases.map.get(key.as_slice()),
-        Some(&"AI公司".into())
-    );
-    assert_eq!(dictionary.st_phrases.map.len(), 1);
+    assert_eq!(dictionary.st_phrases.get(key.as_slice()), Some("AI公司"));
+    assert_eq!(dictionary.st_phrases.len(), 1);
 }
 
 #[test]
@@ -519,12 +508,12 @@ fn test_with_custom_dicts_multiple_slots() {
     let ts_key = map_key("柏蘭蒂爾");
 
     assert_eq!(
-        dictionary.st_phrases.map.get(st_key.as_slice()),
-        Some(&"柏蘭蒂爾".into())
+        dictionary.st_phrases.get(st_key.as_slice()),
+        Some("柏蘭蒂爾")
     );
     assert_eq!(
-        dictionary.ts_phrases.map.get(ts_key.as_slice()),
-        Some(&"帕兰蒂尔".into())
+        dictionary.ts_phrases.get(ts_key.as_slice()),
+        Some("帕兰蒂尔")
     );
 }
 

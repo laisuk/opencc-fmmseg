@@ -59,7 +59,6 @@ mod tests {
         pairs: usize,
         min_len: usize,
         max_len: usize,
-        mask: u64,
         non_empty: bool,
     }
 
@@ -67,11 +66,10 @@ mod tests {
         all_dicts(d)
             .iter()
             .map(|x| DictStats {
-                pairs: x.map.len(),
-                min_len: x.min_len,
-                max_len: x.max_len,
-                mask: x.key_length_mask,
-                non_empty: !x.map.is_empty(),
+                pairs: x.len(),
+                min_len: x.min_key_len(),
+                max_len: x.max_key_len(),
+                non_empty: !x.is_empty(),
             })
             .collect()
     }
@@ -79,28 +77,21 @@ mod tests {
     /// Invariants that should hold after `.finish()`.
     fn check_invariants(d: &DictionaryMaxlength) {
         for (i, dm) in all_dicts(d).iter().enumerate() {
+            let min_len = dm.min_key_len();
+            let max_len = dm.max_key_len();
             assert!(
-                dm.min_len <= dm.max_len,
+                min_len <= max_len,
                 "Dict[{i}]: min_len {} > max_len {}",
-                dm.min_len,
-                dm.max_len
+                min_len,
+                max_len
             );
-            // If mask is present (and within representable range), boundaries must be set.
-            if dm.key_length_mask != 0 {
-                if (1..=64).contains(&dm.min_len) {
-                    assert!(
-                        dm.has_key_len(dm.min_len),
-                        "Dict[{i}]: mask missing min_len {}",
-                        dm.min_len
-                    );
-                }
-                if (1..=64).contains(&dm.max_len) {
-                    assert!(
-                        dm.has_key_len(dm.max_len),
-                        "Dict[{i}]: mask missing max_len {}",
-                        dm.max_len
-                    );
-                }
+            if dm.is_empty() {
+                assert_eq!((min_len, max_len), (0, 0));
+            } else {
+                assert!(
+                    min_len >= 1,
+                    "Dict[{i}]: non-empty dictionary has min_len 0"
+                );
             }
         }
     }
@@ -148,14 +139,10 @@ mod tests {
         let pairs_rt: Vec<_> = s_rt.iter().map(|s| s.pairs).collect();
         assert_eq!(pairs_disk, pairs_rt, "per-dict pair counts mismatch");
 
-        // min/max/mask should also be stable under internal round-trip
+        // Semantic bounds should also be stable under internal round-trip.
         let bounds_disk: Vec<_> = s_disk.iter().map(|s| (s.min_len, s.max_len)).collect();
         let bounds_rt: Vec<_> = s_rt.iter().map(|s| (s.min_len, s.max_len)).collect();
         assert_eq!(bounds_disk, bounds_rt, "per-dict min/max mismatch");
-
-        let masks_disk: Vec<_> = s_disk.iter().map(|s| s.mask).collect();
-        let masks_rt: Vec<_> = s_rt.iter().map(|s| s.mask).collect();
-        assert_eq!(masks_disk, masks_rt, "per-dict key_length_mask mismatch");
 
         // 6) Cleanup ( the best effort)
         let _ = fs::remove_file(&src);

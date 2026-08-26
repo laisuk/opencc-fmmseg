@@ -1,59 +1,35 @@
-//! High-performance dictionary type with global and per-starter length metadata.
+//! High-performance dictionary storage used by the conversion engine.
 //!
 //! This module defines [`DictMaxLen`], the core dictionary structure used by
 //! **opencc-fmmseg** for fast phrase lookup and segmentation.
 //!
 //! ## Overview
 //!
-//! `DictMaxLen` stores a mapping from phrase keys (`Box<[char]>`) to
-//! replacement strings (`Box<str>`), along with:
-//!
-//! - A **global key-length mask** (`key_length_mask`) covering lengths `1..=64`
-//!   (bit `n-1` ⇢ length `n`) plus `min_len`/`max_len` for overall bounds.
-//! - A **per-starter length mask** (`starter_len_mask: FxHashMap<char, u64>`)
-//!   that records, for each starting character (BMP + astral), exactly which
-//!   key lengths exist (again `1..=64` as bits).
-//! - **Runtime accelerators (BMP dense tables)**:
-//!   - `first_len_mask64: Vec<u64>` — per-starter length bitmasks for BMP
-//!   - `first_char_max_len: Vec<u8>` — per-starter max length
-//!
-//! The dense tables are *indexed by the Unicode scalar value of the first
-//! character* (BMP only) and let the segmenter quickly decide if a given
-//! `(starter, length)` is even possible before attempting a hash lookup.
+//! `DictMaxLen` stores phrase replacements and maintains private lookup metadata
+//! used by forward maximum matching. Callers construct or update it through its
+//! safe pair APIs and inspect semantic dictionary data through read-only
+//! accessors.
 //!
 //! ## Example
-//! ```ignore
+//! ```
 //! use opencc_fmmseg::DictMaxLen;
 //!
-//! // Build from pairs (adjust to your actual builder API)
 //! let pairs = vec![
 //!     ("你好".to_string(), "您好".to_string()),
 //!     ("世界".to_string(), "世間".to_string()),
 //! ];
 //! let dict = DictMaxLen::build_from_pairs(pairs);
 //!
-//! // Global metadata collected
-//! assert!(dict.max_len >= 2);
-//! assert!(dict.min_len >= 1);
-//!
-//! // Per-starter length mask is a bitfield: bit (len-1) corresponds to `len`.
-//! // For '你', length = 2 → bit index 1 must be set.
-//! let mask = dict.starter_len_mask.get(&'你').copied().unwrap_or(0);
-//! assert_eq!((mask >> 1) & 1, 1);
-//!
-//! // Fast gate API (after has_key_len(len) at the call-site):
-//! let cap_bit = 2 - 1;
-//! assert!(dict.starter_allows_dict('你', 2, cap_bit));
-//!
-//! // Dense tables should be allocated/populated for BMP starters:
-//! assert!(dict.is_populated());
+//! assert_eq!(dict.len(), 2);
+//! assert_eq!(dict.min_key_len(), 2);
+//! assert_eq!(dict.max_key_len(), 2);
+//! assert_eq!(dict.get(&['你', '好']), Some("您好"));
 //! ```
 //!
 //! ## Related Functions
 //! - [`DictMaxLen::build_from_pairs`] — build from `(String, String)` pairs.
-//! - [`DictMaxLen::ensure_starter_indexes`] — ensure dense BMP arrays exist.
-//! - [`DictMaxLen::populate_starter_indexes`] — rebuild dense arrays from masks/map.
-//! - [`DictMaxLen::is_populated`] — check if dense arrays are allocated.
+//! - [`DictMaxLen::append_pairs`] — merge pairs with last-wins semantics.
+//! - [`DictMaxLen::replace_pairs`] — replace all pairs and rebuild metadata.
 
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -93,56 +69,34 @@ macro_rules! debug_note {
     };
 }
 
-/// A dictionary with global and per-starter **length masks**, optimized for
-/// zero-allocation lookups and fast segmentation.
+/// A dictionary optimized for zero-allocation lookup and fast segmentation.
 ///
 /// `DictMaxLen` is the core structure mapping phrase keys to replacement
-/// strings in **opencc-fmmseg**. Beyond the raw map, it maintains metadata
-/// and runtime accelerators to prune impossible matches early.
+/// strings in **opencc-fmmseg**. Its backing map and derived lookup metadata are
+/// private so safe construction and mutation always preserve engine invariants.
 ///
 /// # Key Features
 ///
 /// - **Zero-allocation lookups** — keys are stored as `Box<[char]>`,
 ///   enabling direct `&[char]` queries without intermediate `String`.
-/// - **Global key-length bounds** — `min_len`, `max_len`, and a compact
-///   `key_length_mask` (bits 0..63 ⇢ lengths 1..64) for quick global gating.
-/// - **Per-starter length masks** — `starter_len_mask: FxHashMap<char, u64>`
-///   records, per first character (BMP + astral), exactly which lengths exist
-///   (again 1..=64 as bits). This replaces legacy per-starter “cap” maps.
-/// - **Runtime accelerators (BMP dense tables)**:
-///   - `first_len_mask64: Vec<u64>` — per-starter length bitmasks for BMP
-///   - `first_char_max_len: Vec<u8>` — per-starter max length
-///   These dense arrays are indexed by the Unicode scalar value of the first
-///   character (`0x0000..=0xFFFF`) and are rebuilt at load/build time.
+/// - **Safe mutation** — [`append_pairs`](Self::append_pairs) and
+///   [`replace_pairs`](Self::replace_pairs) automatically rebuild metadata.
+/// - **Read-only inspection** — [`get`](Self::get), [`iter`](Self::iter),
+///   [`len`](Self::len), and key-length accessors expose semantic data without
+///   leaking the backing representation.
 ///
 /// # Usage
 ///
-/// ```ignore
+/// ```
 /// use opencc_fmmseg::DictMaxLen;
-/// use rustc_hash::FxHashMap;
 ///
-/// // Minimal manual construction (normally use a builder)
-/// let mut dict = DictMaxLen {
-///     map: FxHashMap::default(),
-///     max_len: 0,
-///     min_len: 0,
-///     key_length_mask: 0,
-///     // Dense BMP tables (rebuilt by `populate_starter_indexes`)
-///     first_len_mask64: vec![0; 0x10000],
-///     first_char_max_len: vec![0; 0x10000],
-///     // Sparse per-starter masks (authoritative source)
-///     starter_len_mask: FxHashMap::default(),
-/// };
+/// let mut dict = DictMaxLen::build_from_pairs([
+///     ("你".to_owned(), "您".to_owned()),
+/// ]);
+/// dict.append_pairs([("你好", "您好")]);
 ///
-/// // Add a single-char mapping: "你" -> "您"
-/// dict.map.insert(Box::from(['你']), Box::from("您"));
-/// dict.min_len = 1;
-/// dict.max_len = 1;
-/// dict.key_length_mask |= 1u64 << (1 - 1);       // length 1
-/// dict.starter_len_mask.insert('你', 1u64 << 0);  // '你' has a length-1 entry
-///
-/// // Rebuild dense accelerators for BMP starters
-/// dict.populate_starter_indexes();
+/// assert_eq!(dict.get(&['你']), Some("您"));
+/// assert_eq!(dict.get(&['你', '好']), Some("您好"));
 /// ```
 ///
 /// This struct is typically built from lexicon files and serialized/deserialized
@@ -150,15 +104,12 @@ macro_rules! debug_note {
 ///
 /// # Serialization
 ///
-/// The following are serialized: `map`, `min_len`, `max_len`, `key_length_mask`,
-/// and `starter_len_mask`. The **dense BMP accelerators**
-/// (`first_len_mask64`, `first_char_max_len`) are **not** serialized and are
-/// reconstructed via [`populate_starter_indexes`](DictMaxLen::populate_starter_indexes)
-/// at load/build time.
+/// Semantic entries and compact metadata are serialized. Runtime accelerators
+/// are reconstructed internally after loading.
 ///
 /// # See Also
 ///
-/// - [`DictionaryMaxlength`](crate::dictionary_lib::DictionaryMaxlength) — utilities for loading and building `DictMaxLen`.
+/// - [`DictionaryMaxlength`](crate::DictionaryMaxlength) — utilities for loading and building `DictMaxLen`.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DictMaxLen {
     /// Dictionary mapping: phrase (as boxed slice of `char`) → replacement string.
@@ -166,13 +117,13 @@ pub struct DictMaxLen {
     /// Keys are stored as `Box<[char]>` to enable direct `&[char]` lookups without
     /// allocation, reducing overhead in tight segmentation loops.
     #[serde(default)]
-    pub map: FxHashMap<Box<[char]>, Box<str>>,
+    pub(crate) map: FxHashMap<Box<[char]>, Box<str>>,
 
     /// Global maximum key length in characters across the entire dictionary.
     ///
     /// Used to limit scanning during forward maximum matching (FMM) segmentation.
     #[serde(default)]
-    pub max_len: usize,
+    pub(crate) max_len: usize,
 
     /// Global minimum key length (in characters) across the entire dictionary.
     ///
@@ -180,7 +131,7 @@ pub struct DictMaxLen {
     /// Together with [`max_len`](Self::max_len) and [`key_length_mask`](Self::key_length_mask),
     /// this lets callers quickly skip impossible lengths.
     #[serde(default)]
-    pub min_len: usize,
+    pub(crate) min_len: usize,
 
     /// Global key-length presence mask for lengths `1..=64`.
     ///
@@ -198,7 +149,7 @@ pub struct DictMaxLen {
     /// Example: if keys of lengths `{1,2,5}` exist, then this field equals:
     /// `0b1_0001_1` (bits 0,1,4 set) → decimal `0b100011 = 35`.
     #[serde(default)]
-    pub key_length_mask: u64,
+    pub(crate) key_length_mask: u64,
 
     /// Sparse, exact **per-starter length bitmask** (BMP **and** astral).
     ///
@@ -221,7 +172,7 @@ pub struct DictMaxLen {
     /// Keys are `char` (not `String`) for compactness; this map may be empty if
     /// built solely from dense tables and later reconstructed during deserialization.
     #[serde(default)]
-    pub starter_len_mask: FxHashMap<char, u64>,
+    pub(crate) starter_len_mask: FxHashMap<char, u64>,
 
     /// Runtime-only: length bitmask for the first character (Unicode BMP).
     ///
@@ -232,7 +183,7 @@ pub struct DictMaxLen {
     /// This vector is initialized empty and built after loading the dictionary.
     #[serde(skip)]
     #[serde(default)]
-    pub first_len_mask64: Vec<u64>,
+    pub(crate) first_len_mask64: Vec<u64>,
 
     /// Runtime-only: maximum key length per first character (Unicode BMP).
     ///
@@ -240,10 +191,56 @@ pub struct DictMaxLen {
     /// starter character. Parallel to [`Self::first_len_mask64`] but stored as `u8`.
     #[serde(skip)]
     #[serde(default)]
-    pub first_char_max_len: Vec<u8>,
+    pub(crate) first_char_max_len: Vec<u8>,
 }
 
 impl DictMaxLen {
+    /// Returns the number of dictionary entries.
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    /// Returns `true` when the dictionary contains no entries.
+    #[inline]
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
+    /// Returns the minimum dictionary-key length in Unicode scalar values.
+    ///
+    /// Empty dictionaries return `0`.
+    #[inline]
+    #[must_use]
+    pub const fn min_key_len(&self) -> usize {
+        self.min_len
+    }
+
+    /// Returns the maximum dictionary-key length in Unicode scalar values.
+    ///
+    /// Empty dictionaries return `0`.
+    #[inline]
+    #[must_use]
+    pub const fn max_key_len(&self) -> usize {
+        self.max_len
+    }
+
+    /// Looks up a replacement by its key represented as Unicode scalar values.
+    #[inline]
+    #[must_use]
+    pub fn get(&self, key: &[char]) -> Option<&str> {
+        self.map.get(key).map(Box::as_ref)
+    }
+
+    /// Iterates over dictionary entries without exposing the backing map.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&[char], &str)> + '_ {
+        self.map
+            .iter()
+            .map(|(key, value)| (key.as_ref(), value.as_ref()))
+    }
+
     /// Builds a dictionary from `(key, value)` string pairs and eagerly
     /// constructs starter indexes (length masks and per-starter caps).
     ///
@@ -252,8 +249,7 @@ impl DictMaxLen {
     /// - Tracks the **global** maximum and minimum key lengths in characters
     ///   (`max_len`, `min_len`),
     /// - Tracks the **per-starter** maximum key length,
-    /// - Eagerly calls [`populate_starter_indexes`](#method.populate_starter_indexes)
-    ///   to fill runtime accelerators: [`Self::first_len_mask64`] and [`Self::first_char_max_len`].
+    /// - Builds all private runtime lookup metadata before returning.
     ///
     /// ### Duplicates
     /// If the iterator yields duplicate **keys**, **first-wins**:
@@ -289,17 +285,9 @@ impl DictMaxLen {
     /// let dict = DictMaxLen::build_from_pairs(pairs);
     ///
     /// // Collected metadata
-    /// assert!(dict.max_len >= 2);
-    /// assert!(dict.min_len >= 1);
-    ///
-    /// // Per-starter length mask is a bitfield: bit (len-1) corresponds to `len`
-    /// // For '你', length = 2 → bit index 1 must be set
-    /// let mask = dict.starter_len_mask.get(&'你').copied().unwrap_or(0);
-    /// assert_eq!((mask >> 1) & 1, 1, "Expected bit for length=2 to be set");
-    ///
-    /// // Equivalent fast gate via API
-    /// let cap_bit = 2 - 1;
-    /// assert!(dict.starter_allows_dict('你', 2, cap_bit));
+    /// assert_eq!(dict.min_key_len(), 2);
+    /// assert_eq!(dict.max_key_len(), 2);
+    /// assert_eq!(dict.get(&['你', '好']), Some("您好"));
     /// ```
     pub fn build_from_pairs<I>(pairs: I) -> Self
     where
@@ -480,7 +468,7 @@ impl DictMaxLen {
     /// when reallocation is needed, but is effectively **O(1)** if sizes already match.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// use opencc_fmmseg::DictMaxLen;
     /// let mut dict = DictMaxLen {
     ///     map: Default::default(),
@@ -496,7 +484,7 @@ impl DictMaxLen {
     /// assert_eq!(dict.first_len_mask64.len(), 0x10000);
     /// assert_eq!(dict.first_char_max_len.len(), 0x10000);
     /// ```
-    pub fn ensure_starter_indexes(&mut self) {
+    pub(crate) fn ensure_starter_indexes(&mut self) {
         const N: usize = 0x10000; // BMP size
 
         if self.first_len_mask64.len() != N {
@@ -545,7 +533,7 @@ impl DictMaxLen {
     /// [`key_length_mask`](Self::key_length_mask).
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// use opencc_fmmseg::DictMaxLen;
     ///
     /// let pairs = vec![
@@ -571,20 +559,10 @@ impl DictMaxLen {
     /// - From `starter_len_mask`: **O(S)**
     /// - From `map` (fallback): **O(N)**
     #[inline]
-    pub fn populate_starter_indexes(&mut self) {
-        const BMP: usize = 0x10000;
-
-        // ensure vectors exist and sized
-        if self.first_len_mask64.len() != BMP {
-            self.first_len_mask64 = vec![0u64; BMP];
-        } else {
-            self.first_len_mask64.fill(0);
-        }
-        if self.first_char_max_len.len() != BMP {
-            self.first_char_max_len = vec![0u8; BMP];
-        } else {
-            self.first_char_max_len.fill(0);
-        }
+    pub(crate) fn populate_starter_indexes(&mut self) {
+        self.ensure_starter_indexes();
+        self.first_len_mask64.fill(0);
+        self.first_char_max_len.fill(0);
 
         if !self.starter_len_mask.is_empty() {
             // --- Fast path: one pass over sparse per-starter masks ---
@@ -671,7 +649,7 @@ impl DictMaxLen {
     /// the entire **Basic Multilingual Plane (BMP)**.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// use opencc_fmmseg::DictMaxLen;
     ///
     /// let mut dict = DictMaxLen {
@@ -690,7 +668,8 @@ impl DictMaxLen {
     /// assert!(dict.is_populated());
     /// ```
     #[inline]
-    pub fn is_populated(&self) -> bool {
+    #[allow(dead_code)]
+    pub(crate) fn is_populated(&self) -> bool {
         self.first_len_mask64.len() == 0x10000 && self.first_char_max_len.len() == 0x10000
     }
 
@@ -737,7 +716,7 @@ impl DictMaxLen {
     /// - For `len <= 64` and nonzero mask: returns the bit test.
     /// - For `len > 64` or zero mask: uses the range gate.
     #[inline(always)]
-    pub fn has_key_len(&self, len: usize) -> bool {
+    pub(crate) fn has_key_len(&self, len: usize) -> bool {
         if self.key_length_mask != 0 {
             let b = len.wrapping_sub(1);
             if b < 64 {
@@ -746,41 +725,6 @@ impl DictMaxLen {
             // lengths > 64 fall back to range gate
         }
         len >= self.min_len && len <= self.max_len
-    }
-
-    /// Returns the minimum phrase length encoded in a `u64` bitmask.
-    ///
-    /// The mask represents supported lengths in the range **1‥=64**, where
-    /// bit `0` corresponds to length `1`, bit `1` to length `2`, and so on.
-    ///
-    /// This helper extracts the **smallest** present length by locating the
-    /// least-significant set bit.
-    ///
-    /// - If the mask is empty (`0`), it returns `None`.
-    /// - Otherwise, it returns `Some(len)` where `len` is the smallest encoded
-    ///   phrase length.
-    ///
-    /// Internally this is computed as:
-    ///
-    /// *`index_of_least_significant_set_bit + 1`*
-    ///
-    /// This constant function is used by [`StarterUnion`](crate::dictionary_lib::StarterUnion) to determine the
-    /// minimum matching span to probe during longest-match lookup.
-    ///
-    /// # Arguments
-    ///
-    /// * `mask` — A bitmask encoding possible phrase lengths.
-    ///
-    /// # Returns
-    ///
-    /// The minimum encoded length, or `None` if the mask is empty.
-    #[inline(always)]
-    pub const fn min_len_from_mask(mask: u64) -> Option<usize> {
-        if mask == 0 {
-            None
-        } else {
-            Some(mask.trailing_zeros() as usize + 1)
-        }
     }
 
     /// Returns the maximum phrase length encoded in a `u64` bitmask.
@@ -800,7 +744,7 @@ impl DictMaxLen {
     ///
     /// *`64 - mask.leading_zeros()`*
     ///
-    /// This constant function is used by [`StarterUnion`](crate::dictionary_lib::StarterUnion) to bound the upper
+    /// This constant function is used by the internal starter-union cache to bound the upper
     /// limit of probe lengths during longest-match search.
     ///
     /// # Arguments
@@ -811,7 +755,7 @@ impl DictMaxLen {
     ///
     /// The maximum encoded length, or `None` if the mask is empty.
     #[inline(always)]
-    pub const fn max_len_from_mask(mask: u64) -> Option<usize> {
+    pub(crate) const fn max_len_from_mask(mask: u64) -> Option<usize> {
         if mask == 0 {
             None
         } else {
@@ -829,7 +773,7 @@ impl DictMaxLen {
     ///
     /// Only lengths `1..=64` are representable in the returned mask.
     #[inline(always)]
-    pub fn get_starter_mask(&self, starter: char) -> u64 {
+    pub(crate) fn get_starter_mask(&self, starter: char) -> u64 {
         let u = starter as u32;
         if u <= 0xFFFF && self.first_len_mask64.len() == 0x10000 {
             unsafe { *self.first_len_mask64.get_unchecked(u as usize) }
@@ -870,7 +814,7 @@ impl DictMaxLen {
     /// `true` if any dictionary key starting with `starter` has the given
     /// `length`, otherwise `false`.
     #[inline(always)]
-    pub fn has_starter_len(&self, starter: char, length: usize) -> bool {
+    pub(crate) fn has_starter_len(&self, starter: char, length: usize) -> bool {
         let b = length.wrapping_sub(1);
         if b >= 64 {
             return false;
@@ -929,7 +873,7 @@ impl DictMaxLen {
     /// }
     /// ```
     #[inline(always)]
-    pub fn starter_allows_dict(&self, starter: char, length: usize, bit: usize) -> bool {
+    pub(crate) fn starter_allows_dict(&self, starter: char, length: usize, bit: usize) -> bool {
         let u = starter as u32;
 
         // Dense BMP fast-path
@@ -955,8 +899,7 @@ impl DictMaxLen {
         if bit >= 64 {
             return false; // sparse mask can’t represent >64
         }
-        let m = self.get_starter_mask(starter); // reads sparse; BMP-dense won’t reach here
-        ((m >> bit) & 1) != 0
+        self.has_starter_len(starter, length)
     }
 
     /// Rebuilds length metadata and starter indexes from the current map.
@@ -1059,43 +1002,14 @@ impl DictMaxLen {
 }
 
 impl Default for DictMaxLen {
-    /// Creates an empty [`DictMaxLen`] with all fields initialized to their defaults.
-    ///
-    /// - [`Self::map`] — empty `FxHashMap`.
-    /// - [`Self::min_len`] — `0`.
-    /// - [`Self::max_len`] — `0`.
-    /// - [`Self::key_length_mask`] — `0` (no global lengths known).
-    /// - [`Self::starter_len_mask`] — empty `FxHashMap` (no per-starter lengths known).
-    /// - [`Self::first_len_mask64`] — empty `Vec` (call
-    ///   [`ensure_starter_indexes`](Self::ensure_starter_indexes) or
-    ///   [`populate_starter_indexes`](Self::populate_starter_indexes) to allocate).
-    /// - [`Self::first_char_max_len`] — empty `Vec` (same allocation note as above).
-    ///
-    /// This is equivalent to:
-    /// ```
-    /// use opencc_fmmseg::DictMaxLen;
-    /// use rustc_hash::FxHashMap;
-    ///
-    /// let dict = DictMaxLen {
-    ///     map: FxHashMap::default(),
-    ///     min_len: 0,
-    ///     max_len: 0,
-    ///     key_length_mask: 0,
-    ///     starter_len_mask: FxHashMap::default(),
-    ///     first_len_mask64: Vec::new(),
-    ///     first_char_max_len: Vec::new(),
-    /// };
-    /// ```
-    ///
     /// # Example
     /// ```
     /// use opencc_fmmseg::DictMaxLen;
     ///
     /// let dict = DictMaxLen::default();
-    /// assert_eq!(dict.max_len, 0);
-    /// assert_eq!(dict.min_len, 0);
-    /// assert!(dict.map.is_empty());
-    /// assert!(!dict.is_populated());
+    /// assert!(dict.is_empty());
+    /// assert_eq!(dict.min_key_len(), 0);
+    /// assert_eq!(dict.max_key_len(), 0);
     /// ```
     fn default() -> Self {
         Self {

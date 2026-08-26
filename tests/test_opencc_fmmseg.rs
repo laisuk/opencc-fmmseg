@@ -186,7 +186,7 @@ mod tests {
         let dictionary = DictionaryMaxlength::from_dicts().unwrap();
         // Verify that the JSON contains the expected data
         let expected = 12;
-        assert_eq!(dictionary.st_phrases.max_len, expected);
+        assert_eq!(dictionary.st_phrases.max_key_len(), expected);
     }
 
     // Use this to generate "dictionary_maxlength.json" when you edit dicts_ data
@@ -197,7 +197,7 @@ mod tests {
             DictionaryMaxlength::from_dicts().expect("failed to build DictionaryMaxlength");
 
         // Stable invariant (keep this check)
-        assert_eq!(dictionary.st_phrases.max_len, 12);
+        assert_eq!(dictionary.st_phrases.max_key_len(), 12);
 
         // Convert to JSON-friendly DTO (keys become String)
         let dto: DictionaryMaxlengthSerde = (&dictionary).into();
@@ -228,7 +228,7 @@ mod tests {
 
         // Verify that the Dictionary contains the expected data
         let expected = 12;
-        assert_eq!(dictionary.st_phrases.max_len, expected);
+        assert_eq!(dictionary.st_phrases.max_key_len(), expected);
 
         let filename = "dictionary_maxlength.cbor";
 
@@ -265,22 +265,14 @@ mod tests {
         let decoded: DictionaryMaxlength = serde_cbor::from_slice(&bytes).unwrap();
 
         assert_eq!(
-            dictionary.st_characters.max_len,
-            decoded.st_characters.max_len
-        );
-        assert_eq!(dictionary.st_phrases.max_len, decoded.st_phrases.max_len);
-        assert_eq!(
-            dictionary.st_characters.key_length_mask,
-            decoded.st_characters.key_length_mask
+            dictionary.st_characters.max_key_len(),
+            decoded.st_characters.max_key_len()
         );
         assert_eq!(
-            dictionary.st_phrases.key_length_mask,
-            decoded.st_phrases.key_length_mask
+            dictionary.st_phrases.max_key_len(),
+            decoded.st_phrases.max_key_len()
         );
-        assert_eq!(
-            dictionary.st_phrases.map.len(),
-            decoded.st_phrases.map.len()
-        );
+        assert_eq!(dictionary.st_phrases.len(), decoded.st_phrases.len());
     }
 
     #[test]

@@ -1,6 +1,5 @@
 // json_io.rs (CLI only)
 use opencc_fmmseg::{DictMaxLen, DictionaryMaxlength};
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -29,90 +28,10 @@ pub struct DictMaxLenSerde {
 impl DictMaxLenSerde {
     #[allow(dead_code)]
     pub fn into_internal(self) -> DictMaxLen {
-        let mut out = DictMaxLen::default();
-
-        // Build map, and compute min/max + key_length_mask on the fly
-        let mut min_seen = usize::MAX;
-        let mut max_seen = 0usize;
-        let mut mask: u64 = 0;
-
-        for (k, v) in self.map {
-            let key: Box<[char]> = k.chars().collect::<Vec<_>>().into_boxed_slice();
-            let len = key.len();
-
-            if len < min_seen {
-                min_seen = len;
-            }
-            if len > max_seen {
-                max_seen = len;
-            }
-
-            // 1..=64 only
-            let b = len.wrapping_sub(1);
-            if b < 64 {
-                mask |= 1u64 << b;
-            }
-
-            out.map.insert(key, v.into_boxed_str());
-        }
-
-        // Prefer JSON-provided values; fallback to recomputed
-        out.max_len = if self.max_len != 0 {
-            self.max_len
-        } else {
-            max_seen
-        };
-        out.min_len = if self.min_len != 0 {
-            self.min_len
-        } else if !out.map.is_empty() {
-            min_seen
-        } else {
-            0
-        };
-
-        // key_length_mask: prefer provided nonzero mask, else recomputed
-        out.key_length_mask = if self.key_length_mask != 0 {
-            self.key_length_mask
-        } else {
-            mask
-        };
-
-        // NEW: starter_len_mask: use provided map if present; otherwise derive from out.map
-        if self.starter_len_mask.is_empty() {
-            let mut m = FxHashMap::default();
-            // Heuristic: starters ≤ unique first chars in map, capped at BMP
-            // (reserve is optional; remove if you prefer)
-            for (k_chars, _) in out.map.iter() {
-                if let Some(&c0) = k_chars.first() {
-                    let len = k_chars.len();
-                    let b = len.wrapping_sub(1);
-
-                    if b < 64 {
-                        *m.entry(c0).or_insert(0u64) |= 1u64 << b;
-                    }
-                }
-            }
-            // If you still want a reserve, do it before the loop as:
-            // m.reserve(seen.len());
-            out.starter_len_mask = m;
-        } else {
-            let mut m = FxHashMap::default();
-            // Reserve by provided size (cheap and safe)
-            m.reserve(self.starter_len_mask.len());
-            for (s, mask) in self.starter_len_mask {
-                if let Some(ch) = s.chars().next() {
-                    m.insert(ch, mask);
-                }
-            }
-            out.starter_len_mask = m;
-        }
-
-        // Rebuild runtime accelerators (dense BMP vectors) from sparse maps
-        out.first_len_mask64.clear();
-        out.first_char_max_len.clear();
-        out.populate_starter_indexes();
-
-        out
+        // Serialized metadata is treated as derived data. Rebuilding from the
+        // semantic key/value pairs prevents stale or inconsistent indexes from
+        // crossing the public API boundary.
+        DictMaxLen::build_from_pairs(self.map)
     }
 }
 
@@ -147,34 +66,29 @@ pub struct DictionaryMaxlengthSerde {
 
 impl From<&DictMaxLen> for DictMaxLenSerde {
     fn from(d: &DictMaxLen) -> Self {
-        // map → BTreeMap<String,String>
+        // Recompute serialized metadata from semantic entries so the CLI never
+        // depends on DictMaxLen's internal representation.
         let mut map = BTreeMap::new();
-        for (k, v) in &d.map {
-            map.insert(k.iter().collect::<String>(), v.to_string());
-        }
-
-        // NEW: starter_len_mask → BTreeMap<String,u64>
         let mut starter_len_mask = BTreeMap::new();
-        if !d.starter_len_mask.is_empty() {
-            for (ch, mask) in &d.starter_len_mask {
-                starter_len_mask.insert(ch.to_string(), *mask);
-            }
-        } else if !d.first_len_mask64.is_empty() {
-            // If sparse not kept but dense exists, serialize dense back to sparse BMP form
-            for (i, &m) in d.first_len_mask64.iter().enumerate() {
-                if m != 0 {
-                    if let Some(ch) = char::from_u32(i as u32) {
-                        starter_len_mask.insert(ch.to_string(), m);
-                    }
+        let mut key_length_mask = 0_u64;
+
+        for (key, value) in d.iter() {
+            map.insert(key.iter().collect::<String>(), value.to_owned());
+
+            let bit = key.len().wrapping_sub(1);
+            if bit < 64 {
+                key_length_mask |= 1_u64 << bit;
+                if let Some(starter) = key.first() {
+                    *starter_len_mask.entry(starter.to_string()).or_insert(0) |= 1_u64 << bit;
                 }
             }
         }
 
         Self {
             map,
-            max_len: d.max_len,
-            min_len: d.min_len,
-            key_length_mask: d.key_length_mask,
+            max_len: d.max_key_len(),
+            min_len: d.min_key_len(),
+            key_length_mask,
             starter_len_mask,
         }
     }
@@ -205,5 +119,44 @@ impl From<&DictionaryMaxlength> for DictionaryMaxlengthSerde {
             st_punctuations: (&src.st_punctuations).into(),
             ts_punctuations: (&src.ts_punctuations).into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_import_rebuilds_derived_metadata_from_pairs() {
+        let dto = DictMaxLenSerde {
+            map: BTreeMap::from([("你好".to_owned(), "您好".to_owned())]),
+            max_len: 99,
+            min_len: 77,
+            key_length_mask: u64::MAX,
+            starter_len_mask: BTreeMap::from([("错".to_owned(), u64::MAX)]),
+        };
+
+        let dict = dto.into_internal();
+
+        assert_eq!(dict.len(), 1);
+        assert_eq!(dict.min_key_len(), 2);
+        assert_eq!(dict.max_key_len(), 2);
+        assert_eq!(dict.get(&['你', '好']), Some("您好"));
+    }
+
+    #[test]
+    fn json_export_derives_metadata_through_public_api() {
+        let dict = DictMaxLen::build_from_pairs([
+            ("你".to_owned(), "您".to_owned()),
+            ("你好".to_owned(), "您好".to_owned()),
+        ]);
+
+        let dto = DictMaxLenSerde::from(&dict);
+
+        assert_eq!(dto.map.len(), 2);
+        assert_eq!(dto.min_len, 1);
+        assert_eq!(dto.max_len, 2);
+        assert_eq!(dto.key_length_mask, 0b11);
+        assert_eq!(dto.starter_len_mask.get("你"), Some(&0b11));
     }
 }

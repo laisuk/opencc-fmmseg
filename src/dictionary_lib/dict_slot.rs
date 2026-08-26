@@ -1,11 +1,11 @@
-/// Identifies a dictionary slot inside [`DictionaryMaxlength`](crate::dictionary_lib::DictionaryMaxlength).
+/// Identifies a dictionary slot inside [`DictionaryMaxlength`](crate::DictionaryMaxlength).
 ///
 /// Each slot corresponds to a specific OpenCC conversion dictionary.
 /// Custom dictionaries can be appended to or override entries inside
 /// these slots when using:
 ///
-/// - [`DictionaryMaxlength::from_dicts_custom()`](crate::dictionary_lib::DictionaryMaxlength::from_dicts_custom)
-/// - [`DictionaryMaxlength::from_dicts_custom_files()`](crate::dictionary_lib::DictionaryMaxlength::from_dicts_custom_files)
+/// - [`DictionaryMaxlength::from_dicts_custom()`](crate::DictionaryMaxlength::from_dicts_custom)
+/// - [`DictionaryMaxlength::from_dicts_custom_files()`](crate::DictionaryMaxlength::from_dicts_custom_files)
 ///
 /// # Notes
 ///
@@ -126,14 +126,6 @@ pub enum DictSlot {
 /// - `JPSCharactersRev`
 /// - `JPSPhrases`
 ///
-/// # Compatibility aliases
-///
-/// For compatibility with `opencc-fmmseg` v0.11.4, the physical Japanese
-/// dictionary filename stems `JPShinjitaiCharacters`,
-/// `JPShinjitaiCharactersRev`, and `JPShinjitaiPhrases` are also accepted.
-/// These aliases are deprecated and will be removed in the 0.12.x release
-/// series; use the canonical `JPS*` names in new code and configuration.
-///
 /// File suffixes such as `.txt` are not accepted.
 ///
 /// # Examples
@@ -178,11 +170,6 @@ impl TryFrom<&str> for DictSlot {
             "JPSCharacters" => Ok(Self::JPSCharacters),
             "JPSCharactersRev" => Ok(Self::JPSCharactersRev),
             "JPSPhrases" => Ok(Self::JPSPhrases),
-
-            // Compatibility aliases accepted by v0.11.4. Remove in 0.12.x.
-            "JPShinjitaiCharacters" => Ok(Self::JPSCharacters),
-            "JPShinjitaiCharactersRev" => Ok(Self::JPSCharactersRev),
-            "JPShinjitaiPhrases" => Ok(Self::JPSPhrases),
 
             _ => Err(()),
         }
@@ -266,15 +253,11 @@ impl DictSlot {
         }
     }
 
-    /// Parses a canonical slot name or supported compatibility alias without
-    /// regard to ASCII case.
+    /// Parses a canonical slot name without regard to ASCII case.
     ///
-    /// Leading and trailing whitespace is ignored. The deprecated
-    /// `JPShinjitaiCharacters`, `JPShinjitaiCharactersRev`, and
-    /// `JPShinjitaiPhrases` aliases remain accepted for v0.11.4 compatibility
-    /// and will be removed in the 0.12.x release series. Filename suffixes and
-    /// other aliases are not accepted. Use [`DictSlot::try_from`] when parsing
-    /// must be case-sensitive and must not trim whitespace.
+    /// Leading and trailing whitespace is ignored. Filename stems, suffixes,
+    /// and other aliases are not accepted. Use [`DictSlot::try_from`] when
+    /// parsing must be case-sensitive and must not trim whitespace.
     ///
     /// # Examples
     ///
@@ -287,7 +270,7 @@ impl DictSlot {
     /// );
     /// assert_eq!(
     ///     DictSlot::from_name_ignore_ascii_case("JPShinjitaiCharactersRev"),
-    ///     Some(DictSlot::JPSCharactersRev),
+    ///     None,
     /// );
     /// ```
     #[must_use]
@@ -298,18 +281,6 @@ impl DictSlot {
             .iter()
             .copied()
             .find(|slot| slot.canonical_name().eq_ignore_ascii_case(value))
-            .or_else(|| {
-                // Compatibility aliases accepted by v0.11.4. Remove in 0.12.x.
-                if "JPShinjitaiCharacters".eq_ignore_ascii_case(value) {
-                    Some(Self::JPSCharacters)
-                } else if "JPShinjitaiCharactersRev".eq_ignore_ascii_case(value) {
-                    Some(Self::JPSCharactersRev)
-                } else if "JPShinjitaiPhrases".eq_ignore_ascii_case(value) {
-                    Some(Self::JPSPhrases)
-                } else {
-                    None
-                }
-            })
     }
 }
 
@@ -343,7 +314,7 @@ impl DictSlot {
 ///     }
 /// ]).unwrap();
 ///
-/// assert!(dictionary.st_phrases.max_len > 0);
+/// assert!(dictionary.st_phrases.max_key_len() > 0);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CustomDictMode {
@@ -394,7 +365,7 @@ pub enum CustomDictMode {
 ///     }
 /// ]).unwrap();
 ///
-/// assert!(dictionary.st_phrases.max_len > 0);
+/// assert!(dictionary.st_phrases.max_key_len() > 0);
 /// ```
 #[derive(Debug, Clone)]
 pub struct CustomDictSpec {
@@ -445,7 +416,7 @@ pub struct CustomDictSpec {
 ///     }
 /// ]).unwrap();
 ///
-/// assert!(dictionary.st_phrases.max_len > 0);
+/// assert!(dictionary.st_phrases.max_key_len() > 0);
 /// ```
 #[derive(Debug, Clone)]
 pub struct CustomDictFileSpec<P> {

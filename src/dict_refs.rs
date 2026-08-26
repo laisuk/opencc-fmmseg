@@ -68,8 +68,8 @@ fn compute_round<'a>(dicts: &'a [&'a DictMaxLen], union: Arc<StarterUnion>) -> D
 ///
 /// ```ignore
 /// use std::sync::Arc;
-/// use opencc_fmmseg::{DictMaxLen, StarterUnion};
-/// use opencc_fmmseg::DictRefs; // adjust path if needed
+/// use crate::dict_refs::DictRefs;
+/// use crate::dictionary_lib::{DictMaxLen, StarterUnion};
 ///
 /// // Tiny dicts (one-char mappings)
 /// let d1 = DictMaxLen::build_from_pairs(vec![("你".into(), "您".into())]);
@@ -104,8 +104,8 @@ impl<'a> DictRefs<'a> {
     /// # Example
     /// ```ignore
     /// # use std::sync::Arc;
-    /// # use opencc_fmmseg::{DictMaxLen, StarterUnion};
-    /// # use opencc_fmmseg::DictRefs;
+    /// # use crate::dict_refs::DictRefs;
+    /// # use crate::dictionary_lib::{DictMaxLen, StarterUnion};
     /// let d = DictMaxLen::build_from_pairs(vec![("你".into(), "您".into())]);
     /// let dicts: Vec<&DictMaxLen> = vec![&d];
     /// let union = Arc::new(StarterUnion::build(&dicts));
@@ -196,8 +196,8 @@ impl<'a> DictRefs<'a> {
     /// # Example
     /// ```ignore
     /// # use std::sync::Arc;
-    /// # use opencc_fmmseg::{DictMaxLen, StarterUnion};
-    /// # use opencc_fmmseg::DictRefs;
+    /// # use crate::dict_refs::DictRefs;
+    /// # use crate::dictionary_lib::{DictMaxLen, StarterUnion};
     /// let d = DictMaxLen::build_from_pairs(vec![("你".into(), "您".into())]);
     /// let dicts: Vec<&DictMaxLen> = vec![&d];
     /// let union = Arc::new(StarterUnion::build(&dicts));

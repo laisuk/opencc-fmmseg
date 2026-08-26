@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.11.6] - Unreleased
+## [0.12.0] - Unreleased
 
 ### Added
 
@@ -24,6 +24,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Made the `opencc_fmmseg` crate root the single public entry point for the dictionary API. The `dictionary_lib`,
+  `dictionary_maxlength`, and `starter_union` implementation modules are now private, while their supported public types
+  are available directly from the crate root.
+- Internalized `StarterUnion`, its constructor, and its lookup tables. Union construction and caching are
+  conversion-engine implementation details and no longer constrain future internal refactoring.
+- Made `DictMaxLen` storage, bounds, masks, starter indexes, and matching gates crate-private. Public callers now use
+  safe pair construction/mutation plus read-only `get`, `iter`, `len`, `is_empty`, `min_key_len`, and `max_key_len`
+  accessors.
+- Refactored `dict-generate` JSON conversion to rebuild all derived metadata from semantic key/value pairs instead of
+  reading or writing `DictMaxLen`
+  internals. Removed its now-unused direct `rustc-hash` dependency.
+- Updated docs.rs links, rustdoc examples, and README guidance to use only the crate-root public paths.
+- Migration: Rust imports through nested paths such as
+  `opencc_fmmseg::dictionary_lib::DictMaxLen` must be changed to crate-root imports such as `opencc_fmmseg::DictMaxLen`.
+- `opencc_fmmseg::dictionary_lib::StarterUnion` has no public replacement; callers should use the high-level `OpenCC`
+  conversion APIs, which construct and cache the required union metadata internally.
 - The `compat_ideographs` and `unicode_compat` modules, their reusable normalizer types, and their normalization free
   functions are no longer publicly exposed. The supported public normalization API is
   `OpenCC::normalize_compat(...)`, `OpenCC::normalize_unicode_compat(...)`, and
@@ -41,6 +57,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Extended compatibility normalization without changing the existing `OpenCC::normalize_compat(...)` behavior; callers
   can opt into the broader curated normalization with `OpenCC::normalize_compat_extended(...)`.
 - Updated conversion dictionary data.
+
+### Removed
+
+- Removed the deprecated v0.11.4 Japanese slot-name aliases
+  `JPShinjitaiCharacters`, `JPShinjitaiCharactersRev`, and
+  `JPShinjitaiPhrases`, as announced for the 0.12.x release series. Use the canonical `JPSCharacters`,
+  `JPSCharactersRev`, and `JPSPhrases` slot names. The physical `.txt` dictionary filenames are unchanged.
 
 ---
 
@@ -652,8 +675,3 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Removed
 
 - N/A
-
----
-
-## [Unreleased]
-
