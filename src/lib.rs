@@ -87,12 +87,12 @@ pub(crate) mod compat_ideographs;
 /// Delimiters helper for splitting and matching delimiters.
 mod delimiter_set;
 /// Display compatibility fallback utilities for rare CJK extension characters.
-pub mod detofu;
+pub(crate) mod detofu;
 /// Bridge helper for conversion plan and core converter functions.
 mod dict_refs;
 /// Dictionary utilities for managing multiple OpenCC lexicons.
 pub mod dictionary_lib;
-pub mod ids;
+pub(crate) mod ids;
 /// Core converter
 mod opencc;
 /// Configurations for conversion.
@@ -103,7 +103,7 @@ mod utils;
 
 pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
 pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};
-pub use crate::dictionary_lib::{DictionaryError, DictionaryMaxlength};
+pub use crate::dictionary_lib::{DictMaxLen, DictionaryError, DictionaryMaxlength};
 pub use crate::opencc::OpenCC;
 pub use crate::opencc_config::OpenccConfig;
 /// Converts rare non-BMP CJK extension characters to compatibility fallbacks.

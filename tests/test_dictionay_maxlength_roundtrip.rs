@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use opencc_fmmseg::dictionary_lib::{DictMaxLen, DictionaryMaxlength};
+    use opencc_fmmseg::{DictMaxLen, DictionaryMaxlength};
     use std::fs;
     use std::io::Cursor;
     use std::path::Path;

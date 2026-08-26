@@ -2,7 +2,7 @@ mod json_io;
 
 use crate::json_io::DictionaryMaxlengthSerde;
 use clap::{Arg, Command};
-use opencc_fmmseg::dictionary_lib::DictionaryMaxlength;
+use opencc_fmmseg::DictionaryMaxlength;
 use opencc_tool_common::parse_custom_dict_spec;
 use std::fs::File;
 use std::io;

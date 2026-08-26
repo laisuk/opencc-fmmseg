@@ -1,7 +1,6 @@
-use opencc_fmmseg::dictionary_lib::DictMaxLen;
 use opencc_fmmseg::{
-    detofu, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictSlot, DictionaryMaxlength,
-    OpenCC, OpenccConfig,
+    detofu, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictMaxLen, DictSlot,
+    DictionaryMaxlength, OpenCC, OpenccConfig,
 };
 
 #[test]

@@ -1,6 +1,6 @@
-use opencc_fmmseg::dictionary_lib::DictMaxLen;
 use opencc_fmmseg::{
-    CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC,
+    CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictMaxLen, DictSlot, DictionaryMaxlength,
+    OpenCC,
 };
 use serde_cbor::from_slice;
 use std::error::Error;

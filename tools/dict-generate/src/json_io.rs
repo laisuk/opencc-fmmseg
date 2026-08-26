@@ -1,5 +1,5 @@
 // json_io.rs (CLI only)
-use opencc_fmmseg::dictionary_lib::{DictMaxLen, DictionaryMaxlength};
+use opencc_fmmseg::{DictMaxLen, DictionaryMaxlength};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
