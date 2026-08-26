@@ -83,21 +83,21 @@
 //! errors are recorded in [`OpenCC::get_last_error`]. Dictionary construction
 //! APIs return [`Result`] with [`DictionaryError`].
 //!
-pub(crate) mod compat_ideographs;
+mod compat_ideographs;
 /// Delimiters helper for splitting and matching delimiters.
 mod delimiter_set;
 /// Display compatibility fallback utilities for rare CJK extension characters.
-pub(crate) mod detofu;
+mod detofu;
 /// Bridge helper for conversion plan and core converter functions.
 mod dict_refs;
 /// Dictionary utilities for managing multiple OpenCC lexicons.
-pub mod dictionary_lib;
-pub(crate) mod ids;
+mod dictionary_lib;
+mod ids;
 /// Core converter
 mod opencc;
 /// Configurations for conversion.
 mod opencc_config;
-pub(crate) mod unicode_compat;
+mod unicode_compat;
 /// Common helpers for opencc-fmmseg.
 mod utils;
 

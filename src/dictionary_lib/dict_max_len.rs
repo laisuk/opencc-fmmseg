@@ -23,7 +23,7 @@
 //!
 //! ## Example
 //! ```ignore
-//! use opencc_fmmseg::dictionary_lib::DictMaxLen;
+//! use opencc_fmmseg::DictMaxLen;
 //!
 //! // Build from pairs (adjust to your actual builder API)
 //! let pairs = vec![
@@ -118,7 +118,7 @@ macro_rules! debug_note {
 /// # Usage
 ///
 /// ```ignore
-/// use opencc_fmmseg::dictionary_lib::DictMaxLen;
+/// use opencc_fmmseg::DictMaxLen;
 /// use rustc_hash::FxHashMap;
 ///
 /// // Minimal manual construction (normally use a builder)
@@ -277,7 +277,7 @@ impl DictMaxLen {
     ///
     /// ### Example
     /// ```rust
-    /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
+    /// use opencc_fmmseg::DictMaxLen;
     ///
     /// // Two simple phrase pairs (both 2 chars)
     /// let pairs = vec![
@@ -481,7 +481,7 @@ impl DictMaxLen {
     ///
     /// # Example
     /// ```
-    /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
+    /// use opencc_fmmseg::DictMaxLen;
     /// let mut dict = DictMaxLen {
     ///     map: Default::default(),
     ///     max_len: 0,
@@ -546,7 +546,7 @@ impl DictMaxLen {
     ///
     /// # Example
     /// ```
-    /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
+    /// use opencc_fmmseg::DictMaxLen;
     ///
     /// let pairs = vec![
     ///     ("你好".to_string(), "您好".to_string()),
@@ -672,7 +672,7 @@ impl DictMaxLen {
     ///
     /// # Example
     /// ```
-    /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
+    /// use opencc_fmmseg::DictMaxLen;
     ///
     /// let mut dict = DictMaxLen {
     ///     map: Default::default(),
@@ -1073,7 +1073,7 @@ impl Default for DictMaxLen {
     ///
     /// This is equivalent to:
     /// ```
-    /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
+    /// use opencc_fmmseg::DictMaxLen;
     /// use rustc_hash::FxHashMap;
     ///
     /// let dict = DictMaxLen {
@@ -1089,7 +1089,7 @@ impl Default for DictMaxLen {
     ///
     /// # Example
     /// ```
-    /// use opencc_fmmseg::dictionary_lib::DictMaxLen;
+    /// use opencc_fmmseg::DictMaxLen;
     ///
     /// let dict = DictMaxLen::default();
     /// assert_eq!(dict.max_len, 0);
