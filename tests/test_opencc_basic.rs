@@ -29,7 +29,7 @@ fn tw_variant_phrases_apply_before_variant_chars() {
 
     let opencc = OpenCC::from_dictionary(dictionary);
 
-    assert_eq!(opencc.t2tw("甲乙"), "TW_PHRASE");
+    assert_eq!(opencc.t2tw("甲乙", false), "TW_PHRASE");
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn hk_variant_phrases_apply_before_variant_chars() {
 
     let opencc = OpenCC::from_dictionary(dictionary);
 
-    assert_eq!(opencc.t2hk("甲乙"), "HK_PHRASE");
+    assert_eq!(opencc.t2hk("甲乙", false), "HK_PHRASE");
 }
 
 #[test]

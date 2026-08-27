@@ -855,6 +855,25 @@ impl OpenCC {
             })
     }
 
+    /// Applies a primary dictionary round followed by optional
+    /// Simplified-to-Traditional punctuation normalization.
+    #[inline]
+    fn apply_dicts_1_with_st_punctuation(
+        &self,
+        input: &str,
+        punctuation: bool,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+    ) -> String {
+        if punctuation {
+            let round_2 = [&self.dictionary.st_punctuations];
+            let u2 = self.dictionary.union_for(UnionKey::StPunctOnly);
+            self.apply_dicts_2(input, round_1, u1, &round_2, u2)
+        } else {
+            self.apply_dicts_1(input, round_1, u1)
+        }
+    }
+
     /// Applies a shared S2T-style first round with optional punctuation maps.
     ///
     /// This helper selects either the 2-dictionary (`st_phrases`,
@@ -1317,7 +1336,7 @@ impl OpenCC {
 
     /// Converts general Traditional Chinese text to Taiwanese Traditional variants (T → Tw).
     ///
-    /// This method performs a single-round dictionary-based conversion that
+    /// The primary dictionary-based conversion pass
     /// rewrites general Traditional forms into Taiwanese-specific variants
     /// using:
     ///
@@ -1329,23 +1348,25 @@ impl OpenCC {
     /// # Arguments
     ///
     /// * `input` - Traditional Chinese text to convert into Taiwanese variants.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after the variant conversion.
     ///
     /// # Returns
     ///
     /// Taiwanese Traditional Chinese text with character/word forms adjusted
     /// according to `tw_variants`.
-    pub fn t2tw(&self, input: &str) -> String {
+    pub fn t2tw(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.tw_variants_phrases,
             &self.dictionary.tw_variants,
         ];
         let u1 = self.dictionary.union_for(UnionKey::TwVariantsPair);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts general Traditional Chinese text to idiomatic Taiwanese Traditional (T → TWP).
     ///
-    /// This method performs one longest-match replacement round over the
+    /// The primary conversion pass performs longest-match replacement over the
     /// Taiwanese phrase (`tw_phrases`), variant phrase
     /// (`tw_variants_phrases`), and variant character (`tw_variants`)
     /// dictionaries. Starter metadata for all three dictionaries is shared
@@ -1355,23 +1376,25 @@ impl OpenCC {
     ///
     /// * `input` - Traditional Chinese text to convert into Taiwanese idiomatic
     ///   and variant forms.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after the phrase/variant conversion.
     ///
     /// # Returns
     ///
     /// Taiwanese Traditional Chinese text with both idioms and variants applied.
-    pub fn t2twp(&self, input: &str) -> String {
+    pub fn t2twp(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.tw_phrases,
             &self.dictionary.tw_variants_phrases,
             &self.dictionary.tw_variants,
         ];
         let u1 = self.dictionary.union_for(UnionKey::TwTriple);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts Taiwanese Traditional text to general Traditional (Tw → T).
     ///
-    /// This method performs a single-round dictionary-based normalization that
+    /// The primary dictionary-based normalization pass
     /// maps Taiwanese-specific variants back to general Traditional Chinese
     /// using:
     ///
@@ -1384,23 +1407,24 @@ impl OpenCC {
     /// # Arguments
     ///
     /// * `input` - Taiwanese Traditional Chinese text to normalize.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after normalization.
     ///
     /// # Returns
     ///
     /// General Traditional Chinese text with Taiwanese variants normalized.
-    pub fn tw2t(&self, input: &str) -> String {
+    pub fn tw2t(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::TwRevPair);
-
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts idiomatic Taiwanese Traditional text to general Traditional (TWP → T).
     ///
-    /// This method performs one longest-match replacement round over the
+    /// The primary conversion pass performs longest-match replacement over the
     /// reverse Taiwanese phrase (`tw_phrases_rev`), reverse variant phrase
     /// (`tw_variants_rev_phrases`), and reverse variant character
     /// (`tw_variants_rev`) dictionaries. Starter metadata for all three
@@ -1410,24 +1434,26 @@ impl OpenCC {
     ///
     /// * `input` - Taiwanese Traditional Chinese text (including idioms) to
     ///   normalize.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after normalization.
     ///
     /// # Returns
     ///
     /// General Traditional Chinese text with both Taiwanese variants and
     /// idioms normalized.
-    pub fn tw2tp(&self, input: &str) -> String {
+    pub fn tw2tp(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.tw_phrases_rev,
             &self.dictionary.tw_variants_rev_phrases,
             &self.dictionary.tw_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::TwRevTriple);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts general Traditional Chinese text to Hong Kong Traditional variants (T → HK).
     ///
-    /// This method performs a single-round dictionary-based conversion that
+    /// The primary dictionary-based conversion pass
     /// rewrites general Traditional forms into Hong Kong–specific variants
     /// using:
     ///
@@ -1439,53 +1465,53 @@ impl OpenCC {
     /// # Arguments
     ///
     /// * `input` - Traditional Chinese text to convert into Hong Kong variants.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after the variant conversion.
     ///
     /// # Returns
     ///
     /// Hong Kong Traditional Chinese text with character/word forms adjusted
     /// according to `hk_variants`.
-    pub fn t2hk(&self, input: &str) -> String {
+    pub fn t2hk(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.hk_variants_phrases,
             &self.dictionary.hk_variants,
         ];
         let u1 = self.dictionary.union_for(UnionKey::HkVariantsPair);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts general Traditional Chinese text to idiomatic Hong Kong Traditional (T → HKP).
     ///
-    /// This method performs one longest-match replacement round over the Hong
+    /// The primary conversion pass performs longest-match replacement over the Hong
     /// Kong phrase (`hk_phrases`), variant phrase (`hk_variants_phrases`), and
     /// variant character (`hk_variants`) dictionaries. Starter metadata for
     /// all three dictionaries is shared through
     /// `union_for(UnionKey::HkTriple)`.
     ///
-    /// Unlike [`OpenCC::s2hkp`], this direct Traditional-to-Hong-Kong
-    /// conversion does not need a punctuation parameter because it does not
-    /// run a Simplified-to-Traditional round.
-    ///
     /// # Arguments
     ///
     /// * `input` - General Traditional Chinese text to convert into idiomatic
     ///   Hong Kong Traditional.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after the phrase/variant conversion.
     ///
     /// # Returns
     ///
     /// Idiomatic Hong Kong Traditional text with phrase and variant mappings
     /// applied.
-    pub fn t2hkp(&self, input: &str) -> String {
+    pub fn t2hkp(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.hk_phrases,
             &self.dictionary.hk_variants_phrases,
             &self.dictionary.hk_variants,
         ];
         let u1 = self.dictionary.union_for(UnionKey::HkTriple);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
     /// Converts Hong Kong Traditional text to general Traditional (HK → T).
     ///
-    /// This method performs a single-round dictionary-based normalization that
+    /// The primary dictionary-based normalization pass
     /// maps Hong Kong–specific variants back to general Traditional Chinese
     /// using:
     ///
@@ -1498,51 +1524,51 @@ impl OpenCC {
     /// # Arguments
     ///
     /// * `input` - Hong Kong Traditional Chinese text to normalize.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after normalization.
     ///
     /// # Returns
     ///
     /// General Traditional Chinese text with Hong Kong variants normalized.
-    pub fn hk2t(&self, input: &str) -> String {
+    pub fn hk2t(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::HkRevPair);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts idiomatic Hong Kong Traditional text to general Traditional (HKP → T).
     ///
-    /// This method performs one longest-match replacement round over the
+    /// The primary conversion pass performs longest-match replacement over the
     /// reverse Hong Kong phrase (`hk_phrases_rev`), reverse variant phrase
     /// (`hk_variants_rev_phrases`), and reverse variant character
     /// (`hk_variants_rev`) dictionaries. Starter metadata for all three
     /// dictionaries is shared through `union_for(UnionKey::HkRevTriple)`.
     ///
-    /// Unlike [`OpenCC::hk2sp`], this direct Hong-Kong-to-Traditional
-    /// conversion does not need a punctuation parameter because it does not
-    /// run a Traditional-to-Simplified round.
-    ///
     /// # Arguments
     ///
     /// * `input` - Idiomatic Hong Kong Traditional text to normalize.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after normalization.
     ///
     /// # Returns
     ///
     /// General Traditional Chinese text with Hong Kong phrases and variants
     /// normalized.
-    pub fn hk2tp(&self, input: &str) -> String {
+    pub fn hk2tp(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.hk_phrases_rev,
             &self.dictionary.hk_variants_rev_phrases,
             &self.dictionary.hk_variants_rev,
         ];
         let u1 = self.dictionary.union_for(UnionKey::HkRevTriple);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
     /// Converts Japanese Kyūjitai (traditional kanji forms) to Shinjitai.
     ///
-    /// This method performs a single-round dictionary-based conversion that
+    /// The primary dictionary-based conversion pass
     /// rewrites Kyūjitai-style characters into their modern Shinjitai forms
     /// using:
     ///
@@ -1554,20 +1580,22 @@ impl OpenCC {
     /// # Arguments
     ///
     /// * `input` - Text containing Kyūjitai-style characters to convert.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after kanji conversion.
     ///
     /// # Returns
     ///
     /// Text where Kyūjitai characters have been replaced with their
     /// corresponding Shinjitai forms.
-    pub fn t2jp(&self, input: &str) -> String {
+    pub fn t2jp(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [&self.dictionary.jps_characters_rev];
         let u1 = self.dictionary.union_for(UnionKey::JpsCharactersRev);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts Japanese Shinjitai to Kyūjitai (modern → traditional kanji forms).
     ///
-    /// This method performs a single-round dictionary-based conversion that
+    /// The primary dictionary-based conversion pass
     /// maps modern Shinjitai forms back to their Kyūjitai or Traditional
     /// Chinese equivalents using:
     ///
@@ -1580,18 +1608,20 @@ impl OpenCC {
     /// # Arguments
     ///
     /// * `input` - Text containing Shinjitai characters to convert.
+    /// * `punctuation` - Whether to convert Simplified-style quotation marks to
+    ///   Traditional-style quotation marks after kanji conversion.
     ///
     /// # Returns
     ///
     /// Text where Shinjitai forms are converted back to Kyūjitai or their
     /// corresponding Traditional forms.
-    pub fn jp2t(&self, input: &str) -> String {
+    pub fn jp2t(&self, input: &str, punctuation: bool) -> String {
         let round_1 = [
             &self.dictionary.jps_phrases,
             &self.dictionary.jps_characters,
         ];
         let u1 = self.dictionary.union_for(UnionKey::JpsPair);
-        self.apply_dicts_1(input, &round_1, u1)
+        self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
     /// Converts Chinese text using a configuration name (`&str`, case-insensitive).
@@ -1609,9 +1639,7 @@ impl OpenCC {
     ///
     /// * `input` - UTF-8 text to convert.
     /// * `config` - Configuration name (case-insensitive), e.g. `"s2t"`.
-    /// * `punctuation` - Whether to apply punctuation conversion where supported.
-    ///   For some configs, this parameter is **ignored** because their conversion
-    ///   pipeline does not include punctuation normalization.
+    /// * `punctuation` - Whether to apply punctuation conversion.
     ///
     /// # Returns
     ///
@@ -1672,20 +1700,20 @@ impl OpenCC {
             OpenccConfig::S2hk => self.s2hk(input, punctuation),
             OpenccConfig::S2hkp => self.s2hkp(input, punctuation),
             OpenccConfig::T2s => self.t2s(input, punctuation),
-            OpenccConfig::T2tw => self.t2tw(input),
-            OpenccConfig::T2twp => self.t2twp(input),
-            OpenccConfig::T2hk => self.t2hk(input),
-            OpenccConfig::T2hkp => self.t2hkp(input),
+            OpenccConfig::T2tw => self.t2tw(input, punctuation),
+            OpenccConfig::T2twp => self.t2twp(input, punctuation),
+            OpenccConfig::T2hk => self.t2hk(input, punctuation),
+            OpenccConfig::T2hkp => self.t2hkp(input, punctuation),
             OpenccConfig::Tw2s => self.tw2s(input, punctuation),
             OpenccConfig::Tw2sp => self.tw2sp(input, punctuation),
-            OpenccConfig::Tw2t => self.tw2t(input),
-            OpenccConfig::Tw2tp => self.tw2tp(input),
+            OpenccConfig::Tw2t => self.tw2t(input, punctuation),
+            OpenccConfig::Tw2tp => self.tw2tp(input, punctuation),
             OpenccConfig::Hk2s => self.hk2s(input, punctuation),
             OpenccConfig::Hk2sp => self.hk2sp(input, punctuation),
-            OpenccConfig::Hk2t => self.hk2t(input),
-            OpenccConfig::Hk2tp => self.hk2tp(input),
-            OpenccConfig::Jp2t => self.jp2t(input),
-            OpenccConfig::T2jp => self.t2jp(input),
+            OpenccConfig::Hk2t => self.hk2t(input, punctuation),
+            OpenccConfig::Hk2tp => self.hk2tp(input, punctuation),
+            OpenccConfig::Jp2t => self.jp2t(input, punctuation),
+            OpenccConfig::T2jp => self.t2jp(input, punctuation),
         }
     }
 

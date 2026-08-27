@@ -69,6 +69,9 @@ pub(super) struct Unions {
 
     /// Union combining Japanese Shinjitai phrases and characters.
     jps_pair: OnceLock<Arc<StarterUnion>>,
+
+    /// Simplified → Traditional union punctuation only mappings.
+    st_punct_only: OnceLock<Arc<StarterUnion>>,
 }
 
 /// Logical keys identifying every cached [`StarterUnion`] variant used by the
@@ -235,6 +238,19 @@ pub(crate) enum UnionKey {
     /// Used in:
     /// - `jp2t`
     JpsPair,
+
+    // ============================
+    // Simplified-style → Traditional-style punctuation only
+    // ============================
+    /// Simplified-style → Traditional-style punctuation union.
+    ///
+    /// Includes:
+    /// - `st_punctuations`
+    ///
+    /// Used by `OpenCC::t2tw`, `OpenCC::t2twp`, `OpenCC::tw2t`, `OpenCC::tw2tp`,
+    /// `OpenCC::t2hk`, `OpenCC::t2hkp`, `OpenCC::hk2t`, `OpenCC::hk2tp`,
+    /// `OpenCC::t2jp`, `OpenCC::jp2t`.
+    StPunctOnly,
 }
 
 impl DictionaryMaxlength {
@@ -400,6 +416,11 @@ impl DictionaryMaxlength {
                         &self.jps_characters,
                     ]))
                 })
+                .clone(),
+            UnionKey::StPunctOnly => self
+                .unions
+                .st_punct_only
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.st_punctuations])))
                 .clone(),
         }
     }

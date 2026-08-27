@@ -119,6 +119,24 @@ Implementation modules and accelerators such as `dictionary_lib`,
 `dictionary_maxlength`, `starter_union`, and `StarterUnion` are private. Downstream code should not use their former
 nested paths; the crate-root re-exports above are the supported, docs.rs-visible dictionary API.
 
+All direct Rust conversion helpers use the same `(input, punctuation)` shape. For example:
+
+```rust
+use opencc_fmmseg::OpenCC;
+
+fn main() {
+    let converter = OpenCC::new();
+
+    assert_eq!(converter.s2t("“汉字”", true), "「漢字」");
+    assert_eq!(converter.t2tw("“滑鼠”", true), "「滑鼠」");
+    assert_eq!(converter.jp2t("“広国”", false), "“廣國”");
+}
+```
+
+The `punctuation` argument is required on every direct helper. Set it to `true` to normalize punctuation for the output
+style, or `false` to preserve punctuation. The configuration-based `convert(...)` and `convert_with_config(...)` APIs
+retain their existing signatures.
+
 Then use it in your code:
 
 ```rust

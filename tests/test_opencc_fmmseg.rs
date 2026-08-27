@@ -94,7 +94,7 @@ mod tests {
             "妹丁"
         );
         assert_eq!(opencc.convert("小女孩", "s2hkp", false), "妹丁");
-        assert_eq!(opencc.t2hkp("小女孩"), "妹丁");
+        assert_eq!(opencc.t2hkp("小女孩", false), "妹丁");
         assert_eq!(
             opencc.convert_with_config("小女孩", OpenccConfig::T2hkp, true),
             "妹丁"
@@ -118,7 +118,7 @@ mod tests {
             "小女孩"
         );
         assert_eq!(opencc.convert("妹丁", "hk2sp", false), "小女孩");
-        assert_eq!(opencc.hk2tp("妹丁"), "小女孩");
+        assert_eq!(opencc.hk2tp("妹丁", false), "小女孩");
         assert_eq!(
             opencc.convert_with_config("妹丁", OpenccConfig::Hk2tp, true),
             "小女孩"
@@ -164,11 +164,43 @@ mod tests {
     }
 
     #[test]
+    fn all_direct_conversion_apis_honor_punctuation() {
+        let opencc = OpenCC::new();
+        let input = "“測試”‘文字’";
+        let expected = "「測試」『文字』";
+
+        assert_eq!(opencc.t2tw(input, false), input);
+        assert_eq!(opencc.t2tw(input, true), expected);
+        assert_eq!(opencc.t2twp(input, true), expected);
+        assert_eq!(opencc.tw2t(input, true), expected);
+        assert_eq!(opencc.tw2tp(input, true), expected);
+        assert_eq!(opencc.t2hk(input, true), expected);
+        assert_eq!(opencc.t2hkp(input, true), expected);
+        assert_eq!(opencc.hk2t(input, true), expected);
+        assert_eq!(opencc.hk2tp(input, true), expected);
+        assert_eq!(opencc.t2jp(input, true), expected);
+        assert_eq!(opencc.jp2t(input, true), expected);
+    }
+
+    #[test]
+    fn config_conversion_apis_apply_punctuation_to_direct_t_configs() {
+        let opencc = OpenCC::new();
+        let input = "“測試”";
+        let expected = "「測試」";
+
+        assert_eq!(
+            opencc.convert_with_config(input, OpenccConfig::T2twp, true),
+            expected
+        );
+        assert_eq!(opencc.convert(input, "jp2t", true), expected);
+    }
+
+    #[test]
     fn t2jp_test() {
         let input = "舊字體：廣國，讀賣。";
         let expected_output = "旧字体：広国，読売。";
         let opencc = OpenCC::new();
-        let actual_output = opencc.t2jp(input);
+        let actual_output = opencc.t2jp(input, false);
         assert_eq!(actual_output, expected_output);
     }
 
@@ -177,7 +209,7 @@ mod tests {
         let input = "広国，読売。";
         let expected_output = "廣國，讀賣。";
         let opencc = OpenCC::new();
-        let actual_output = opencc.jp2t(input);
+        let actual_output = opencc.jp2t(input, false);
         assert_eq!(actual_output, expected_output);
     }
 

@@ -24,6 +24,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Unified all direct Rust conversion helpers on the `(input, punctuation)` signature. The `t2tw`, `t2twp`, `tw2t`,
+  `tw2tp`, `t2hk`, `t2hkp`, `hk2t`, `hk2tp`, `t2jp`, and `jp2t` helpers now optionally apply Traditional-style
+  punctuation conversion, matching the existing direct Simplified/Traditional APIs. The signatures of `convert(...)`
+  and `convert_with_config(...)` are unchanged.
+
 - Made the `opencc_fmmseg` crate root the single public entry point for the dictionary API. The `dictionary_lib`,
   `dictionary_maxlength`, and `starter_union` implementation modules are now private, while their supported public types
   are available directly from the crate root.
@@ -57,6 +62,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Extended compatibility normalization without changing the existing `OpenCC::normalize_compat(...)` behavior; callers
   can opt into the broader curated normalization with `OpenCC::normalize_compat_extended(...)`.
 - Updated conversion dictionary data.
+
+### Breaking
+
+- Direct Rust calls to `t2tw`, `t2twp`, `tw2t`, `tw2tp`, `t2hk`, `t2hkp`, `hk2t`, `hk2tp`, `t2jp`, and `jp2t` must now
+  pass a `punctuation: bool` argument. Pass `false` to preserve the previous behavior. Configuration-based
+  `convert(...)` and `convert_with_config(...)` calls require no source changes.
 
 ### Removed
 

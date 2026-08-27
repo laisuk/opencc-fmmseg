@@ -30,6 +30,8 @@
 //! - [`OpenccConfig`] is the recommended Rust configuration API.
 //! - [`OpenCC::convert`] accepts OpenCC-style strings such as `"s2t"` and is
 //!   useful for CLI/config-file compatibility.
+//! - Direct helpers such as [`OpenCC::s2t`] and [`OpenCC::t2tw`] accept the
+//!   same `punctuation` flag as the configuration-based APIs.
 //! - [`OpenCC::normalize_compat`], [`OpenCC::normalize_unicode_compat`], and
 //!   [`OpenCC::normalize_compat_extended`] provide optional Unicode
 //!   compatibility normalization before conversion.
@@ -58,6 +60,19 @@
 //! | `t2tw` / `t2twp` | [`OpenCC::t2tw`] / [`OpenCC::t2twp`] | Traditional to Taiwan variants |
 //! | `tw2t` / `tw2tp` | [`OpenCC::tw2t`] / [`OpenCC::tw2tp`] | Taiwan variants to Traditional |
 //! | `t2jp` / `jp2t` | [`OpenCC::t2jp`] / [`OpenCC::jp2t`] | Traditional and Japanese kanji variants |
+//!
+//! All direct conversion methods take `(input, punctuation)`. Enabling
+//! punctuation converts curly Simplified-style quotation marks (`“”‘’`) to
+//! Traditional-style corner brackets (`「」『』`) for Traditional, regional, and
+//! Japanese outputs; conversions to Simplified use the reverse mapping.
+//!
+//! ```rust
+//! use opencc_fmmseg::OpenCC;
+//!
+//! let converter = OpenCC::new();
+//! assert_eq!(converter.t2tw("“滑鼠”", true), "「滑鼠」");
+//! assert_eq!(converter.t2tw("“滑鼠”", false), "“滑鼠”");
+//! ```
 //!
 //! # Custom Dictionaries
 //!
