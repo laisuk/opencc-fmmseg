@@ -80,6 +80,25 @@ include/ # C API header + C++ helper header
 - 📄 **Cross-platform ready** — Builds cleanly on **Windows**, **Linux**, and **macOS** (x86_64 / ARM64), with CLI and
   shared-library distributions.
 
+---
+
+## Live Demo
+
+Try **opencc-fmmseg** directly in your browser:
+
+👉 **[Open CJK Conversion Tool](https://laisuk.github.io/opencc-fmmseg-wasm)**
+
+Convert Simplified/Traditional Chinese text interactively, or process TXT, DOCX, XLSX, PPTX, and EPUB documents directly
+in the browser.
+
+Files are processed locally with WebAssembly and are not uploaded to a server.
+
+The demo is powered by
+[`opencc-fmmseg-wasm`](https://github.com/laisuk/opencc-fmmseg-wasm), which uses `opencc-fmmseg` as its conversion
+backend.
+
+---
+
 ## Installation
 
 ```bash
