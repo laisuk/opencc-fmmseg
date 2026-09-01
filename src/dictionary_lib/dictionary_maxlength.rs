@@ -1219,7 +1219,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// The resulting file is suitable for:
     ///
     /// - Distributing custom dictionary builds
-    /// - Loading via [`load_compressed`](Self::load_cbor_compressed)
+    /// - Loading via [`load_cbor_compressed`](Self::load_cbor_compressed)
     /// - Embedding as an asset in external applications
     ///
     /// Unlike [`serialize_to_cbor`](Self::serialize_to_cbor), this function
@@ -1254,7 +1254,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
     /// Loads the dictionary from a Zstd-compressed CBOR file.
     ///
-    /// This function reverses [`save_compressed`](Self::save_cbor_compressed) by:
+    /// This function reverses [`save_cbor_compressed`](Self::save_cbor_compressed) by:
     ///
     /// 1. Opening the specified file
     /// 2. Decompressing its Zstd stream
