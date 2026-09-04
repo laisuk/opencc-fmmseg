@@ -6,7 +6,7 @@
 ![Crates.io](https://img.shields.io/crates/d/opencc-fmmseg)
 [![Latest Downloads](https://img.shields.io/github/downloads/laisuk/opencc-fmmseg/latest/total.svg)](https://github.com/laisuk/opencc-fmmseg/releases/latest)
 [![License](https://img.shields.io/crates/l/opencc-fmmseg)](https://github.com/laisuk/opencc-fmmseg/blob/master/LICENSE)
-![Build Status](https://github.com/laisuk/opencc-fmmseg/actions/workflows/msrv.yml/badge.svg)
+![Build Status](https://github.com/laisuk/opencc-fmmseg/actions/workflows/build_test.yml/badge.svg)
 
 **opencc-fmmseg** is a high-performance Rust-based engine for Chinese text conversion.    
 It combines [OpenCC](https://github.com/BYVoid/OpenCC)'s lexicons with an
