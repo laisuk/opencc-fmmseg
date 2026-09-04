@@ -163,10 +163,8 @@ impl DictionaryMaxlength {
     /// - Zero file-system access
     /// - A guaranteed, version-matched dictionary set
     ///
-    /// On failure, this method stores a human-readable message in the internal
-    /// error buffer via [`set_last_error`](Self::set_last_error), allowing
-    /// foreign-language bindings (C, C#, Python, Java through JNI) to retrieve
-    /// the error message safely.
+    /// On failure, this method stores a human-readable message in the process-wide
+    /// `DictionaryMaxlength` error buffer for retrieval with [`Self::get_last_error`].
     ///
     /// # Returns
     ///
@@ -393,7 +391,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// maximum length arrays** (`first_char_max_len`).
     ///
     /// This method should be run after any bulk changes to dictionary contents,
-    /// especially after deserialization or manual editing of `map`/`starter_cap`.
+    /// especially after deserialization or internal/bulk reconstruction of `map`/`starter_cap`.
     ///
     /// # Behavior
     /// - Only affects runtime accelerator fields; does not modify `map`, `max_len`, or `starter_cap`.
@@ -1111,10 +1109,10 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// - Variant and reverse-variant tables
     /// - Any metadata currently present in the struct
     ///
-    /// ## Errors / FFI diagnostics
+    /// ## Error diagnostics
     ///
-    /// On failure, a human-readable message is written to the global last-error buffer
-    /// via [`set_last_error`](Self::set_last_error).
+    /// On failure, a human-readable message is written to the process-wide
+    /// `DictionaryMaxlength` last-error buffer for retrieval with [`Self::get_last_error`].
     pub fn serialize_to_cbor<P: AsRef<Path>>(&self, path: P) -> Result<(), DictionaryError> {
         let cbor_data = serde_cbor::to_vec(self).map_err(|err| {
             let msg = format!("Failed to serialize to CBOR: {}", err);
@@ -1139,10 +1137,10 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// After decoding, the dictionary is finalized via [`finish`](Self::finish)
     /// (e.g., max-key-length metadata used by longest-match segmentation).
     ///
-    /// ## Errors / FFI diagnostics
+    /// ## Error diagnostics
     ///
-    /// On failure, a human-readable message is written to the global last-error buffer
-    /// via [`set_last_error`](Self::set_last_error).
+    /// On failure, a human-readable message is written to the process-wide
+    /// `DictionaryMaxlength` last-error buffer for retrieval with [`Self::get_last_error`].
     pub fn deserialize_from_cbor<P: AsRef<Path>>(path: P) -> Result<Self, DictionaryError> {
         let file = File::open(&path).map_err(|err| {
             let msg = format!("Failed to read CBOR file: {}", err);
@@ -1160,51 +1158,30 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         Ok(dictionary.finish())
     }
 
-    /// Stores a human-readable error message for later retrieval.
-    ///
-    /// This function records the most recent error encountered during dictionary
-    /// operations such as loading, parsing, serialization, or file I/O.
-    ///
-    /// The message is written into the global thread-safe buffer
-    /// `LAST_ERROR`, which is shared across FFI bindings (C, C#, Python,
-    /// Java/JNI).
-    ///
-    /// Foreign callers that cannot rely on Rust's `Result` system can retrieve
-    /// this message using [`get_last_error`](Self::get_last_error).
-    ///
-    /// # Arguments
-    ///
-    /// * `err_msg` — The error message to record.
-    ///
-    /// # Notes
-    ///
-    /// - This function overwrites any previously stored message.
-    /// - The stored message is `String`-backed and safe to clone across
-    ///   language boundaries.
-    pub fn set_last_error(err_msg: &str) {
+    // Stores a dictionary error in the process-wide DictionaryMaxlength error slot.
+    // This storage is independent of the C API's thread-local error slot.
+    pub(crate) fn set_last_error(err_msg: &str) {
         let mut last_error = LAST_ERROR.lock().unwrap();
         *last_error = Some(err_msg.to_string());
     }
 
     /// Returns the most recently recorded error message, if any.
     ///
-    /// This function reads from the global error buffer `LAST_ERROR`, which is
-    /// populated by calls to [`set_last_error`](Self::set_last_error) during
-    /// dictionary loading, parsing, serialization, and external-resource I/O.
-    ///
-    /// It is primarily intended for FFI consumers (C, C#, Python, Java/JNI)
-    /// that require explicit error retrieval after a failure in an exported
-    /// function.
+    /// This function reads the process-wide `DictionaryMaxlength` error state populated by
+    /// failures during dictionary loading, parsing, serialization, and
+    /// external-resource I/O. This state is separate from the [`crate::OpenCC`]
+    /// error state. The C API also maintains a separate thread-local error
+    /// state and does not read or write this storage.
     ///
     /// # Returns
     ///
     /// - `Some(String)` containing the last error message
     /// - `None` if no error has been recorded
     ///
-    /// # Notes
-    ///
-    /// This function clones the stored string, ensuring safe ownership transfer
-    /// to external callers.
+    /// The returned string is cloned from the stored message. A successful
+    /// dictionary operation does not necessarily clear a previously recorded
+    /// message; callers should primarily use the returned [`Result`] to determine
+    /// whether the current operation succeeded.
     pub fn get_last_error() -> Option<String> {
         let last_error = LAST_ERROR.lock().unwrap();
         last_error.clone()

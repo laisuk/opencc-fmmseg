@@ -35,11 +35,10 @@ static LAST_ERROR: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 /// Regular expression used to normalize or strip punctuation from input.
 static STRIP_REGEX: OnceLock<Regex> = OnceLock::new();
 
-/// Returns a thread-safe reference to the global last-error storage.
+/// Returns a thread-safe reference to OpenCC's global last-error storage.
 ///
 /// This helper lazily initializes the internal [`Mutex`] holding an optional
-/// error message. It is used by C API functions to record and retrieve
-/// the most recent error across threads.
+/// error message. The C API maintains a separate thread-local error slot.
 ///
 /// # Returns
 ///
@@ -107,7 +106,7 @@ impl OpenCC {
     ///
     /// # Panics
     /// Never panics. If the dictionary fails to initialize, a default one is substituted,
-    /// and the error is stored internally via `set_last_error()`.
+    /// and the error is recorded for retrieval with [`Self::get_last_error`].
     ///
     /// # Example
     /// ```rust
@@ -124,7 +123,7 @@ impl OpenCC {
         Self::from_dictionary(dictionary)
     }
 
-    /// Creates an `OpenCC` instance using in-memory JSON dictionary objects.
+    /// Creates an `OpenCC` instance using plaintext OpenCC dictionary objects.
     ///
     /// This method is useful for unit testing or embedding custom dictionaries directly
     /// in code. It bypasses any file loading or embedded CBOR/JSON files, relying instead
@@ -135,7 +134,7 @@ impl OpenCC {
     ///
     /// # Panics
     /// Never panics. If loading fails, an empty dictionary is used and the error
-    /// is stored via `set_last_error()`.
+    /// is recorded for retrieval with [`Self::get_last_error`].
     ///
     /// # Example
     /// ```rust
@@ -164,8 +163,8 @@ impl OpenCC {
     /// A fully initialized `OpenCC` instance, or one with empty dictionaries if deserialization fails.
     ///
     /// # Errors
-    /// If deserialization fails, the dictionary is defaulted and the error is stored
-    /// via `set_last_error()`.
+    /// If deserialization fails, the dictionary is defaulted and the error is
+    /// recorded for retrieval with [`Self::get_last_error`].
     ///
     /// # Example
     /// ```rust
@@ -772,7 +771,7 @@ impl OpenCC {
     /// cc.set_parallel(false);
     /// assert!(!cc.get_parallel());
     /// ```
-    pub fn set_parallel(&mut self, is_parallel: bool) -> () {
+    pub fn set_parallel(&mut self, is_parallel: bool) {
         self.is_parallel = is_parallel;
     }
 
@@ -2238,30 +2237,10 @@ impl OpenCC {
             .into_owned()
     }
 
-    /// Records an error message as the most recent OpenCC runtime error.
-    ///
-    /// This is used internally to store non-panic runtime errors, such as failed
-    /// dictionary loading or invalid conversion configurations. The stored message
-    /// can later be retrieved safely via [`Self::get_last_error()`] without
-    /// requiring exceptions or `Result<T, E>` propagation from core APIs.
-    ///
-    /// Passing an empty string clears the current error state instead of storing
-    /// `Some("")`. This keeps Rust and C API error retrieval behavior consistent
-    /// and avoids ambiguous empty error messages.
-    ///
-    /// # Arguments
-    ///
-    /// * `err_msg` - The error message to store. Passing an empty string clears
-    ///   the current error state.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use opencc_fmmseg::OpenCC;
-    ///
-    /// OpenCC::set_last_error("Failed to load dictionary.");
-    /// ```
-    pub fn set_last_error(err_msg: &str) {
+    // Records an error message as the most recent OpenCC runtime error.
+    // Passing an empty string clears the current error state. The C API has
+    // independent thread-local error storage.
+    pub(crate) fn set_last_error(err_msg: &str) {
         let mut last_error = last_error_slot().lock().unwrap();
 
         if err_msg.is_empty() {
@@ -2273,8 +2252,11 @@ impl OpenCC {
 
     /// Retrieves the most recently recorded error message, if any.
     ///
-    /// This can be used by consumers after calling `convert()` or dictionary loaders
-    /// to inspect whether any non-fatal errors occurred (e.g., fallback to default dict).
+    /// This reports the process-wide `OpenCC` error state. It can be used after
+    /// calling [`Self::convert`] or an `OpenCC` dictionary-loading constructor to
+    /// inspect non-fatal failures, such as falling back to an empty dictionary.
+    /// Successful conversions clear this state. The C API maintains independent,
+    /// thread-local error storage and exposes it through `opencc_last_error()`.
     ///
     /// # Returns
     /// An `Option<String>` containing the error message, or `None` if no error was recorded.
@@ -2293,22 +2275,11 @@ impl OpenCC {
 
     /// Clears the most recently recorded OpenCC runtime error.
     ///
-    /// This function resets the internal error state maintained by OpenCC.
+    /// This function resets the process-wide `OpenCC` error state.
     /// After calling this, [`get_last_error`](Self::get_last_error) will return `None`
     /// until a new error is recorded.
     ///
-    /// ## Important
-    ///
-    /// - This function only clears the **internal error state**.
-    /// - It does **not** free or affect any error strings previously returned
-    ///   by the C API (e.g. via `opencc_last_error()`).
-    /// - Clearing the error state is independent of memory management.
-    ///
-    /// In other words:
-    ///
-    /// - Use `clear_last_error()` to reset the error **status**.
-    /// - Use the appropriate C API free function to release any allocated
-    ///   error message buffers.
+    /// This does not affect the C API's independent thread-local error state.
     ///
     /// ## Typical use cases
     ///
@@ -2321,13 +2292,12 @@ impl OpenCC {
     /// ```rust
     /// use opencc_fmmseg::OpenCC;
     ///
-    /// // Record an error internally
-    /// OpenCC::set_last_error("Invalid config");
+    /// let converter = OpenCC::new();
+    /// let result = converter.convert("汉字", "invalid", false);
+    /// assert_eq!(result, "Invalid config: invalid");
+    /// assert!(OpenCC::get_last_error().is_some());
     ///
-    /// // Clear it
     /// OpenCC::clear_last_error();
-    ///
-    /// // No error remains
     /// assert!(OpenCC::get_last_error().is_none());
     /// ```
     /// # Since
@@ -2336,5 +2306,23 @@ impl OpenCC {
     pub fn clear_last_error() {
         let mut last_error = last_error_slot().lock().unwrap();
         *last_error = None;
+    }
+}
+
+/// Creates an [`OpenCC`] instance using the default configuration.
+///
+/// This is equivalent to calling [`OpenCC::new`].
+///
+/// # Examples
+///
+/// ```
+/// use opencc_fmmseg::OpenCC;
+///
+/// let opencc = OpenCC::default();
+/// assert_eq!(opencc.convert("汉字", "s2t", false), "漢字");
+/// ```
+impl Default for OpenCC {
+    fn default() -> Self {
+        Self::new()
     }
 }

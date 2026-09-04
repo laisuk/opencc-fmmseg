@@ -122,7 +122,7 @@ mod unicode_compat;
 /// Common helpers for opencc-fmmseg.
 mod utils;
 
-pub use crate::delimiter_set::{is_delimiter, DelimiterSet};
+pub use crate::delimiter_set::is_delimiter;
 pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};
 pub use crate::dictionary_lib::{DictMaxLen, DictionaryError, DictionaryMaxlength};
 pub use crate::opencc::OpenCC;

@@ -49,12 +49,18 @@ fn hk_variant_phrases_apply_before_variant_chars() {
 fn direct_conversion_clears_stale_last_error_on_success() {
     let cc = OpenCC::new();
 
-    OpenCC::set_last_error("stale error");
+    // Seed the last-error state through a failing public conversion.
+    let _ = cc.convert("汉字", "invalid", false);
+    assert!(OpenCC::get_last_error().is_some());
+
     let converted = cc.convert_with_config("汉字", OpenccConfig::S2t, false);
     assert_eq!(converted, "漢字");
     assert!(OpenCC::get_last_error().is_none());
 
-    OpenCC::set_last_error("stale error");
+    // Seed another stale error.
+    let _ = cc.convert("汉字", "invalid", false);
+    assert!(OpenCC::get_last_error().is_some());
+
     let converted = cc.s2t("汉字", false);
     assert_eq!(converted, "漢字");
     assert!(OpenCC::get_last_error().is_none());

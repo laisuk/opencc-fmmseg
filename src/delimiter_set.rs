@@ -42,7 +42,7 @@ impl DelimiterSet {
     /// assert!(!is_delimiter('你'));
     /// ```
     #[inline(always)]
-    pub fn contains(&self, c: char) -> bool {
+    pub(crate) fn contains(&self, c: char) -> bool {
         let u = c as u32;
         if u <= 0x7F {
             return ((self.ascii_mask >> u) & 1) == 1;

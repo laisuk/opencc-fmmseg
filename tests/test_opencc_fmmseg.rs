@@ -317,8 +317,14 @@ mod tests {
 
     #[test]
     fn last_error_test() {
-        OpenCC::set_last_error("Some error here.");
-        assert_eq!(OpenCC::get_last_error().unwrap(), "Some error here.");
+        let cc = OpenCC::new();
+
+        let _ = cc.convert("汉字", "invalid", false);
+
+        assert_eq!(
+            OpenCC::get_last_error().as_deref(),
+            Some("Invalid config: invalid")
+        );
     }
 
     #[test]
