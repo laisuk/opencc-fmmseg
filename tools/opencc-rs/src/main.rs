@@ -10,11 +10,20 @@ use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use opencc_fmmseg::{DetofuLevel, DetofuMap, DictionaryMaxlength, OpenCC, OpenccConfig};
 use opencc_tool_common::parse_custom_dict_spec;
-use std::collections::HashSet;
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
 use std::path::Path;
 use std::sync::OnceLock;
+
+const OFFICE_FORMATS: &[&str] = &["docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NormalizationMode {
+    None,
+    Compat,
+    CompatExtended,
+}
 
 fn main() {
     let matches = build_cli().get_matches();
@@ -95,7 +104,6 @@ mod tests {
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    #[ignore]
     #[test]
     fn convert_file_preserves_original_line_endings() {
         let nonce = SystemTime::now()
@@ -215,6 +223,15 @@ mod tests {
 
         let _ = fs::remove_file(my_dict_path);
     }
+
+    #[test]
+    fn conversion_delegate_applies_normalize_convert_detofu_pipeline() {
+        let cc = OpenCC::new();
+        let map = DetofuMap::builtin(DetofuLevel::ExtB);
+        let convert = conversion_delegate(&cc, NormalizationMode::CompatExtended, Some(&map));
+
+        assert_eq!(convert("聼𧜗", "t2s", false), "听䘞");
+    }
 }
 
 fn get_supported_configs() -> &'static str {
@@ -320,8 +337,13 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let detofu_map = build_detofu_map(matches)?;
-
     let mut cc = build_opencc(matches)?;
+
+    if matches.get_flag("keep-ids") {
+        cc.set_preserve_ids(true);
+    }
+
+    let convert_text = conversion_delegate(&cc, normalization_mode(matches), detofu_map.as_ref());
 
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
@@ -340,29 +362,7 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-
-    let normalized_input;
-    let convert_input: &str = if matches.get_flag("norm-compat-extended") {
-        normalized_input = cc.normalize_compat_extended(&input_str);
-        &normalized_input
-    } else if matches.get_flag("norm-compat") {
-        normalized_input = cc.normalize_compat(&input_str);
-        &normalized_input
-    } else {
-        &input_str
-    };
-
-    if matches.get_flag("keep-ids") {
-        cc.set_preserve_ids(true);
-    }
-
-    let output_str = cc.convert(convert_input, config, punctuation);
-
-    let output_str = if let Some(map) = detofu_map {
-        map.detofu(&output_str)
-    } else {
-        output_str
-    };
+    let output_str = convert_text(&input_str, config, punctuation);
 
     let is_console_output = output_file.is_none();
     let mut output: Box<dyn Write> = match output_file {
@@ -383,105 +383,147 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 }
 
 fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
-    let office_extensions: HashSet<&'static str> =
-        ["docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"].into();
-
     let input_file = matches
         .get_one::<String>("input")
-        .ok_or("❌  Input file is required for office mode")?;
-    validate_input_file(input_file)?;
-
+        .ok_or("Input file is required for office mode")?;
     let output_file = matches.get_one::<String>("output");
     let config = matches.get_one::<String>("config").unwrap();
     let punctuation = matches.get_flag("punct");
     let keep_font = matches.get_flag("keep_font");
     let convert_filename = matches.get_flag("convert_filename");
     let format = matches.get_one::<String>("format").map(String::as_str);
+
+    validate_input_file(input_file)?;
     if let Some(path) = output_file {
         validate_output_path(path)?;
     }
 
-    let office_format = if let Some(f) = format {
-        f.to_lowercase()
-    } else {
-        let ext = Path::new(input_file)
-            .extension()
-            .and_then(|e| e.to_str())
-            .ok_or("❌  Cannot infer file extension. Please provide --format.")?
-            .to_lowercase();
+    let cc = build_opencc(matches)?;
+    let detofu_map = build_detofu_map(matches)?;
+    let convert_text = conversion_delegate(&cc, normalization_mode(matches), detofu_map.as_ref());
 
-        if office_extensions.contains(ext.as_str()) {
-            ext
-        } else {
-            return Err(format!(
-                "❌  Unsupported Office extension: .{ext}. Please provide --format."
-            )
-            .into());
-        }
-    };
+    let office_format = resolve_office_format(input_file, format)?;
+    let final_output = resolve_office_output(
+        input_file,
+        output_file,
+        &office_format,
+        convert_filename,
+        config,
+        punctuation,
+        &convert_text,
+    );
 
-    if !office_extensions.contains(office_format.as_str()) {
-        return Err(format!("❌  Unsupported Office format: {office_format}").into());
-    }
-
-    // let helper = OpenCC::new();
-    let helper = build_opencc(matches)?;
-
-    let final_output = match output_file {
-        Some(path) => {
-            let output_path = Path::new(path);
-
-            if output_path.extension().is_none() {
-                format!("{path}.{}", office_format)
-            } else {
-                path.clone()
-            }
-        }
-        None => {
-            let input_path = Path::new(input_file);
-            let file_stem = input_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("converted");
-
-            let parent = input_path.parent().unwrap_or_else(|| ".".as_ref());
-            let final_stem = if convert_filename {
-                let file_stem_converted = helper.convert(file_stem, config, punctuation);
-                format!("{file_stem_converted}_converted")
-            } else {
-                format!("{file_stem}_converted")
-            };
-
-            parent
-                .join(format!("{final_stem}.{office_format}"))
-                .to_string_lossy()
-                .to_string()
-        }
-    };
     validate_output_path(&final_output)?;
     validate_distinct_input_output(input_file, &final_output)?;
 
-    match OfficeConverter::convert(
+    let result = OfficeConverter::convert_with(
         input_file,
         &final_output,
         &office_format,
-        &helper,
         config,
         punctuation,
         keep_font,
-    ) {
-        Ok(result) if result.success => {
-            eprintln!("{}\n📁  Output saved to: {}", result.message, final_output);
-        }
-        Ok(result) => {
-            eprintln!("❌  Office document conversion failed: {}", result.message);
-        }
-        Err(e) => {
-            eprintln!("❌  Error: {}", e);
-        }
+        &convert_text,
+    )?;
+
+    if !result.success {
+        return Err(format!("Office document conversion failed: {}", result.message).into());
     }
 
+    eprintln!("{}\n📁  Output saved to: {}", result.message, final_output);
     Ok(())
+}
+
+fn normalization_mode(matches: &ArgMatches) -> NormalizationMode {
+    if matches.get_flag("norm-compat-extended") {
+        NormalizationMode::CompatExtended
+    } else if matches.get_flag("norm-compat") {
+        NormalizationMode::Compat
+    } else {
+        NormalizationMode::None
+    }
+}
+
+fn conversion_delegate<'a>(
+    cc: &'a OpenCC,
+    normalization: NormalizationMode,
+    detofu_map: Option<&'a DetofuMap>,
+) -> impl Fn(&str, &str, bool) -> String + 'a {
+    move |input, config, punctuation| {
+        let normalized = match normalization {
+            NormalizationMode::None => Cow::Borrowed(input),
+            NormalizationMode::Compat => Cow::Owned(cc.normalize_compat(input)),
+            NormalizationMode::CompatExtended => Cow::Owned(cc.normalize_compat_extended(input)),
+        };
+
+        let converted = cc.convert(normalized.as_ref(), config, punctuation);
+
+        match detofu_map {
+            Some(map) => map.detofu(&converted),
+            None => converted,
+        }
+    }
+}
+
+fn resolve_office_format(
+    input_file: &str,
+    format: Option<&str>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let format = match format {
+        Some(format) => format.trim().to_ascii_lowercase(),
+        None => Path::new(input_file)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .ok_or("Cannot infer file extension. Please provide --format.")?
+            .to_ascii_lowercase(),
+    };
+
+    if OFFICE_FORMATS.contains(&format.as_str()) {
+        Ok(format)
+    } else {
+        Err(format!(
+            "Unsupported Office/EPUB format: {format}. Supported formats: {}",
+            OFFICE_FORMATS.join(", ")
+        )
+        .into())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resolve_office_output(
+    input_file: &str,
+    output_file: Option<&String>,
+    office_format: &str,
+    convert_filename: bool,
+    config: &str,
+    punctuation: bool,
+    convert_text: &dyn Fn(&str, &str, bool) -> String,
+) -> String {
+    if let Some(path) = output_file {
+        return if Path::new(path).extension().is_none() {
+            format!("{path}.{office_format}")
+        } else {
+            path.clone()
+        };
+    }
+
+    let input_path = Path::new(input_file);
+    let file_stem = input_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("converted");
+    let parent = input_path.parent().unwrap_or_else(|| Path::new("."));
+
+    let file_stem = if convert_filename {
+        convert_text(file_stem, config, punctuation)
+    } else {
+        file_stem.to_owned()
+    };
+
+    parent
+        .join(format!("{file_stem}_converted.{office_format}"))
+        .to_string_lossy()
+        .into_owned()
 }
 
 fn build_opencc(matches: &ArgMatches) -> Result<OpenCC, Box<dyn std::error::Error>> {
@@ -508,7 +550,8 @@ fn read_input(input: &mut dyn Read, is_console: bool) -> io::Result<Vec<u8>> {
     let mut buffer = Vec::new();
     if is_console {
         let mut chunk = [0; 1024];
-        while let Ok(bytes_read) = input.read(&mut chunk) {
+        loop {
+            let bytes_read = input.read(&mut chunk)?;
             if bytes_read == 0 {
                 break;
             }
