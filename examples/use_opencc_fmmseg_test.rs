@@ -1,104 +1,56 @@
 use opencc_fmmseg::{
-    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
+    CustomDictMode, CustomDictSpec, DetofuLevel, DictSlot, DictionaryMaxlength, OpenCC,
+    OpenccConfig,
 };
 
 fn main() {
     // ---------------------------------------------------------------------
-    // Sample UTF-8 input (same spirit as C / C++ demos)
+    // Test 1: Basic conversion with the typed config API
     // ---------------------------------------------------------------------
-    let input_text = "意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
+    let opencc = OpenCC::new();
 
-    println!("Text:");
-    println!("{}", input_text);
-    println!();
+    let input = "意大利邻国法兰西罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
 
-    // ---------------------------------------------------------------------
-    // Create OpenCC instance
-    // ---------------------------------------------------------------------
-    let converter = OpenCC::new();
-
-    // Detect script
-    let input_code = converter.zho_check(input_text);
-    println!("Text Code: {}", input_code);
-
-    // ---------------------------------------------------------------------
-    // Test 1: Legacy string-based config (convert)
-    // ---------------------------------------------------------------------
-    let config_str = "s2twp";
-    let punct = true;
+    println!("Text: {}", input);
+    println!("Text Code: {}", opencc.zho_check(input));
 
     println!();
-    println!(
-        "== Test 1: convert(config = \"{}\", punctuation = {}) ==",
-        config_str, punct
-    );
+    println!("== Test 1: typed conversion ==");
 
-    let output1 = converter.convert(input_text, config_str, punct);
-    println!("Converted:");
-    println!("{}", output1);
-    println!("Converted Code: {}", converter.zho_check(&output1));
-    println!(
-        "Last Error: {}",
-        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-    );
+    let traditional = opencc.convert_with_config(input, OpenccConfig::S2twp, true);
+
+    println!("Converted: {}", traditional);
+    println!("Converted Code: {}", opencc.zho_check(&traditional));
 
     // ---------------------------------------------------------------------
-    // Test 2: Strongly typed config (convert_with_config)
-    // ---------------------------------------------------------------------
-    let config_enum = OpenccConfig::S2twp;
-
-    println!();
-    println!(
-        "== Test 2: convert_with_config(config = {:?}, punctuation = {}) ==",
-        config_enum, punct
-    );
-
-    let output2 = converter.convert_with_config(input_text, config_enum, punct);
-    println!("Converted:");
-    println!("{}", output2);
-    println!("Converted Code: {}", converter.zho_check(&output2));
-    println!(
-        "Last Error: {}",
-        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-    );
-
-    // ---------------------------------------------------------------------
-    // Test 3: Invalid config (string) — self-protected
-    // ---------------------------------------------------------------------
-    let invalid_config = "what_is_this";
-
-    println!();
-    println!(
-        "== Test 3: invalid string config (\"{}\") ==",
-        invalid_config
-    );
-
-    let output3 = converter.convert(input_text, invalid_config, true);
-    println!("Returned:");
-    println!("{}", output3);
-    println!(
-        "Last Error: {}",
-        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-    );
-
-    // ---------------------------------------------------------------------
-    // Test 4: Clear last error and verify state reset
+    // Test 2: String-config compatibility API
     // ---------------------------------------------------------------------
     println!();
-    println!("== Test 4: clear_last_error() ==");
+    println!("== Test 2: string config compatibility API ==");
+
+    let by_name = opencc.convert(input, "s2twp", true);
+
+    println!("Converted: {}", by_name);
+    println!(
+        "Same result: {}",
+        if by_name == traditional {
+            "PASS"
+        } else {
+            "FAIL"
+        }
+    );
+
+    // Invalid string configs remain self-protected and report the error text.
+    let invalid = opencc.convert(input, "what_is_this", false);
+    println!("Invalid config returned: {}", invalid);
 
     OpenCC::clear_last_error();
 
-    println!(
-        "Last Error after clear: {}",
-        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
-    );
-
     // ---------------------------------------------------------------------
-    // Test 5: Immutable custom dictionary roundtrip
+    // Test 3: Immutable custom dictionary roundtrip
     // ---------------------------------------------------------------------
     println!();
-    println!("== Test 5: immutable custom dictionary roundtrip ==");
+    println!("== Test 3: immutable custom dictionary roundtrip ==");
 
     let custom_specs = [
         CustomDictSpec {
@@ -124,27 +76,103 @@ fn main() {
         .with_custom_dicts(&custom_specs)
         .expect("failed to apply custom dictionaries");
 
-    let custom_converter = OpenCC::from_dictionary(custom_dictionary);
+    let custom_opencc = OpenCC::from_dictionary(custom_dictionary);
 
     let source = "帕兰蒂尔是一家软件公司。";
-    let traditional = custom_converter.convert_with_config(source, OpenccConfig::S2t, false);
-    let simplified = custom_converter.convert_with_config(&traditional, OpenccConfig::T2s, false);
+    let custom_traditional = custom_opencc.convert_with_config(source, OpenccConfig::S2t, false);
+    let custom_simplified =
+        custom_opencc.convert_with_config(&custom_traditional, OpenccConfig::T2s, false);
 
     println!("Source:      {}", source);
-    println!("S2T custom:  {}", traditional);
-    println!("T2S custom:  {}", simplified);
+    println!("S2T custom:  {}", custom_traditional);
+    println!("T2S custom:  {}", custom_simplified);
     println!(
         "Roundtrip:   {}",
-        if simplified == source { "PASS" } else { "FAIL" }
-    );
-    println!(
-        "Last Error: {}",
-        OpenCC::get_last_error().unwrap_or_else(|| "<none>".to_string())
+        if custom_simplified == source {
+            "PASS"
+        } else {
+            "FAIL"
+        }
     );
 
     // ---------------------------------------------------------------------
-    // Summary
+    // Test 4: Compatibility normalization
     // ---------------------------------------------------------------------
+    println!();
+    println!("== Test 4: compatibility normalization ==");
+
+    let compat_source = "天龍八部書";
+    let compat_normalized = opencc.normalize_compat(compat_source);
+
+    println!("Source:       {}", compat_source);
+    println!("Norm compat:  {}", compat_normalized);
+    println!(
+        "Result:       {}",
+        if compat_normalized == "天龍八部書" {
+            "PASS"
+        } else {
+            "FAIL"
+        }
+    );
+
+    // ---------------------------------------------------------------------
+    // Test 5: Extended normalization -> conversion
+    // ---------------------------------------------------------------------
+    println!();
+    println!("== Test 5: extended normalization -> T2S ==");
+
+    let extended_source = "天龍八部書裡的聼眾‧聼聼竒羙⽟䂖甁噐⾳";
+
+    let normalized = opencc.normalize_compat_extended(extended_source);
+    let simplified = opencc.convert_with_config(&normalized, OpenccConfig::T2s, false);
+
+    let norm_ok = normalized == "天龍八部書裡的聽眾·聽聽奇美玉石瓶器音";
+    let t2s_ok = simplified == "天龙八部书里的听众·听听奇美玉石瓶器音";
+
+    println!("Source:         {}", extended_source);
+    println!("Norm extended:  {}", normalized);
+    println!("T2S:            {}", simplified);
+    println!(
+        "Pipeline:       {}",
+        if norm_ok && t2s_ok { "PASS" } else { "FAIL" }
+    );
+
+    // ---------------------------------------------------------------------
+    // Test 6: DeTofu post-processing
+    // ---------------------------------------------------------------------
+    println!();
+    println!("== Test 6: DeTofu ExtB ==");
+
+    let detofu_source = "骖𬴂";
+    let detofued = opencc.detofu(detofu_source, DetofuLevel::ExtB);
+
+    println!("Source:      {}", detofu_source);
+    println!("DeToFu:      {}", detofued);
+    println!(
+        "Result:      {}",
+        if detofued == "骖騑" { "PASS" } else { "FAIL" }
+    );
+
+    // ---------------------------------------------------------------------
+    // Test 7: Recommended full compatibility pipeline
+    // ---------------------------------------------------------------------
+    println!();
+    println!("== Test 7: normalize -> convert -> DeTofu ==");
+
+    let pipeline_source = "天龍八部書裡的聼眾，儼驂騑於上路。";
+
+    let pipeline_normalized = opencc.normalize_compat_extended(pipeline_source);
+
+    let pipeline_converted =
+        opencc.convert_with_config(&pipeline_normalized, OpenccConfig::T2s, false);
+
+    let pipeline_display = opencc.detofu(&pipeline_converted, DetofuLevel::ExtB);
+
+    println!("Source:      {}", pipeline_source);
+    println!("Normalized:  {}", pipeline_normalized);
+    println!("Converted:   {}", pipeline_converted);
+    println!("Display:     {}", pipeline_display);
+
     println!();
     println!("All tests completed.");
 }

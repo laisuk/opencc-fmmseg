@@ -118,6 +118,66 @@ int main(int argc, char** argv)
                   << "\n";
         std::cout << "Last Error:  "
                   << OpenccFmmsegHelper::lastError() << "\n";
+
+
+        // -------------------------------------------------------------
+        // Test 7: Normalization / DeTofu roundtrip
+        // -------------------------------------------------------------
+        std::cout << "\n== Test 7: normalization / DeTofu roundtrip ==\n";
+
+        const std::string compatSource =
+            u8"天龍八部書";
+
+        const std::string extendedSource =
+            u8"天龍八部書裡的聼眾‧聼聼竒羙⽟䂖甁噐⾳";
+
+        const std::string detofuSource =
+            u8"骖𬴂";
+
+        const std::string compatNormalized =
+            helper.normalizeCompat(compatSource);
+
+        const std::string extendedNormalized =
+            helper.normalizeCompatExtended(extendedSource);
+
+        const std::string extendedSimplified =
+            helper.convert_cfg(extendedNormalized, OPENCC_CONFIG_T2S);
+
+        const std::string detofued =
+            helper.detofu(detofuSource, OPENCC_DETOFU_EXT_B);
+
+        const bool compatPass =
+            compatNormalized == u8"天龍八部書";
+
+        const bool extendedPass =
+            extendedNormalized == u8"天龍八部書裡的聽眾·聽聽奇美玉石瓶器音";
+
+        const bool t2sPass =
+            extendedSimplified == u8"天龙八部书里的听众·听听奇美玉石瓶器音";
+
+        const bool detofuPass =
+            detofued == u8"骖騑";
+
+        std::cout << "Norm compat:      " << compatNormalized
+                  << " [" << (compatPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "Norm extended:    " << extendedNormalized
+                  << " [" << (extendedPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "Extended -> T2S:  " << extendedSimplified
+                  << " [" << (t2sPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "DeTofu ExtB:      " << detofued
+                  << " [" << (detofuPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "Roundtrip:        "
+                  << (compatPass && extendedPass && t2sPass && detofuPass
+                          ? "PASS"
+                          : "FAIL")
+                  << "\n";
+
+        std::cout << "Last Error:       "
+                  << OpenccFmmsegHelper::lastError() << "\n";
     }
     catch (const std::exception& ex)
     {

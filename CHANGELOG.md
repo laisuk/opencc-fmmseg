@@ -20,6 +20,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Added `OpenCC::normalize_unicode_compat(...)` for applying only the curated Unicode compatibility table.
 - Added `OpenCC::normalize_compat_extended(...)` for combined CJK Compatibility Ideograph and curated Unicode
   compatibility normalization.
+- Added C API support for compatibility normalization and DeTofu through `opencc_normalize_compat(...)`,
+  `opencc_normalize_compat_extended(...)`, and `opencc_detofu(...)`, with ABI-stable `OPENCC_DETOFU_EXT_B` through
+  `OPENCC_DETOFU_EXT_I` threshold constants.
 
 ### Changed
 

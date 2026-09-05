@@ -238,6 +238,34 @@ public:
         return opencc_zho_check(opencc_, tmp.c_str());
     }
 
+    // Normalizes CJK Compatibility Ideographs.
+    [[nodiscard]] std::string normalizeCompat(const std::string_view input) const {
+        if (input.empty()) return {};
+        return transformString(input, opencc_normalize_compat);
+    }
+
+    // Applies the extended compatibility normalization pipeline.
+    [[nodiscard]] std::string normalizeCompatExtended(const std::string_view input) const {
+        if (input.empty()) return {};
+        return transformString(input, opencc_normalize_compat_extended);
+    }
+
+    // Applies the built-in DeTofu display-compatibility fallback.
+    [[nodiscard]] std::string detofu(
+        const std::string_view input,
+        const opencc_detofu_level_t level = OPENCC_DETOFU_EXT_B
+    ) const {
+        if (input.empty()) return {};
+
+        const std::string in(input);
+        char *output = opencc_detofu(opencc_, in.c_str(), level);
+        if (!output) return takeLastErrorText();
+
+        std::string result(output);
+        opencc_string_free(output);
+        return result;
+    }
+
     // Returns the calling thread's native last-error string. Call this on the
     // same thread immediately after a failed C API call. The C API returns an
     // independent allocation, which this helper releases with
@@ -438,5 +466,20 @@ private:
 
         output.resize(required - 1);
         return output;
+    }
+
+    using StringTransformFn = char *(*)(const void *, const char *);
+
+    [[nodiscard]] std::string transformString(
+        const std::string_view input,
+        const StringTransformFn fn
+    ) const {
+        const std::string in(input);
+        char *output = fn(opencc_, in.c_str());
+        if (!output) return takeLastErrorText();
+
+        std::string result(output);
+        opencc_string_free(output);
+        return result;
     }
 };

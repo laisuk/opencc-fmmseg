@@ -275,6 +275,56 @@ typedef struct opencc_custom_dict_spec {
     size_t pair_count;
 } opencc_custom_dict_spec_t;
 
+/**
+ * @typedef opencc_detofu_level_t
+ *
+ * ABI-stable DeTofu threshold level.
+ *
+ * This type is a 32-bit unsigned integer. Level values are stable and will
+ * never be reordered or reused.
+ *
+ * @since
+ *     Available since v0.12.0.
+ */
+typedef uint32_t opencc_detofu_level_t;
+
+/**
+ * DeTofu fallback threshold.
+ *
+ * The selected level is inclusive: the selected CJK extension and all
+ * supported later extensions are eligible for replacement.
+ *
+ * `OPENCC_DETOFU_EXT_B` is the broadest level and covers ExtB through ExtI.
+ *
+ * @since
+ *     Available since v0.12.0.
+ */
+enum {
+    /** Replace ExtB and all supported later extension mappings. */
+    OPENCC_DETOFU_EXT_B = 0,
+
+    /** Replace ExtC and all supported later extension mappings. */
+    OPENCC_DETOFU_EXT_C = 1,
+
+    /** Replace ExtD and all supported later extension mappings. */
+    OPENCC_DETOFU_EXT_D = 2,
+
+    /** Replace ExtE and all supported later extension mappings. */
+    OPENCC_DETOFU_EXT_E = 3,
+
+    /** Replace ExtF and all supported later extension mappings. */
+    OPENCC_DETOFU_EXT_F = 4,
+
+    /** Replace ExtG and all supported later extension mappings. */
+    OPENCC_DETOFU_EXT_G = 5,
+
+    /** Replace ExtH and all supported later extension mappings. */
+    OPENCC_DETOFU_EXT_H = 6,
+
+    /** Replace ExtI mappings only. */
+    OPENCC_DETOFU_EXT_I = 7
+};
+
 // ============================================================================
 // Version / ABI
 // ============================================================================
@@ -680,6 +730,101 @@ bool opencc_convert_cfg_mem_len(
     size_t* out_required);
 
 // ============================================================================
+// Compatibility / DeTofu API
+// ============================================================================
+
+/**
+ * Normalizes CJK Compatibility Ideographs in a UTF-8 string.
+ *
+ * This is the C API counterpart of `OpenCC::normalize_compat()`.
+ *
+ * @param instance
+ *     A pointer to the OpenCC instance.
+ * @param input
+ *     The input null-terminated UTF-8 string.
+ *
+ * @return
+ *     A newly allocated null-terminated UTF-8 string on success.
+ *
+ *     Returns NULL if `instance` or `input` is NULL, or if `input` is not
+ *     valid UTF-8. Retrieve the error immediately on the same calling thread
+ *     using `opencc_last_error()`.
+ *
+ * @ownership
+ *     The returned string must be released using `opencc_string_free()`.
+ *
+ * @since
+ *     Available since v0.12.0.
+ */
+char* opencc_normalize_compat(
+    const void* instance,
+    const char* input
+);
+
+/**
+ * Applies extended compatibility normalization to a UTF-8 string.
+ *
+ * This combines CJK Compatibility Ideograph normalization with the curated
+ * Unicode compatibility mappings used by
+ * `OpenCC::normalize_compat_extended()`.
+ *
+ * @param instance
+ *     A pointer to the OpenCC instance.
+ * @param input
+ *     The input null-terminated UTF-8 string.
+ *
+ * @return
+ *     A newly allocated null-terminated UTF-8 string on success.
+ *
+ *     Returns NULL if `instance` or `input` is NULL, or if `input` is not
+ *     valid UTF-8. Retrieve the error immediately on the same calling thread
+ *     using `opencc_last_error()`.
+ *
+ * @ownership
+ *     The returned string must be released using `opencc_string_free()`.
+ *
+ * @since
+ *     Available since v0.12.0.
+ */
+char* opencc_normalize_compat_extended(
+    const void* instance,
+    const char* input
+);
+
+/**
+ * Applies the built-in DeTofu display-compatibility fallback.
+ *
+ * DeTofu is normally applied after OpenCC conversion. The selected threshold
+ * controls which non-BMP CJK extension mappings are eligible for replacement.
+ *
+ * @param instance
+ *     A pointer to the OpenCC instance.
+ * @param input
+ *     The input null-terminated UTF-8 string.
+ * @param level
+ *     DeTofu threshold such as `OPENCC_DETOFU_EXT_B`.
+ *
+ * @return
+ *     A newly allocated null-terminated UTF-8 string on success.
+ *
+ *     Returns NULL if an argument is invalid, the input is not valid UTF-8,
+ *     or `level` is not a recognized `opencc_detofu_level_t` value. Retrieve
+ *     the error immediately on the same calling thread using
+ *     `opencc_last_error()`.
+ *
+ * @ownership
+ *     The returned string must be released using `opencc_string_free()`.
+ *
+ * @since
+ *     Available since v0.12.0.
+ */
+char* opencc_detofu(
+    const void* instance,
+    const char* input,
+    opencc_detofu_level_t level
+);
+
+// ============================================================================
 // Other API
 // ============================================================================
 
@@ -708,13 +853,20 @@ int opencc_zho_check(const void* instance, const char* input);
 // ============================================================================
 
 /**
- * Frees a string returned by conversion functions such as `opencc_convert()`
- * or `opencc_convert_cfg()`.
+ * Frees a string returned by an OpenCC transformation function.
+ *
+ * This includes strings returned by:
+ *
+ * - `opencc_convert()`
+ * - `opencc_convert_cfg()`
+ * - `opencc_normalize_compat()`
+ * - `opencc_normalize_compat_extended()`
+ * - `opencc_detofu()`
  *
  * Passing NULL is safe and does nothing.
  *
  * @param ptr
- *     A pointer previously returned by a conversion function.
+ *     A string pointer returned by one of the functions above.
  */
 void opencc_string_free(char* ptr);
 

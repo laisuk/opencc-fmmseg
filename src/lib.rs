@@ -35,8 +35,8 @@
 //! - [`OpenCC::normalize_compat`], [`OpenCC::normalize_unicode_compat`], and
 //!   [`OpenCC::normalize_compat_extended`] provide optional Unicode
 //!   compatibility normalization before conversion.
-//! - [`OpenCC::detofu`] and [`detofu()`] provide optional display compatibility
-//!   fallback for rare non-BMP CJK extension characters after conversion.
+//! - [`OpenCC::detofu`] provides optional display-compatibility fallback for
+//!   rare non-BMP CJK extension characters after conversion.
 //! - [`DetofuMap`] is the advanced reusable/customizable DeTofu map API.
 //! - [`DictionaryMaxlength`] and [`CustomDictSpec`] are for advanced users who
 //!   need custom dictionaries or externally generated dictionary artifacts.
@@ -122,13 +122,18 @@ mod unicode_compat;
 /// Common helpers for opencc-fmmseg.
 mod utils;
 
+// Text utilities
 pub use crate::delimiter_set::is_delimiter;
-pub use crate::dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};
-pub use crate::dictionary_lib::{DictMaxLen, DictionaryError, DictionaryMaxlength};
+
+// Dictionary API
+pub use crate::dictionary_lib::{
+    CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictMaxLen, DictSlot, DictionaryError,
+    DictionaryMaxlength,
+};
+
+// Conversion API
 pub use crate::opencc::OpenCC;
 pub use crate::opencc_config::OpenccConfig;
-/// Converts rare non-BMP CJK extension characters to compatibility fallbacks.
-/// Threshold level used by DeTofu display-compatibility fallback.
-pub use detofu::DetofuLevel;
-/// Reusable and customizable DeTofu fallback map.
-pub use detofu::DetofuMap;
+
+// DeTofu API
+pub use crate::detofu::{DetofuLevel, DetofuMap};

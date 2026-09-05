@@ -1,5 +1,6 @@
 use opencc_fmmseg::{
-    CustomDictMode, CustomDictSpec, DictSlot, DictionaryMaxlength, OpenCC, OpenccConfig,
+    CustomDictMode, CustomDictSpec, DetofuLevel, DictSlot, DictionaryMaxlength, OpenCC,
+    OpenccConfig,
 };
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
@@ -441,6 +442,77 @@ pub extern "C" fn opencc_convert_cfg_len(
 }
 
 // ============================================================================
+// Compatibility / DeTofu API
+// ============================================================================
+
+/// C API function `opencc_normalize_compat`.
+///
+/// Applies CJK Compatibility Ideograph normalization through the supplied
+/// [`OpenCC`] instance.
+///
+/// The returned string must be released using [`opencc_string_free`].
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
+#[no_mangle]
+pub extern "C" fn opencc_normalize_compat(
+    instance: *const OpenCC,
+    input: *const c_char,
+) -> *mut c_char {
+    transform_core(instance, input, |opencc, input| {
+        Ok(opencc.normalize_compat(input))
+    })
+}
+
+/// C API function `opencc_normalize_compat_extended`.
+///
+/// Applies combined CJK Compatibility Ideograph and curated Unicode
+/// compatibility normalization through the supplied [`OpenCC`] instance.
+///
+/// The returned string must be released using [`opencc_string_free`].
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
+#[no_mangle]
+pub extern "C" fn opencc_normalize_compat_extended(
+    instance: *const OpenCC,
+    input: *const c_char,
+) -> *mut c_char {
+    transform_core(instance, input, |opencc, input| {
+        Ok(opencc.normalize_compat_extended(input))
+    })
+}
+
+/// C API function `opencc_detofu`.
+///
+/// Applies the built-in DeTofu display-compatibility fallback through the
+/// supplied [`OpenCC`] instance.
+///
+/// `level` uses the stable C ABI values `0..=7`, corresponding to ExtB
+/// through ExtI respectively.
+///
+/// The returned string must be released using [`opencc_string_free`].
+///
+/// # Safety
+/// This function follows the OpenCC-FMMSEG C ABI contract.
+/// Pointers passed from C must be valid for the duration of the call.
+#[no_mangle]
+pub extern "C" fn opencc_detofu(
+    instance: *const OpenCC,
+    input: *const c_char,
+    level: u32,
+) -> *mut c_char {
+    transform_core(instance, input, |opencc, input| {
+        let level = detofu_level_from_ffi(level)
+            .ok_or_else(|| format!("Invalid DeTofu level: {}", level))?;
+
+        Ok(opencc.detofu(input, level))
+    })
+}
+
+// ============================================================================
 // Other API
 // ============================================================================
 
@@ -531,8 +603,9 @@ pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
 
 /// C API function `opencc_string_free`.
 ///
-/// Frees a string returned by conversion functions such as `opencc_convert()`
-/// or `opencc_convert_cfg()`.
+/// Frees a string returned by OpenCC transformation functions such as
+/// `opencc_convert()`, `opencc_convert_cfg()`, `opencc_normalize_compat()`,
+/// `opencc_normalize_compat_extended()`, or `opencc_detofu()`.
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
@@ -628,6 +701,52 @@ fn decode_utf8<'a>(ptr_: *const c_char, what: &'static str) -> Result<&'a str, *
             "config" => "Invalid UTF-8 config string",
             _ => "Invalid UTF-8 string",
         })),
+    }
+}
+
+#[inline]
+fn transform_core<F>(instance: *const OpenCC, input: *const c_char, transform: F) -> *mut c_char
+where
+    F: FnOnce(&OpenCC, &str) -> Result<String, String>,
+{
+    if instance.is_null() || input.is_null() {
+        set_c_api_last_error("Invalid argument: instance/input is NULL");
+        return ptr::null_mut();
+    }
+
+    let opencc = unsafe { &*instance };
+
+    let input_str = match decode_utf8(input, "input") {
+        Ok(v) => v,
+        Err(p) => return p,
+    };
+
+    let result = match transform(opencc, input_str) {
+        Ok(result) => result,
+        Err(message) => return fail_c_string(&message),
+    };
+
+    match CString::new(result) {
+        Ok(cstr) => {
+            clear_c_api_last_error();
+            cstr.into_raw()
+        }
+        Err(_) => fail_c_string("Output contains NUL byte"),
+    }
+}
+
+#[inline]
+fn detofu_level_from_ffi(value: u32) -> Option<DetofuLevel> {
+    match value {
+        0 => Some(DetofuLevel::ExtB),
+        1 => Some(DetofuLevel::ExtC),
+        2 => Some(DetofuLevel::ExtD),
+        3 => Some(DetofuLevel::ExtE),
+        4 => Some(DetofuLevel::ExtF),
+        5 => Some(DetofuLevel::ExtG),
+        6 => Some(DetofuLevel::ExtH),
+        7 => Some(DetofuLevel::ExtI),
+        _ => None,
     }
 }
 
@@ -1128,6 +1247,132 @@ mod tests {
             read_and_free(opencc_last_error()),
             "Invalid argument: instance/input is NULL"
         );
+    }
+
+    #[test]
+    fn test_opencc_normalize_compat_extended_then_t2s() {
+        let opencc = OpenCC::new();
+        let input = CString::new("天龍八部書裡的聼眾‧聼聼竒羙⽟䂖甁噐⾳").unwrap();
+
+        let normalized_ptr =
+            opencc_normalize_compat_extended(&opencc as *const OpenCC, input.as_ptr());
+
+        assert!(!normalized_ptr.is_null());
+
+        let normalized = unsafe { CStr::from_ptr(normalized_ptr) }
+            .to_str()
+            .unwrap()
+            .to_owned();
+
+        assert_eq!(normalized, "天龍八部書裡的聽眾·聽聽奇美玉石瓶器音");
+
+        let normalized_input = CString::new(normalized).unwrap();
+        let simplified_ptr = opencc_convert_cfg(
+            &opencc as *const OpenCC,
+            normalized_input.as_ptr(),
+            OpenccConfig::T2s.to_ffi(),
+            false,
+        );
+
+        assert!(!simplified_ptr.is_null());
+
+        let simplified = unsafe { CStr::from_ptr(simplified_ptr) }
+            .to_str()
+            .unwrap()
+            .to_owned();
+
+        assert_eq!(simplified, "天龙八部书里的听众·听听奇美玉石瓶器音");
+
+        opencc_string_free(normalized_ptr);
+        opencc_string_free(simplified_ptr);
+    }
+
+    #[test]
+    fn test_opencc_normalize_compat() {
+        let opencc = OpenCC::new();
+        let input = CString::new("天龍八部書").unwrap();
+
+        let result_ptr = opencc_normalize_compat(&opencc as *const OpenCC, input.as_ptr());
+
+        assert!(!result_ptr.is_null());
+
+        let result = unsafe { CStr::from_ptr(result_ptr) }.to_str().unwrap();
+        assert_eq!(result, "天龍八部書");
+
+        opencc_string_free(result_ptr);
+    }
+
+    #[test]
+    fn test_opencc_detofu() {
+        let opencc = OpenCC::new();
+        let input = CString::new("骖𬴂").unwrap();
+
+        let result_ptr = opencc_detofu(&opencc as *const OpenCC, input.as_ptr(), 0);
+
+        assert!(!result_ptr.is_null());
+
+        let result = unsafe { CStr::from_ptr(result_ptr) }.to_str().unwrap();
+        assert_eq!(result, "骖騑");
+
+        opencc_string_free(result_ptr);
+    }
+
+    #[test]
+    fn test_opencc_detofu_rejects_invalid_level() {
+        opencc_clear_last_error();
+
+        let opencc = OpenCC::new();
+        let input = CString::new("骖𬴂").unwrap();
+
+        let result_ptr = opencc_detofu(&opencc as *const OpenCC, input.as_ptr(), 99);
+
+        assert!(!result_ptr.is_null());
+
+        let result = unsafe { CStr::from_ptr(result_ptr) }
+            .to_string_lossy()
+            .into_owned();
+
+        assert_eq!(result, "Invalid DeTofu level: 99");
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid DeTofu level: 99"
+        );
+
+        opencc_string_free(result_ptr);
+    }
+
+    #[test]
+    fn test_opencc_transform_null_argument_sets_last_error() {
+        opencc_clear_last_error();
+
+        let input = CString::new("天龍八部").unwrap();
+        let result_ptr = opencc_normalize_compat(ptr::null(), input.as_ptr());
+
+        assert!(result_ptr.is_null());
+        assert_eq!(
+            read_and_free(opencc_last_error()),
+            "Invalid argument: instance/input is NULL"
+        );
+    }
+
+    #[test]
+    fn test_opencc_transform_invalid_utf8_sets_last_error() {
+        opencc_clear_last_error();
+
+        let opencc = OpenCC::new();
+        let input = [0xFFu8, 0x00u8];
+
+        let result_ptr =
+            opencc_normalize_compat(&opencc as *const OpenCC, input.as_ptr() as *const c_char);
+
+        assert!(!result_ptr.is_null());
+        assert_eq!(
+            unsafe { CStr::from_ptr(result_ptr) }.to_string_lossy(),
+            "Invalid UTF-8 input"
+        );
+        assert_eq!(read_and_free(opencc_last_error()), "Invalid UTF-8 input");
+
+        opencc_string_free(result_ptr);
     }
 
     #[test]
