@@ -1,5 +1,5 @@
 use opencc_fmmseg::{
-    detofu, CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictMaxLen, DictSlot,
+    CustomDictMode, CustomDictSpec, DetofuLevel, DetofuMap, DictMaxLen, DictSlot,
     DictionaryMaxlength, OpenCC, OpenccConfig,
 };
 
@@ -239,7 +239,9 @@ fn test_detofu_custom_pairs_support_bmp_characters() {
 
 #[test]
 fn builtin_detofu_replaces_known_st_mappings() {
-    assert_eq!(detofu("𠗣𧜗", DetofuLevel::ExtB), "㓆䘞");
+    let map = DetofuMap::builtin(DetofuLevel::ExtB);
+
+    assert_eq!(map.detofu("𠗣𧜗"), "㓆䘞");
 }
 
 #[test]

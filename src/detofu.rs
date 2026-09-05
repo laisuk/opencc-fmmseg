@@ -6,13 +6,13 @@
 //!
 //! The built-in fallback table covers rare characters that may be produced by
 //! both Simplified-to-Traditional and Traditional-to-Simplified conversion.
-//! DeTofu is direction-independent and can also be applied directly to
-//! arbitrary text.
+//! DeTofu is direction-independent and is typically applied after OpenCC
+//! conversion when the target renderer has incomplete rare-character coverage.
 //!
 //! The built-in fallback table is parsed and hashed lazily on first use, then
-//! shared immutably by all calls and [`DetofuMap`] instances. A customizable
-//! [`DetofuMap`] stores only application-specific overrides, so creating one
-//! does not clone the built-in table.
+//! shared immutably by [`OpenCC`](crate::OpenCC) and [`DetofuMap`] instances.
+//! A customizable [`DetofuMap`] stores only application-specific overrides, so
+//! creating one does not clone the built-in table.
 
 use rustc_hash::FxHashMap;
 use std::path::Path;
@@ -177,9 +177,11 @@ fn detofu_builtin_into(input: &str, level: DetofuLevel, output: &mut String) {
 ///
 /// DeTofu is independent of OpenCC conversion dictionaries. It does not
 /// participate in Simplified/Traditional phrase matching, regional variant
-/// selection, punctuation conversion, or any other OpenCC conversion logic.
-/// It is best treated as a display-compatibility pass that can run after
-/// conversion when the target renderer has incomplete rare-character coverage.
+/// selection, punctuation conversion, or other OpenCC conversion logic.
+///
+/// For normal conversion workflows, prefer [`OpenCC::detofu`](crate::OpenCC::detofu)
+/// as the post-conversion DeTofu step. Use `DetofuMap` directly when you need a
+/// reusable map or application-specific fallback overrides.
 ///
 /// # Examples
 ///
@@ -378,71 +380,19 @@ impl DetofuMap {
     }
 }
 
-/// Converts built-in non-BMP CJK extension characters to display-compatible
-/// fallbacks and appends the result to an existing [`String`].
+/// Applies the built-in DeTofu table and appends the result to `output`.
 ///
-/// The built-in lookup table is parsed and hashed once, then shared by all
-/// calls. Characters below CJK Extension B (U+20000) are copied directly
-/// without a hash-table lookup. Characters without an eligible mapping are
-/// copied unchanged.
-///
-/// This function appends to `output`; it does not clear existing contents.
-/// Call [`String::clear`] first when reusing a buffer for an independent result.
-///
-/// DeTofu is independent of OpenCC conversion dictionaries and does not modify
-/// OpenCC conversion behavior. In a typical workflow, perform OpenCC conversion
-/// first and then apply DeTofu to the converted text.
-///
-/// # Examples
-///
-/// ```rust
-/// use opencc_fmmseg::{detofu_into, DetofuLevel};
-///
-/// let mut output = String::new();
-/// detofu_into("骖𬴂", DetofuLevel::ExtB, &mut output);
-///
-/// assert_eq!(output, "骖騑");
-/// ```
-///
-/// Existing output is preserved so that the same buffer can be reused for
-/// multiple conversions or combined with other output. Call
-/// [`String::clear`] first when an independent result is desired.
-///
-/// ```rust
-/// use opencc_fmmseg::{detofu_into, DetofuLevel};
-///
-/// let mut output = String::from("結果：");
-/// detofu_into("𬴂", DetofuLevel::ExtB, &mut output);
-///
-/// assert_eq!(output, "結果：騑");
-/// ```
-pub fn detofu_into(input: &str, level: DetofuLevel, output: &mut String) {
+/// This is the internal built-in-only path used by higher-level APIs.
+/// Existing output is preserved.
+pub(crate) fn detofu_into(input: &str, level: DetofuLevel, output: &mut String) {
     detofu_builtin_into(input, level, output);
 }
 
-/// Converts built-in non-BMP CJK extension characters to display-compatible
-/// fallbacks.
+/// Applies the built-in DeTofu table and returns a newly allocated result.
 ///
-/// The built-in lookup table is parsed and hashed once, then shared by all
-/// calls. Ordinary BMP characters are copied without a hash-table lookup, and
-/// characters without an eligible mapping are copied unchanged.
-///
-/// This convenience function allocates a new result [`String`]. Use
-/// [`detofu_into`] when processing many inputs and reusing an output buffer.
-///
-/// DeTofu is independent of OpenCC conversion dictionaries and does not modify
-/// OpenCC conversion behavior. In a typical workflow, perform OpenCC conversion
-/// first and then apply DeTofu to the converted text.
-///
-/// # Examples
-///
-/// ```rust
-/// use opencc_fmmseg::{detofu, DetofuLevel};
-///
-/// assert_eq!(detofu("𠗣𧜗", DetofuLevel::ExtB), "㓆䘞");
-/// assert_eq!(detofu("𬴂", DetofuLevel::ExtB), "騑");
-/// ```
-pub fn detofu(input: &str, level: DetofuLevel) -> String {
+/// This is the internal built-in-only convenience path used by higher-level
+/// APIs.
+pub(crate) fn detofu(input: &str, level: DetofuLevel) -> String {
     let mut output = String::with_capacity(input.len());
     detofu_builtin_into(input, level, &mut output);
     output

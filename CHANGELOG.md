@@ -10,9 +10,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Added allocation-reuse DeTofu APIs: `detofu_into(...)`, `OpenCC::detofu_into(...)`, and
-  `DetofuMap::detofu_into(...)`, allowing callers to append results into an existing `String`
-  buffer while reusing allocations across multiple conversions.
+- Added allocation-reuse DeTofu APIs: `OpenCC::detofu_into(...)` and `DetofuMap::detofu_into(...)`, allowing callers to
+  append results into an existing `String` buffer while reusing allocations across multiple conversions.
 - Expanded the built-in DeTofu fallback data to cover rare non-BMP characters produced by both Simplified-to-Traditional
   and Traditional-to-Simplified conversion, with direction-independent display-compatible fallbacks.
 - Added curated Unicode compatibility normalization backed by `Unicode_Compatibility.txt`, covering selected CJK
@@ -28,7 +27,6 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   `tw2tp`, `t2hk`, `t2hkp`, `hk2t`, `hk2tp`, `t2jp`, and `jp2t` helpers now optionally apply Traditional-style
   punctuation conversion, matching the existing direct Simplified/Traditional APIs. The signatures of `convert(...)`
   and `convert_with_config(...)` are unchanged.
-
 - Made the `opencc_fmmseg` crate root the single public entry point for the dictionary API. The `dictionary_lib`,
   `dictionary_maxlength`, and `starter_union` implementation modules are now private, while their supported public types
   are available directly from the crate root.
@@ -38,8 +36,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   safe pair construction/mutation plus read-only `get`, `iter`, `len`, `is_empty`, `min_key_len`, and `max_key_len`
   accessors.
 - Refactored `dict-generate` JSON conversion to rebuild all derived metadata from semantic key/value pairs instead of
-  reading or writing `DictMaxLen`
-  internals. Removed its now-unused direct `rustc-hash` dependency.
+  reading or writing `DictMaxLen` internals. Removed its now-unused direct `rustc-hash` dependency.
 - Updated docs.rs links, rustdoc examples, and README guidance to use only the crate-root public paths.
 - Migration: Rust imports through nested paths such as
   `opencc_fmmseg::dictionary_lib::DictMaxLen` must be changed to crate-root imports such as `opencc_fmmseg::DictMaxLen`.
@@ -55,10 +52,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   `OnceLock<FxHashMap<...>>`. Built-in mappings are now initialized only once and reused by all conversions.
 - Redesigned `DetofuMap` to store only custom override mappings while sharing the immutable built-in fallback table,
   substantially reducing initialization overhead and memory usage.
-- Optimized built-in DeTofu conversion with a dedicated fast path while preserving custom override precedence and full
-  API compatibility.
-- Updated the free-function, `OpenCC`, and `DetofuMap` APIs to share the same reusable backend implementation, improving
-  consistency across Rust, WASM, and downstream bindings.
+- Optimized built-in DeTofu conversion with a dedicated fast path while preserving custom override precedence.
+- Made `OpenCC` the primary public DeTofu entry point for normal conversion workflows, while retaining `DetofuMap` as
+  the reusable and customizable advanced API.
+- Internalized the standalone `detofu(...)` and `detofu_into(...)` helper functions. Built-in DeTofu remains available
+  through `OpenCC`, while standalone or custom-map use cases are supported through `DetofuMap`.
 - Extended compatibility normalization without changing the existing `OpenCC::normalize_compat(...)` behavior; callers
   can opt into the broader curated normalization with `OpenCC::normalize_compat_extended(...)`.
 - Updated conversion dictionary data.
@@ -68,6 +66,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Direct Rust calls to `t2tw`, `t2twp`, `tw2t`, `tw2tp`, `t2hk`, `t2hkp`, `hk2t`, `hk2tp`, `t2jp`, and `jp2t` must now
   pass a `punctuation: bool` argument. Pass `false` to preserve the previous behavior. Configuration-based
   `convert(...)` and `convert_with_config(...)` calls require no source changes.
+- The standalone Rust `detofu(...)` and `detofu_into(...)` functions are no longer public. Use `OpenCC::detofu(...)`
+  and `OpenCC::detofu_into(...)` for normal conversion workflows, or `DetofuMap::detofu(...)` and
+  `DetofuMap::detofu_into(...)` for reusable or customizable standalone DeTofu processing.
 
 ### Removed
 
