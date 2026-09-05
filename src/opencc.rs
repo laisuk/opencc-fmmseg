@@ -390,9 +390,21 @@ impl OpenCC {
         let chars: Vec<char> = text.chars().collect();
 
         if self.is_parallel {
+            let threads = rayon::current_num_threads().max(1);
+
+            if threads <= 1 {
+                return self.segment_replace_with_union_serial_streaming(
+                    text.len(),
+                    &chars,
+                    dictionaries,
+                    max_word_length,
+                    union,
+                );
+            }
+
+            // Only prepare ranges/chunks when parallel execution is actually possible.
             // Build delimiter-safe ranges (no cross-phrase splits)
             let ranges = self.get_chars_range(&chars, true, self.is_preserve_ids);
-            let threads = rayon::current_num_threads().max(1);
             let desired_chunks = threads * 6;
             let chunk_ranges = (ranges.len() / desired_chunks).max(128).min(2048);
 
