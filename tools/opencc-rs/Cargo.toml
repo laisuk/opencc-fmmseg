@@ -10,7 +10,7 @@ build = "build.rs"
 opencc-fmmseg = { path = "../.." }
 opencc-tool-common = { path = "../opencc-tool-common" }
 clap = "=4.5"
-encoding_rs = "0.8"
+encoding_rs = "=0.8.35"
 encoding_rs_io = "0.1"
 regex = "1.12"
 # Keep zip MSRV-safe for 1.75 (3.x, not 4.x):
