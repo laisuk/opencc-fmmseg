@@ -1,13 +1,12 @@
 mod office_converter;
 
-use office_converter::OfficeConverter;
-
 use clap::{
     builder::{StringValueParser, TypedValueParser, ValueParser},
     Arg, ArgMatches, Command,
 };
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use office_converter::{OfficeConverter, OfficeTextConverter};
 use opencc_fmmseg::{DetofuLevel, DetofuMap, DictionaryMaxlength, OpenCC, OpenccConfig};
 use opencc_tool_common::parse_custom_dict_spec;
 use std::borrow::Cow;
@@ -225,12 +224,21 @@ mod tests {
     }
 
     #[test]
-    fn conversion_delegate_applies_normalize_convert_detofu_pipeline() {
+    fn apply_conversion_pipeline_applies_normalize_convert_detofu_pipeline() {
         let cc = OpenCC::new();
         let map = DetofuMap::builtin(DetofuLevel::ExtB);
-        let convert = conversion_delegate(&cc, NormalizationMode::CompatExtended, Some(&map));
 
-        assert_eq!(convert("聼𧜗", "t2s", false), "听䘞");
+        assert_eq!(
+            apply_conversion_pipeline(
+                &cc,
+                NormalizationMode::CompatExtended,
+                Some(&map),
+                "聼𧜗",
+                "t2s",
+                false,
+            ),
+            "听䘞"
+        );
     }
 }
 
@@ -343,7 +351,7 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
         cc.set_preserve_ids(true);
     }
 
-    let convert_text = conversion_delegate(&cc, normalization_mode(matches), detofu_map.as_ref());
+    let normalization = normalization_mode(matches);
 
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
@@ -362,7 +370,14 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    let output_str = convert_text(&input_str, config, punctuation);
+    let output_str = apply_conversion_pipeline(
+        &cc,
+        normalization,
+        detofu_map.as_ref(),
+        &input_str,
+        config,
+        punctuation,
+    );
 
     let is_console_output = output_file.is_none();
     let mut output: Box<dyn Write> = match output_file {
@@ -400,7 +415,17 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
 
     let cc = build_opencc(matches)?;
     let detofu_map = build_detofu_map(matches)?;
-    let convert_text = conversion_delegate(&cc, normalization_mode(matches), detofu_map.as_ref());
+    let normalization = normalization_mode(matches);
+    let text_converter = OfficeTextConverter::new(|text: &str, config: &str, punctuation: bool| {
+        apply_conversion_pipeline(
+            &cc,
+            normalization,
+            detofu_map.as_ref(),
+            text,
+            config,
+            punctuation,
+        )
+    });
 
     let office_format = resolve_office_format(input_file, format)?;
     let final_output = resolve_office_output(
@@ -410,20 +435,20 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
         convert_filename,
         config,
         punctuation,
-        &convert_text,
+        &text_converter,
     );
 
     validate_output_path(&final_output)?;
     validate_distinct_input_output(input_file, &final_output)?;
 
-    let result = OfficeConverter::convert_with(
+    let result = OfficeConverter::convert(
         input_file,
         &final_output,
         &office_format,
         config,
         punctuation,
         keep_font,
-        &convert_text,
+        &text_converter,
     )?;
 
     if !result.success {
@@ -444,24 +469,25 @@ fn normalization_mode(matches: &ArgMatches) -> NormalizationMode {
     }
 }
 
-fn conversion_delegate<'a>(
-    cc: &'a OpenCC,
+fn apply_conversion_pipeline(
+    cc: &OpenCC,
     normalization: NormalizationMode,
-    detofu_map: Option<&'a DetofuMap>,
-) -> impl Fn(&str, &str, bool) -> String + 'a {
-    move |input, config, punctuation| {
-        let normalized = match normalization {
-            NormalizationMode::None => Cow::Borrowed(input),
-            NormalizationMode::Compat => Cow::Owned(cc.normalize_compat(input)),
-            NormalizationMode::CompatExtended => Cow::Owned(cc.normalize_compat_extended(input)),
-        };
+    detofu_map: Option<&DetofuMap>,
+    input: &str,
+    config: &str,
+    punctuation: bool,
+) -> String {
+    let normalized = match normalization {
+        NormalizationMode::None => Cow::Borrowed(input),
+        NormalizationMode::Compat => Cow::Owned(cc.normalize_compat(input)),
+        NormalizationMode::CompatExtended => Cow::Owned(cc.normalize_compat_extended(input)),
+    };
 
-        let converted = cc.convert(normalized.as_ref(), config, punctuation);
+    let converted = cc.convert(normalized.as_ref(), config, punctuation);
 
-        match detofu_map {
-            Some(map) => map.detofu(&converted),
-            None => converted,
-        }
+    match detofu_map {
+        Some(map) => map.detofu(&converted),
+        None => converted,
     }
 }
 
@@ -490,15 +516,18 @@ fn resolve_office_format(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn resolve_office_output(
+fn resolve_office_output<F>(
     input_file: &str,
     output_file: Option<&String>,
     office_format: &str,
     convert_filename: bool,
     config: &str,
     punctuation: bool,
-    convert_text: &dyn Fn(&str, &str, bool) -> String,
-) -> String {
+    text_converter: &OfficeTextConverter<F>,
+) -> String
+where
+    F: Fn(&str, &str, bool) -> String,
+{
     if let Some(path) = output_file {
         return if Path::new(path).extension().is_none() {
             format!("{path}.{office_format}")
@@ -508,14 +537,15 @@ fn resolve_office_output(
     }
 
     let input_path = Path::new(input_file);
-    let file_stem = input_path
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or("converted");
     let parent = input_path.parent().unwrap_or_else(|| Path::new("."));
 
+    let file_stem = input_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
+
     let file_stem = if convert_filename {
-        convert_text(file_stem, config, punctuation)
+        text_converter.convert_text(file_stem, config, punctuation)
     } else {
         file_stem.to_owned()
     };
