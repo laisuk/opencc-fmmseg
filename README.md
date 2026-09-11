@@ -790,10 +790,14 @@ continues to deliver stable near-linear scaling across large text corpora.
 
 ---
 
-## Project That Use opencc-fmmseg
+## Projects That Use opencc-fmmseg
 
-- [opencc-fmmseg-gui](https://github.com/laisuk/opencc-fmmseg-gui) : A modern cross‑platform Chinese text converter GUI
+- [opencc-fmmseg-gui](https://github.com/laisuk/opencc-fmmseg-gui) : A modern cross-platform Chinese text converter GUI
   built with `Tauri` + `Vite` and powered by the Rust `opencc-fmmseg` engine.
+
+- [opencc-fmmseg-wasm](https://github.com/laisuk/opencc-fmmseg-wasm) : WebAssembly bindings for `opencc-fmmseg`,
+  providing Chinese text conversion, compatibility normalization, DeTofu, custom dictionaries, and Office/EPUB
+  conversion for browsers and Node.js.
 
 ---
 
