@@ -49,7 +49,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   functions are no longer publicly exposed. The supported public normalization API is
   `OpenCC::normalize_compat(...)`, `OpenCC::normalize_unicode_compat(...)`, and
   `OpenCC::normalize_compat_extended(...)`.
-- Replaced the TS-specific DeTofu data with the unified `CharactersTofu.txt` fallback table, reflecting DeToFu's broader
+- Replaced the TS-specific DeTofu data with the unified `CharactersTofu.txt` fallback table, reflecting DeTofu's broader
   ST + TS coverage.
 - Refactored DeTofu around a shared, lazily initialized built-in fallback table backed by
   `OnceLock<FxHashMap<...>>`. Built-in mappings are now initialized only once and reused by all conversions.

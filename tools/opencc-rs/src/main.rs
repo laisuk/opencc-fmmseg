@@ -1,4 +1,5 @@
 mod office_converter;
+mod text_converter;
 
 use clap::{
     builder::{StringValueParser, TypedValueParser, ValueParser},
@@ -6,23 +7,18 @@ use clap::{
 };
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use office_converter::{OfficeConverter, OfficeTextConverter};
+use office_converter::OfficeConverter;
 use opencc_fmmseg::{DetofuLevel, DetofuMap, DictionaryMaxlength, OpenCC, OpenccConfig};
 use opencc_tool_common::parse_custom_dict_spec;
-use std::borrow::Cow;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, IsTerminal, Read, Write};
 use std::path::Path;
 use std::sync::OnceLock;
+use text_converter::{
+    create_text_converter, NormalizationMode, TextConverter, TextConverterOptions,
+};
 
 const OFFICE_FORMATS: &[&str] = &["docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"];
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NormalizationMode {
-    None,
-    Compat,
-    CompatExtended,
-}
 
 fn main() {
     let matches = build_cli().get_matches();
@@ -224,21 +220,21 @@ mod tests {
     }
 
     #[test]
-    fn apply_conversion_pipeline_applies_normalize_convert_detofu_pipeline() {
+    fn text_converter_applies_normalize_convert_detofu_pipeline() {
         let cc = OpenCC::new();
         let map = DetofuMap::builtin(DetofuLevel::ExtB);
 
-        assert_eq!(
-            apply_conversion_pipeline(
-                &cc,
-                NormalizationMode::CompatExtended,
-                Some(&map),
-                "聼𧜗",
-                "t2s",
-                false,
-            ),
-            "听䘞"
+        let converter = create_text_converter(
+            &cc,
+            TextConverterOptions {
+                config: "t2s",
+                punctuation: false,
+                normalization: NormalizationMode::CompatExtended,
+                detofu_map: Some(&map),
+            },
         );
+
+        assert_eq!(converter.convert("聼𧜗"), "听䘞");
     }
 }
 
@@ -351,7 +347,15 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
         cc.set_preserve_ids(true);
     }
 
-    let normalization = normalization_mode(matches);
+    let text_converter = create_text_converter(
+        &cc,
+        TextConverterOptions {
+            config,
+            punctuation,
+            normalization: normalization_mode(matches),
+            detofu_map: detofu_map.as_ref(),
+        },
+    );
 
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
@@ -370,14 +374,7 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    let output_str = apply_conversion_pipeline(
-        &cc,
-        normalization,
-        detofu_map.as_ref(),
-        &input_str,
-        config,
-        punctuation,
-    );
+    let output_str = text_converter.convert(&input_str);
 
     let is_console_output = output_file.is_none();
     let mut output: Box<dyn Write> = match output_file {
@@ -415,17 +412,15 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
 
     let cc = build_opencc(matches)?;
     let detofu_map = build_detofu_map(matches)?;
-    let normalization = normalization_mode(matches);
-    let text_converter = OfficeTextConverter::new(|text: &str, config: &str, punctuation: bool| {
-        apply_conversion_pipeline(
-            &cc,
-            normalization,
-            detofu_map.as_ref(),
-            text,
+    let text_converter = create_text_converter(
+        &cc,
+        TextConverterOptions {
             config,
             punctuation,
-        )
-    });
+            normalization: normalization_mode(matches),
+            detofu_map: detofu_map.as_ref(),
+        },
+    );
 
     let office_format = resolve_office_format(input_file, format)?;
     let final_output = resolve_office_output(
@@ -433,8 +428,6 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
         output_file,
         &office_format,
         convert_filename,
-        config,
-        punctuation,
         &text_converter,
     );
 
@@ -445,8 +438,6 @@ fn handle_office(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>>
         input_file,
         &final_output,
         &office_format,
-        config,
-        punctuation,
         keep_font,
         &text_converter,
     )?;
@@ -466,28 +457,6 @@ fn normalization_mode(matches: &ArgMatches) -> NormalizationMode {
         NormalizationMode::Compat
     } else {
         NormalizationMode::None
-    }
-}
-
-fn apply_conversion_pipeline(
-    cc: &OpenCC,
-    normalization: NormalizationMode,
-    detofu_map: Option<&DetofuMap>,
-    input: &str,
-    config: &str,
-    punctuation: bool,
-) -> String {
-    let normalized = match normalization {
-        NormalizationMode::None => Cow::Borrowed(input),
-        NormalizationMode::Compat => Cow::Owned(cc.normalize_compat(input)),
-        NormalizationMode::CompatExtended => Cow::Owned(cc.normalize_compat_extended(input)),
-    };
-
-    let converted = cc.convert(normalized.as_ref(), config, punctuation);
-
-    match detofu_map {
-        Some(map) => map.detofu(&converted),
-        None => converted,
     }
 }
 
@@ -515,18 +484,15 @@ fn resolve_office_format(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn resolve_office_output<F>(
     input_file: &str,
     output_file: Option<&String>,
     office_format: &str,
     convert_filename: bool,
-    config: &str,
-    punctuation: bool,
-    text_converter: &OfficeTextConverter<F>,
+    text_converter: &TextConverter<F>,
 ) -> String
 where
-    F: Fn(&str, &str, bool) -> String,
+    F: Fn(&str) -> String,
 {
     if let Some(path) = output_file {
         return if Path::new(path).extension().is_none() {
@@ -545,7 +511,7 @@ where
         .unwrap_or("output");
 
     let file_stem = if convert_filename {
-        text_converter.convert_text(file_stem, config, punctuation)
+        text_converter.convert(file_stem)
     } else {
         file_stem.to_owned()
     };
