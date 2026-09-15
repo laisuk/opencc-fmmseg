@@ -37,21 +37,21 @@ static TOFU_DATA: &[u8] = include_bytes!("data/CharactersTofu.txt");
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DetofuLevel {
     /// Replace CJK Extension B and all supported later extension mappings.
-    ExtB,
+    ExtB = 0,
     /// Replace CJK Extension C and all supported later extension mappings.
-    ExtC,
+    ExtC = 1,
     /// Replace CJK Extension D and all supported later extension mappings.
-    ExtD,
+    ExtD = 2,
     /// Replace CJK Extension E and all supported later extension mappings.
-    ExtE,
+    ExtE = 3,
     /// Replace CJK Extension F and all supported later extension mappings.
-    ExtF,
+    ExtF = 4,
     /// Replace CJK Extension G and all supported later extension mappings.
-    ExtG,
+    ExtG = 5,
     /// Replace CJK Extension H and all supported later extension mappings.
-    ExtH,
+    ExtH = 6,
     /// Replace CJK Extension I mappings.
-    ExtI,
+    ExtI = 7,
 }
 
 impl DetofuLevel {

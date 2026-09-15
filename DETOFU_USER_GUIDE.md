@@ -181,4 +181,4 @@ ExtD
 ---
 
 > Crate: [opencc-fmmseg on crates.io](https://crates.io/crates/opencc-fmmseg)  
-> Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg/0.11.0/opencc_fmmseg/)
+> Docs: [docs.rs/opencc-fmmseg](https://docs.rs/opencc-fmmseg)

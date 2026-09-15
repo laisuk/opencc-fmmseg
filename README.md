@@ -17,7 +17,7 @@ accurate, and deployment-friendly conversion — with **no runtime I/O required*
 
 - 🔁 **Traditional ↔ Simplified Chinese conversion**
 - 🔤 **Lexicon-based word segmentation (FMM)**
-- ⚡ **Zero runtime dictionary loading (embedded Zstd)**
+- ⚡ **No runtime dictionary file I/O (embedded Zstd)**
 - 🧩 **Easy integration via Rust, C/C++, and Python bindings**
 
 ### 🎯 Ideal For

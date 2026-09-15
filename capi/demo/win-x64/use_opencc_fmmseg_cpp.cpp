@@ -306,6 +306,90 @@ int main(int argc, char **argv) {
     }
 
     // ---------------------------------------------------------------------
+    // Test 7: Normalization / DeTofu roundtrip (direct C API)
+    // ---------------------------------------------------------------------
+    std::cout << "\n== Test 7: normalization / DeTofu roundtrip ==\n";
+
+    const char *compat_source =
+        u8"天龍八部書";
+
+    const char *extended_source =
+        u8"天龍八部書裡的聼眾‧聼聼竒羙⽟䂖甁噐⾳";
+
+    const char *detofu_source =
+        u8"骖𬴂";
+
+    char *compat_normalized =
+        opencc_normalize_compat(opencc, compat_source);
+
+    char *extended_normalized =
+        opencc_normalize_compat_extended(opencc, extended_source);
+
+    char *extended_simplified = nullptr;
+    if (extended_normalized != nullptr) {
+        extended_simplified = opencc_convert_cfg(
+            opencc,
+            extended_normalized,
+            OPENCC_CONFIG_T2S,
+            false
+        );
+    }
+
+    char *detofued =
+        opencc_detofu(opencc, detofu_source, OPENCC_DETOFU_EXT_B);
+
+    const bool compat_pass =
+        compat_normalized != nullptr &&
+        std::strcmp(compat_normalized, u8"天龍八部書") == 0;
+
+    const bool extended_pass =
+        extended_normalized != nullptr &&
+        std::strcmp(
+            extended_normalized,
+            u8"天龍八部書裡的聽眾·聽聽奇美玉石瓶器音"
+        ) == 0;
+
+    const bool t2s_pass =
+        extended_simplified != nullptr &&
+        std::strcmp(
+            extended_simplified,
+            u8"天龙八部书里的听众·听听奇美玉石瓶器音"
+        ) == 0;
+
+    const bool detofu_pass =
+        detofued != nullptr &&
+        std::strcmp(detofued, u8"骖騑") == 0;
+
+    std::cout << "Norm compat:      "
+              << (compat_normalized != nullptr ? compat_normalized : "(null)")
+              << " [" << (compat_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "Norm extended:    "
+              << (extended_normalized != nullptr ? extended_normalized : "(null)")
+              << " [" << (extended_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "Extended -> T2S:  "
+              << (extended_simplified != nullptr ? extended_simplified : "(null)")
+              << " [" << (t2s_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "DeTofu ExtB:      "
+              << (detofued != nullptr ? detofued : "(null)")
+              << " [" << (detofu_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "Roundtrip:        "
+              << (compat_pass && extended_pass && t2s_pass && detofu_pass
+                      ? "PASS"
+                      : "FAIL")
+              << "\n";
+
+    print_last_error_and_free();
+
+    opencc_string_free(detofued);
+    opencc_string_free(extended_simplified);
+    opencc_string_free(extended_normalized);
+    opencc_string_free(compat_normalized);
+
+    // ---------------------------------------------------------------------
     // Cleanup
     // ---------------------------------------------------------------------
     opencc_delete(opencc);

@@ -1686,8 +1686,8 @@ impl OpenCC {
     ///
     /// * `input` - UTF-8 text to convert.
     /// * `config_id` - Conversion configuration.
-    /// * `punctuation` - Whether to apply punctuation conversion where supported.
-    ///   For some configs, this flag is **ignored** (see [`OpenccConfig`] table).
+    /// * `punctuation` - Whether to apply punctuation conversion for the
+    ///   selected output style.
     ///
     /// # Example
     ///
