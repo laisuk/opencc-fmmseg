@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 // RAII convenience wrapper around the opencc-fmmseg C API.
 //
@@ -23,6 +24,43 @@
 //   empty-input results.
 class OpenccFmmsegHelper {
 public:
+    /**
+     * One owned UTF-8 source-target mapping used during immutable
+     * construction.
+     *
+     * Both strings must contain valid UTF-8 and must not contain embedded
+     * NUL bytes.
+     *
+     * @since v0.11.5
+     */
+    struct CustomPair {
+        /** Source dictionary key. */
+        std::string source;
+
+        /** Replacement dictionary value. */
+        std::string target;
+    };
+
+    /**
+     * One owned custom dictionary specification used during construction.
+     *
+     * The wrapper converts these C++ values to the temporary pointer arrays
+     * required by the C API. The resulting native OpenCC instance copies all
+     * dictionary data and remains immutable after construction.
+     *
+     * @since v0.11.5
+     */
+    struct CustomDictSpec {
+        /** One of the `OPENCC_DICT_SLOT_*` constants. */
+        opencc_dict_slot_t slot;
+
+        /** `OPENCC_CUSTOM_DICT_APPEND` or `OPENCC_CUSTOM_DICT_OVERRIDE`. */
+        opencc_custom_dict_mode_t mode;
+
+        /** Source-target mappings to apply to the selected slot. */
+        std::vector<CustomPair> pairs;
+    };
+
     // Creates a new native OpenCC instance.
     //
     // Throws `std::runtime_error` only if `opencc_new()` fails.
@@ -31,6 +69,27 @@ public:
         if (!opencc_)
             throw std::runtime_error("Failed to initialize OpenCC instance.");
     }
+
+    /**
+     * Creates an immutable OpenCC instance using the embedded dictionaries
+     * plus the supplied in-memory custom dictionary specifications.
+     *
+     * The input strings and arrays are needed only during this constructor.
+     * The native constructor copies all required data before returning.
+     *
+     * An empty specification vector is equivalent to the default constructor.
+     *
+     * @param specs
+     *     Custom dictionary specifications applied during construction.
+     *
+     * @throws std::runtime_error
+     *     If a slot, mode, pair, or UTF-8 string is invalid, or native
+     *     construction otherwise fails.
+     *
+     * @since v0.11.5
+     */
+    explicit OpenccFmmsegHelper(const std::vector<CustomDictSpec> &specs)
+        : opencc_(createCustomOpencc(specs)) {}
 
     OpenccFmmsegHelper(const OpenccFmmsegHelper &) = delete;
 
@@ -179,6 +238,34 @@ public:
         return opencc_zho_check(opencc_, tmp.c_str());
     }
 
+    // Normalizes CJK Compatibility Ideographs.
+    [[nodiscard]] std::string normalizeCompat(const std::string_view input) const {
+        if (input.empty()) return {};
+        return transformString(input, opencc_normalize_compat);
+    }
+
+    // Applies the extended compatibility normalization pipeline.
+    [[nodiscard]] std::string normalizeCompatExtended(const std::string_view input) const {
+        if (input.empty()) return {};
+        return transformString(input, opencc_normalize_compat_extended);
+    }
+
+    // Applies the built-in DeTofu display-compatibility fallback.
+    [[nodiscard]] std::string detofu(
+        const std::string_view input,
+        const opencc_detofu_level_t level = OPENCC_DETOFU_EXT_B
+    ) const {
+        if (input.empty()) return {};
+
+        const std::string in(input);
+        char *output = opencc_detofu(opencc_, in.c_str(), level);
+        if (!output) return takeLastErrorText();
+
+        std::string result(output);
+        opencc_string_free(output);
+        return result;
+    }
+
     // Returns the calling thread's native last-error string. Call this on the
     // same thread immediately after a failed C API call. The C API returns an
     // independent allocation, which this helper releases with
@@ -217,6 +304,57 @@ private:
     bool punctuationEnabled_ = false;
     std::string configName_;
     bool useConfigName_ = false;
+
+    [[nodiscard]] static void *createCustomOpencc(
+        const std::vector<CustomDictSpec> &specs
+    ) {
+        std::vector<std::vector<opencc_custom_pair_t>> ffiPairArrays;
+        ffiPairArrays.reserve(specs.size());
+
+        for (const CustomDictSpec &spec : specs) {
+            std::vector<opencc_custom_pair_t> ffiPairs;
+            ffiPairs.reserve(spec.pairs.size());
+
+            for (const CustomPair &pair : spec.pairs) {
+                ffiPairs.push_back({
+                    pair.source.c_str(),
+                    pair.target.c_str(),
+                });
+            }
+
+            ffiPairArrays.push_back(std::move(ffiPairs));
+        }
+
+        std::vector<opencc_custom_dict_spec_t> ffiSpecs;
+        ffiSpecs.reserve(specs.size());
+
+        for (std::size_t i = 0; i < specs.size(); ++i) {
+            const CustomDictSpec &spec = specs[i];
+            const auto &ffiPairs = ffiPairArrays[i];
+
+            ffiSpecs.push_back({
+                spec.slot,
+                spec.mode,
+                ffiPairs.empty() ? nullptr : ffiPairs.data(),
+                ffiPairs.size(),
+            });
+        }
+
+        void *instance = opencc_new_custom(
+            ffiSpecs.empty() ? nullptr : ffiSpecs.data(),
+            ffiSpecs.size()
+        );
+
+        if (!instance) {
+            std::string error = lastError();
+            if (error.empty()) {
+                error = "Failed to initialize custom OpenCC instance.";
+            }
+            throw std::runtime_error(error);
+        }
+
+        return instance;
+    }
 
     static void cleanupOpencc(void *p) noexcept {
         if (p) opencc_delete(p);
@@ -328,5 +466,20 @@ private:
 
         output.resize(required - 1);
         return output;
+    }
+
+    using StringTransformFn = char *(*)(const void *, const char *);
+
+    [[nodiscard]] std::string transformString(
+        const std::string_view input,
+        const StringTransformFn fn
+    ) const {
+        const std::string in(input);
+        char *output = fn(opencc_, in.c_str());
+        if (!output) return takeLastErrorText();
+
+        std::string result(output);
+        opencc_string_free(output);
+        return result;
     }
 };

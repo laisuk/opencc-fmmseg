@@ -126,27 +126,42 @@ int main(int argc, char **argv) {
 
     size_t required = 0;
 
-    // 1) Query size
-    if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true, nullptr, 0, &required)) {
-        std::cout << "❌ size-query failed\n";
-        print_last_error_and_free();
-    } else {
-        std::cout << "Required bytes (incl. NUL): " << required << "\n";
+    // Fast path: one-pass with slack (+10% + NUL)
+    const size_t input_len = std::strlen(text);
+    constexpr size_t MIN_CAP = 128;
+    size_t cap = std::max(input_len + input_len / 10 + 1, MIN_CAP); // +10% + '\0'
 
-        // 2) Allocate buffer
-        std::string buf(required, '\0');
+    std::string buf(cap, '\0');
+
+    if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true,
+                                buf.data(), buf.size(), &required)) {
+
+        // Buffer too small → fallback to exact size-query
+        std::cout << "ℹ️ Fast path buffer insufficient, retrying with exact size...\n";
+
+        // Size-query (guaranteed-safe path)
+        if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true,
+                                    nullptr, 0, &required)) {
+            std::cout << "❌ size-query failed\n";
+            print_last_error_and_free();
+            return 1;
+        }
+
+        buf.assign(required, '\0');
 
         if (!opencc_convert_cfg_mem(opencc, text, OPENCC_CONFIG_S2TWP, true,
                                     buf.data(), buf.size(), &required)) {
             std::cout << "❌ convert_cfg_mem failed\n";
             print_last_error_and_free();
-        } else {
-            // buf is NUL-terminated; printing is safe
-            std::cout << "Converted: " << buf.c_str() << "\n";
-            std::cout << "Converted Code: " << opencc_zho_check(opencc, buf.c_str()) << "\n";
-            print_last_error_and_free();
+            return 1;
         }
     }
+
+    // Success (either fast path or fallback)
+    std::cout << "Converted: " << buf.c_str() << "\n";
+    std::cout << "Converted Code: "
+              << opencc_zho_check(opencc, buf.c_str()) << "\n";
+    print_last_error_and_free();
 
     // ---------------------------------------------------------------------
     // Test 5: Config name/id helpers (pure C API, C++ caller)
@@ -206,6 +221,86 @@ int main(int argc, char **argv) {
 
     // Optional: error state should remain clean
     print_last_error_and_free();
+
+    // ---------------------------------------------------------------------
+    // Test 6: Immutable custom dictionary roundtrip (direct C API)
+    // ---------------------------------------------------------------------
+    std::cout << "\n== Test 6: immutable custom dictionary roundtrip ==\n";
+
+    const opencc_custom_pair_t st_pairs[] = {
+        { u8"帕兰蒂尔", u8"柏蘭蒂爾" },
+        { u8"软件",     u8"軟體" }
+    };
+
+    const opencc_custom_pair_t ts_pairs[] = {
+        { u8"柏蘭蒂爾", u8"帕兰蒂尔" },
+        { u8"軟體",     u8"软件" }
+    };
+
+    const opencc_custom_dict_spec_t custom_specs[] = {
+        {
+            OPENCC_DICT_SLOT_ST_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            st_pairs,
+            sizeof(st_pairs) / sizeof(st_pairs[0])
+        },
+        {
+            OPENCC_DICT_SLOT_TS_PHRASES,
+            OPENCC_CUSTOM_DICT_APPEND,
+            ts_pairs,
+            sizeof(ts_pairs) / sizeof(ts_pairs[0])
+        }
+    };
+
+    void *custom_opencc = opencc_new_custom(
+        custom_specs,
+        sizeof(custom_specs) / sizeof(custom_specs[0])
+    );
+
+    if (custom_opencc == nullptr) {
+        std::cout << "❌ opencc_new_custom() returned NULL\n";
+        print_last_error_and_free();
+    } else {
+        const char *source = u8"帕兰蒂尔是一家软件公司。";
+
+        char *traditional = opencc_convert_cfg(
+            custom_opencc,
+            source,
+            OPENCC_CONFIG_S2T,
+            false
+        );
+
+        if (traditional == nullptr) {
+            std::cout << "❌ S2T custom conversion failed\n";
+            print_last_error_and_free();
+        } else {
+            char *simplified = opencc_convert_cfg(
+                custom_opencc,
+                traditional,
+                OPENCC_CONFIG_T2S,
+                false
+            );
+
+            if (simplified == nullptr) {
+                std::cout << "❌ T2S custom conversion failed\n";
+                print_last_error_and_free();
+            } else {
+                std::cout << "Source:      " << source << "\n";
+                std::cout << "S2T custom:  " << traditional << "\n";
+                std::cout << "T2S custom:  " << simplified << "\n";
+                std::cout << "Roundtrip:   "
+                          << (std::strcmp(source, simplified) == 0 ? "PASS" : "FAIL")
+                          << "\n";
+
+                opencc_string_free(simplified);
+            }
+
+            opencc_string_free(traditional);
+        }
+
+        print_last_error_and_free();
+        opencc_delete(custom_opencc);
+    }
 
     // ---------------------------------------------------------------------
     // Cleanup
