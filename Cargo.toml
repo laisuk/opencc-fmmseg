@@ -27,6 +27,7 @@ include = [
     "/CHANGELOG.md",
     "/CUSTOM_DICT_USER_GUIDE.md",
     "/DETOFU_USER_GUIDE.md",
+    "/THIRD_PARTY_NOTICES.md",
     # Source
     "src/**/*.rs",
     # Embedded dictionaries

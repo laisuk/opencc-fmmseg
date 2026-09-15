@@ -11,8 +11,7 @@ This project is licensed under **MIT**. It bundles or depends on third-party com
 **License:** **Apache License 2.0**  
 **Files in this distribution:** `dicts/` (and any derived packs generated from these dictionaries)  
 **License files included:**  
-- `dicts/LICENSE` (Apache-2.0, copied from upstream)  
-- `dicts/NOTICE` (if provided by upstream; included here)  
+- `dicts/LICENSE` (Apache-2.0, copied from upstream) 
 
 **Attribution:**  
 Copyright © OpenCC contributors
