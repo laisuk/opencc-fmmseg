@@ -11,6 +11,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Updated dictionary data.
+- Reduced CBOR and readable JSON dictionary sizes by omitting redundant `starter_len_mask` metadata when
+  `key_length_mask == 1`. Deserialization reconstructs omitted masks from Unicode scalar keys, including non-BMP
+  characters, while preserving explicitly stored masks in older artifacts. Phrase and mixed-length dictionaries retain
+  their serialized starter masks; runtime storage, lookup behavior, `StarterUnion`, and `UnionCache` are unchanged.
+- For the current embedded `STCharacters` dictionary, uncompressed CBOR shrinks from 58,897 to 37,665 bytes (~36%),
+  and compact readable JSON from 82,992 to 49,717 bytes (~40%). Generated dictionary artifacts are not regenerated.
+
+### Tests
+
+- Added regression coverage for CBOR/JSON field omission, legacy artifacts, exact phrase and mixed-length masks,
+  supplementary-plane characters, runtime lookup metadata, starter unions, and existing dictionary conversion
+  round-trips.
+- Verified with Rust 1.75.0, including the full library test suite, dictionary-generator tests, and ignored dictionary
+  generation and CBOR/Zstd round-trip tests.
 
 ---
 

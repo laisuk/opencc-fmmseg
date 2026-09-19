@@ -105,24 +105,24 @@ macro_rules! debug_note {
 /// # Serialization
 ///
 /// Semantic entries and compact metadata are serialized. Runtime accelerators
-/// are reconstructed internally after loading.
+/// are reconstructed internally after loading. When `key_length_mask == 1`, the
+/// redundant sparse starter masks are omitted and restored from the source keys
+/// during deserialization. Explicitly stored legacy masks remain readable.
 ///
 /// # See Also
 ///
 /// - [`DictionaryMaxlength`](crate::DictionaryMaxlength) — utilities for loading and building `DictMaxLen`.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct DictMaxLen {
     /// Dictionary mapping: phrase (as boxed slice of `char`) → replacement string.
     ///
     /// Keys are stored as `Box<[char]>` to enable direct `&[char]` lookups without
     /// allocation, reducing overhead in tight segmentation loops.
-    #[serde(default)]
     pub(crate) map: FxHashMap<Box<[char]>, Box<str>>,
 
     /// Global maximum key length in characters across the entire dictionary.
     ///
     /// Used to limit scanning during forward maximum matching (FMM) segmentation.
-    #[serde(default)]
     pub(crate) max_len: usize,
 
     /// Global minimum key length (in characters) across the entire dictionary.
@@ -130,7 +130,6 @@ pub struct DictMaxLen {
     /// Used to bound scanning during forward-maximum-matching (FMM) segmentation.
     /// Together with [`max_len`](Self::max_len) and [`key_length_mask`](Self::key_length_mask),
     /// this lets callers quickly skip impossible lengths.
-    #[serde(default)]
     pub(crate) min_len: usize,
 
     /// Global key-length presence mask for lengths `1..=64`.
@@ -148,7 +147,6 @@ pub struct DictMaxLen {
     ///
     /// Example: if keys of lengths `{1,2,5}` exist, then this field equals:
     /// `0b1_0001_1` (bits 0,1,4 set) → decimal `0b100011 = 35`.
-    #[serde(default)]
     pub(crate) key_length_mask: u64,
 
     /// Sparse, exact **per-starter length bitmask** (BMP **and** astral).
@@ -171,7 +169,6 @@ pub struct DictMaxLen {
     ///
     /// Keys are `char` (not `String`) for compactness; this map may be empty if
     /// built solely from dense tables and later reconstructed during deserialization.
-    #[serde(default)]
     pub(crate) starter_len_mask: FxHashMap<char, u64>,
 
     /// Runtime-only: length bitmask for the first character (Unicode BMP).
@@ -181,17 +178,68 @@ pub struct DictMaxLen {
     /// length `n+1` exists.
     ///
     /// This vector is initialized empty and built after loading the dictionary.
-    #[serde(skip)]
-    #[serde(default)]
     pub(crate) first_len_mask64: Vec<u64>,
 
     /// Runtime-only: maximum key length per first character (Unicode BMP).
     ///
     /// Each entry stores the maximum phrase length (in characters) for the given
     /// starter character. Parallel to [`Self::first_len_mask64`] but stored as `u8`.
-    #[serde(skip)]
-    #[serde(default)]
     pub(crate) first_char_max_len: Vec<u8>,
+}
+
+impl Serialize for DictMaxLen {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+
+        let slim = self.key_length_mask == 1;
+        let mut state = serializer.serialize_struct("DictMaxLen", if slim { 4 } else { 5 })?;
+        state.serialize_field("map", &self.map)?;
+        state.serialize_field("max_len", &self.max_len)?;
+        state.serialize_field("min_len", &self.min_len)?;
+        state.serialize_field("key_length_mask", &self.key_length_mask)?;
+        if !slim {
+            state.serialize_field("starter_len_mask", &self.starter_len_mask)?;
+        }
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for DictMaxLen {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Default, Deserialize)]
+        #[serde(default, rename = "DictMaxLen")]
+        struct Stored {
+            map: FxHashMap<Box<[char]>, Box<str>>,
+            max_len: usize,
+            min_len: usize,
+            key_length_mask: u64,
+            starter_len_mask: Option<FxHashMap<char, u64>>,
+        }
+
+        let stored = Stored::deserialize(deserializer)?;
+        // Preserve supplied legacy metadata, including an explicitly empty map.
+        // Only omitted length-one metadata needs reconstruction from the keys.
+        let starter_len_mask = stored.starter_len_mask.unwrap_or_else(|| {
+            if stored.key_length_mask == 1 {
+                stored
+                    .map
+                    .keys()
+                    .filter_map(|key| key.first().map(|&c| (c, 1u64)))
+                    .collect()
+            } else {
+                FxHashMap::default()
+            }
+        });
+        Ok(Self {
+            map: stored.map,
+            max_len: stored.max_len,
+            min_len: stored.min_len,
+            key_length_mask: stored.key_length_mask,
+            starter_len_mask,
+            first_len_mask64: Vec::new(),
+            first_char_max_len: Vec::new(),
+        })
+    }
 }
 
 impl DictMaxLen {
@@ -1038,3 +1086,7 @@ mod tests {
         assert!(dict.starter_allows_dict('中', 80, bit));
     }
 }
+
+#[cfg(test)]
+#[path = "dict_max_len_serde_tests.rs"]
+mod serde_tests;
