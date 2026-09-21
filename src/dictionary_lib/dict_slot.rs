@@ -90,6 +90,18 @@ pub enum DictSlot {
     /// Japanese Shinjitai phrase mappings.
     JPSPhrases,
 
+    /// Small Seal Script → Traditional character mappings.
+    SealCharacters,
+
+    /// Traditional → Small Seal Script reverse character mappings.
+    SealCharactersRev,
+
+    /// Traditional → Small Seal Script variant mappings.
+    SealVariants,
+
+    /// Small Seal Script → Traditional reverse variant mappings.
+    SealVariantsRev,
+
     /// Simplified → Traditional punctuation mappings.
     STPunctuations,
 
@@ -171,6 +183,11 @@ impl TryFrom<&str> for DictSlot {
             "JPSCharactersRev" => Ok(Self::JPSCharactersRev),
             "JPSPhrases" => Ok(Self::JPSPhrases),
 
+            "SealCharacters" => Ok(Self::SealCharacters),
+            "SealCharactersRev" => Ok(Self::SealCharactersRev),
+            "SealVariants" => Ok(Self::SealVariants),
+            "SealVariantsRev" => Ok(Self::SealVariantsRev),
+
             _ => Err(()),
         }
     }
@@ -204,6 +221,11 @@ impl DictSlot {
         Self::JPSCharacters,
         Self::JPSCharactersRev,
         Self::JPSPhrases,
+
+        Self::SealCharacters,
+        Self::SealCharactersRev,
+        Self::SealVariants,
+        Self::SealVariantsRev,
     ];
 
     /// Returns the canonical public name of this dictionary slot.
@@ -250,6 +272,11 @@ impl DictSlot {
             Self::JPSCharacters => "JPSCharacters",
             Self::JPSCharactersRev => "JPSCharactersRev",
             Self::JPSPhrases => "JPSPhrases",
+
+            Self::SealCharacters => "SealCharacters",
+            Self::SealCharactersRev => "SealCharactersRev",
+            Self::SealVariants => "SealVariants",
+            Self::SealVariantsRev => "SealVariantsRev",
         }
     }
 

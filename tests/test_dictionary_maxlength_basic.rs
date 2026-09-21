@@ -167,14 +167,18 @@ fn from_dicts_at_missing_forward_variant_phrase_files_defaults_empty() {
         "JPShinjitaiCharacters.txt",
         "JPShinjitaiCharactersRev.txt",
         "JPShinjitaiPhrases.txt",
+        "SealCharacters.txt",
+        "SealCharactersRev.txt",
+        "SealVariants.txt",
+        "SealVariantsRev.txt",
         "STPunctuations.txt",
         "TSPunctuations.txt",
     ] {
         fs::write(dir.join(file), "").expect("temp dictionary file should be written");
     }
 
-    let dictionary =
-        DictionaryMaxlength::from_dicts_at(&dir).expect("old plaintext dict set should load");
+    let dictionary = DictionaryMaxlength::from_dicts_at(&dir)
+        .expect("plaintext dict set without optional phrase files should load");
 
     assert!(dictionary.tw_variants_phrases.is_empty());
     assert!(dictionary.hk_variants_phrases.is_empty());

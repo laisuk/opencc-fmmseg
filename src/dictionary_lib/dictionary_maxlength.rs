@@ -138,6 +138,20 @@ pub struct DictionaryMaxlength {
     #[serde(default)]
     pub jps_phrases: DictMaxLen,
     /// Simplified-to-Traditional punctuation mappings.
+
+    /// Small Seal Script-to-Traditional character mappings.
+    #[serde(default)]
+    pub seal_characters: DictMaxLen,
+    /// Traditional-to-Small Seal Script reverse character mappings.
+    #[serde(default)]
+    pub seal_characters_rev: DictMaxLen,
+    /// Traditional-to-Small Seal Script variant mappings.
+    #[serde(default)]
+    pub seal_variants: DictMaxLen,
+    /// Small Seal Script-to-Traditional reverse variant mappings.
+    #[serde(default)]
+    pub seal_variants_rev: DictMaxLen,
+
     #[serde(default)]
     pub st_punctuations: DictMaxLen,
     /// Traditional-to-Simplified punctuation mappings.
@@ -429,6 +443,12 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         self.jps_characters.populate_starter_indexes();
         self.jps_characters_rev.populate_starter_indexes();
         self.jps_phrases.populate_starter_indexes();
+
+        self.seal_characters.populate_starter_indexes();
+        self.seal_characters_rev.populate_starter_indexes();
+        self.seal_variants.populate_starter_indexes();
+        self.seal_variants_rev.populate_starter_indexes();
+
         self.st_punctuations.populate_starter_indexes();
         self.ts_punctuations.populate_starter_indexes();
     }
@@ -492,6 +512,12 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             &self.jps_characters,
             &self.jps_characters_rev,
             &self.jps_phrases,
+
+            &self.seal_characters,
+            &self.seal_characters_rev,
+            &self.seal_variants,
+            &self.seal_variants_rev,
+
             &self.st_punctuations,
             &self.ts_punctuations,
         ];
@@ -571,6 +597,12 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             ("JPShinjitaiCharacters.txt", &self.jps_characters.map),
             ("JPShinjitaiCharactersRev.txt", &self.jps_characters_rev.map),
             ("JPShinjitaiPhrases.txt", &self.jps_phrases.map),
+
+            ("SealCharacters.txt", &self.seal_characters.map),
+            ("SealCharactersRev.txt", &self.seal_characters_rev.map),
+            ("SealVariants.txt", &self.seal_variants.map),
+            ("SealVariantsRev.txt", &self.seal_variants_rev.map),
+
             ("STPunctuations.txt", &self.st_punctuations.map),
             ("TSPunctuations.txt", &self.ts_punctuations.map),
         ]
@@ -963,6 +995,31 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
                 DictSlot::JPSPhrases,
             )?,
 
+            seal_characters: load_slot(
+                base_dir,
+                "SealCharacters.txt",
+                specs,
+                DictSlot::SealCharacters,
+            )?,
+            seal_characters_rev: load_slot(
+                base_dir,
+                "SealCharactersRev.txt",
+                specs,
+                DictSlot::SealCharactersRev,
+            )?,
+            seal_variants: load_slot(
+                base_dir,
+                "SealVariants.txt",
+                specs,
+                DictSlot::SealVariants,
+            )?,
+            seal_variants_rev: load_slot(
+                base_dir,
+                "SealVariantsRev.txt",
+                specs,
+                DictSlot::SealVariantsRev,
+            )?,
+
             st_punctuations: load_slot(
                 base_dir,
                 "STPunctuations.txt",
@@ -1295,6 +1352,11 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             DictSlot::JPSCharactersRev => &mut self.jps_characters_rev,
             DictSlot::JPSPhrases => &mut self.jps_phrases,
 
+            DictSlot::SealCharacters => &mut self.seal_characters,
+            DictSlot::SealCharactersRev => &mut self.seal_characters_rev,
+            DictSlot::SealVariants => &mut self.seal_variants,
+            DictSlot::SealVariantsRev => &mut self.seal_variants_rev,
+
             DictSlot::STPunctuations => &mut self.st_punctuations,
             DictSlot::TSPunctuations => &mut self.ts_punctuations,
         }
@@ -1444,6 +1506,12 @@ impl Default for DictionaryMaxlength {
             jps_characters: DictMaxLen::default(),
             jps_characters_rev: DictMaxLen::default(),
             jps_phrases: DictMaxLen::default(),
+
+            seal_characters: DictMaxLen::default(),
+            seal_characters_rev: DictMaxLen::default(),
+            seal_variants: DictMaxLen::default(),
+            seal_variants_rev: DictMaxLen::default(),
+
             st_punctuations: DictMaxLen::default(),
             ts_punctuations: DictMaxLen::default(),
             // runtime-only cache (serde-skipped)
