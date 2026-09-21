@@ -77,6 +77,16 @@ pub struct DictionaryMaxlengthSerde {
     pub jps_characters: DictMaxLenSerde,
     pub jps_characters_rev: DictMaxLenSerde,
     pub jps_phrases: DictMaxLenSerde,
+
+    #[serde(default)]
+    pub seal_characters: DictMaxLenSerde,
+    #[serde(default)]
+    pub seal_characters_rev: DictMaxLenSerde,
+    #[serde(default)]
+    pub seal_variants: DictMaxLenSerde,
+    #[serde(default)]
+    pub seal_variants_rev: DictMaxLenSerde,
+
     pub st_punctuations: DictMaxLenSerde,
     pub ts_punctuations: DictMaxLenSerde,
 }
@@ -133,6 +143,12 @@ impl From<&DictionaryMaxlength> for DictionaryMaxlengthSerde {
             jps_characters: (&src.jps_characters).into(),
             jps_characters_rev: (&src.jps_characters_rev).into(),
             jps_phrases: (&src.jps_phrases).into(),
+
+            seal_characters: (&src.seal_characters).into(),
+            seal_characters_rev: (&src.seal_characters_rev).into(),
+            seal_variants: (&src.seal_variants).into(),
+            seal_variants_rev: (&src.seal_variants_rev).into(),
+
             st_punctuations: (&src.st_punctuations).into(),
             ts_punctuations: (&src.ts_punctuations).into(),
         }

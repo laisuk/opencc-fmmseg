@@ -42,6 +42,10 @@
 /// | 18      | `Hk2sp`| Hong Kong → Simplified (with phrases)      | ✅                          |
 /// | 19      | `T2hkp`| Traditional → Hong Kong (with phrases)     | ✅                          |
 /// | 20      | `Hk2tp`| Hong Kong → Traditional (with phrases)     | ✅                          |
+/// | 21      | `S2seal`| Simplified → Small Seal Script            | ✅                          |
+/// | 22      | `T2seal`| Traditional → Small Seal Script           | ✅                          |
+/// | 23      | `Seal2t`| Small Seal Script → Traditional           | ✅                          |
+/// | 24      | `Seal2s`| Small Seal Script → Simplified            | ✅                          |
 /// # Since
 ///
 /// Core configurations (`S2t` through `T2jp`) are available since **v0.8.4**.
@@ -50,6 +54,13 @@
 ///
 /// - `S2hkp` — available since **v0.11.0**
 /// - `Hk2sp` — available since **v0.11.0**
+///
+/// Small Seal Script configurations:
+///
+/// - `S2seal` — available since **v0.13.0**
+/// - `T2seal` — available since **v0.13.0**
+/// - `Seal2t` — available since **v0.13.0**
+/// - `Seal2s` — available since **v0.13.0**
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpenccConfig {
@@ -112,6 +123,30 @@ pub enum OpenccConfig {
 
     /// Hong Kong variant → Traditional Chinese (with phrases).
     Hk2tp = 20,
+
+    /// Simplified Chinese → Small Seal Script.
+    ///
+    /// See [`OpenCC::s2seal`](crate::OpenCC::s2seal) for conversion rounds
+    /// and optional punctuation conversion.
+    S2seal = 21,
+
+    /// Traditional Chinese → Small Seal Script.
+    ///
+    /// See [`OpenCC::t2seal`](crate::OpenCC::t2seal) for conversion rounds
+    /// and optional punctuation conversion.
+    T2seal = 22,
+
+    /// Small Seal Script → Traditional Chinese.
+    ///
+    /// See [`OpenCC::seal2t`](crate::OpenCC::seal2t) for conversion rounds
+    /// and optional punctuation conversion.
+    Seal2t = 23,
+
+    /// Small Seal Script → Simplified Chinese.
+    ///
+    /// See [`OpenCC::seal2s`](crate::OpenCC::seal2s) for conversion rounds
+    /// and optional punctuation conversion.
+    Seal2s = 24,
 }
 
 impl TryFrom<&str> for OpenccConfig {
@@ -151,7 +186,7 @@ impl OpenccConfig {
     /// # Since
     ///
     /// Available since **v0.9.1**.
-    pub const ALL: [Self; 20] = [
+    pub const ALL: [Self; 24] = [
         Self::S2t,
         Self::S2tw,
         Self::S2twp,
@@ -172,6 +207,10 @@ impl OpenccConfig {
         Self::Hk2tp,
         Self::Jp2t,
         Self::T2jp,
+        Self::S2seal,
+        Self::T2seal,
+        Self::Seal2t,
+        Self::Seal2s,
     ];
 
     /// Converts an FFI numeric config value into [`OpenccConfig`].
@@ -213,6 +252,10 @@ impl OpenccConfig {
             18 => Some(Self::Hk2sp),
             19 => Some(Self::T2hkp),
             20 => Some(Self::Hk2tp),
+            21 => Some(Self::S2seal),
+            22 => Some(Self::T2seal),
+            23 => Some(Self::Seal2t),
+            24 => Some(Self::Seal2s),
             _ => None,
         }
     }
@@ -313,6 +356,10 @@ impl OpenccConfig {
             Self::Hk2tp => "hk2tp",
             Self::Jp2t => "jp2t",
             Self::T2jp => "t2jp",
+            Self::S2seal => "s2seal",
+            Self::T2seal => "t2seal",
+            Self::Seal2t => "seal2t",
+            Self::Seal2s => "seal2s",
         }
     }
 

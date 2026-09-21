@@ -137,21 +137,22 @@ pub struct DictionaryMaxlength {
     /// Japanese Shinjitai-to-Kyūjitai phrase mappings.
     #[serde(default)]
     pub jps_phrases: DictMaxLen,
-    /// Simplified-to-Traditional punctuation mappings.
-
-    /// Small Seal Script-to-Traditional character mappings.
+    /// Small Seal Script-to-regular-script transcription mappings.
     #[serde(default)]
     pub seal_characters: DictMaxLen,
-    /// Traditional-to-Small Seal Script reverse character mappings.
+    /// Regular-script transcription-to-Small Seal Script reverse character mappings.
     #[serde(default)]
     pub seal_characters_rev: DictMaxLen,
-    /// Traditional-to-Small Seal Script variant mappings.
+    /// Same-character variant bridging from standard Traditional forms to regular-script
+    /// transcriptions used by Seal mappings; no historical 本字/假借 substitutions.
     #[serde(default)]
     pub seal_variants: DictMaxLen,
-    /// Small Seal Script-to-Traditional reverse variant mappings.
+    /// Reverse same-character variant bridging from regular-script transcriptions
+    /// to standard Traditional forms after Small Seal Script decoding.
     #[serde(default)]
     pub seal_variants_rev: DictMaxLen,
 
+    /// Simplified-to-Traditional punctuation mappings.
     #[serde(default)]
     pub st_punctuations: DictMaxLen,
     /// Traditional-to-Simplified punctuation mappings.

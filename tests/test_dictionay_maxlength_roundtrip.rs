@@ -28,7 +28,7 @@ mod tests {
     // ---------- Utilities ----------
 
     /// Fixed order view over all DictMaxLen tables.
-    fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 21] {
+    fn all_dicts(d: &DictionaryMaxlength) -> [&DictMaxLen; 25] {
         [
             &d.st_characters,
             &d.st_phrases,
@@ -49,6 +49,10 @@ mod tests {
             &d.jps_characters,
             &d.jps_characters_rev,
             &d.jps_phrases,
+            &d.seal_characters,
+            &d.seal_characters_rev,
+            &d.seal_variants,
+            &d.seal_variants_rev,
             &d.st_punctuations,
             &d.ts_punctuations,
         ]
@@ -162,7 +166,7 @@ mod tests {
 
         // 2) Load the embedded dictionary from disk and build a plaintext-source dictionary.
         let disk = load_from_zstd_file(&src)?;
-        let generated = DictionaryMaxlength::from_dicts().unwrap_or_default();
+        let generated = DictionaryMaxlength::from_dicts()?;
 
         // 3) Save the generated dictionary, then load it back.
         save_to_zstd_file(&generated, &dst)?;

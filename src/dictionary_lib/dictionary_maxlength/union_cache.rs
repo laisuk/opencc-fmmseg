@@ -71,16 +71,16 @@ pub(super) struct Unions {
     jps_pair: OnceLock<Arc<StarterUnion>>,
 
     // Seal helpers
-    /// Union containing only Small Seal Script → Traditional character mappings.
+    /// Union containing only Small Seal Script → regular-script transcription mappings.
     seal_characters: OnceLock<Arc<StarterUnion>>,
 
-    /// Union containing only Traditional → Small Seal Script reverse character mappings.
+    /// Union containing only Regular-script transcription → Small Seal Script reverse character mappings.
     seal_characters_rev: OnceLock<Arc<StarterUnion>>,
 
-    /// Union containing only Traditional → Small Seal Script variant mappings.
+    /// Union containing only Standard Traditional form → regular-script transcription variant mappings.
     seal_variants: OnceLock<Arc<StarterUnion>>,
 
-    /// Union containing only Small Seal Script → Traditional reverse variant mappings.
+    /// Union containing only Regular-script transcription → standard Traditional form reverse variant mappings.
     seal_variants_rev: OnceLock<Arc<StarterUnion>>,
 
     /// Simplified → Traditional union punctuation only mappings.
@@ -257,16 +257,17 @@ pub(crate) enum UnionKey {
     // Small Seal Script Helpers
     // ============================
 
-    /// Union containing only Small Seal Script → Traditional character mappings.
+    /// Union containing only Small Seal Script → regular-script transcription mappings.
     ///
     /// Includes:
     /// - `seal_characters`
     ///
     /// Used in:
     /// - `seal2t` (round 1)
+    /// - `seal2s` (round 1)
     SealCharactersOnly,
 
-    /// Union containing only Traditional → Small Seal Script reverse character mappings.
+    /// Union containing only Regular-script transcription → Small Seal Script reverse character mappings.
     ///
     /// Includes:
     /// - `seal_characters_rev`
@@ -276,7 +277,7 @@ pub(crate) enum UnionKey {
     /// - `s2seal` (round 3)
     SealCharactersRevOnly,
 
-    /// Union containing only Traditional → Small Seal Script variant mappings.
+    /// Union containing only Standard Traditional form → regular-script transcription variant mappings.
     ///
     /// Includes:
     /// - `seal_variants`
@@ -286,13 +287,14 @@ pub(crate) enum UnionKey {
     /// - `s2seal` (round 2)
     SealVariantsOnly,
 
-    /// Union containing only Small Seal Script → Traditional reverse variant mappings.
+    /// Union containing only Regular-script transcription → standard Traditional form reverse variant mappings.
     ///
     /// Includes:
     /// - `seal_variants_rev`
     ///
     /// Used in:
     /// - `seal2t` (round 2)
+    /// - `seal2s` (round 2)
     SealVariantsRevOnly,
 
     // ============================

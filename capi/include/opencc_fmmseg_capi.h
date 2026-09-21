@@ -86,6 +86,15 @@ enum {
     OPENCC_CONFIG_T2HKP = 19,
     /** Hong Kong variant → Traditional Chinese (with phrases). */
     OPENCC_CONFIG_HK2TP = 20
+
+    /** Simplified Chinese → Small Seal Script. */
+    OPENCC_CONFIG_S2SEAL = 21,
+    /** Traditional Chinese → Small Seal Script. */
+    OPENCC_CONFIG_T2SEAL = 22,
+    /** Small Seal Script → Traditional Chinese. */
+    OPENCC_CONFIG_SEAL2T = 23,
+    /** Small Seal Script → Simplified Chinese. */
+    OPENCC_CONFIG_SEAL2S = 24
 };
 
 // ============================================================================
@@ -184,6 +193,18 @@ enum {
 
     /** Traditional → Simplified punctuation mappings. */
     OPENCC_DICT_SLOT_TS_PUNCTUATIONS = 21
+
+    /** Small Seal Script → Traditional character mappings. */
+    OPENCC_DICT_SLOT_SEAL_CHARACTERS = 22,
+
+    /** Traditional → Small Seal Script reverse character mappings. */
+    OPENCC_DICT_SLOT_SEAL_CHARACTERS_REV = 23,
+
+    /** Traditional → Small Seal Script same-character variant mappings. */
+    OPENCC_DICT_SLOT_SEAL_VARIANTS = 24,
+
+    /** Small Seal Script → Traditional reverse variant mappings. */
+    OPENCC_DICT_SLOT_SEAL_VARIANTS_REV = 25
 };
 
 /**

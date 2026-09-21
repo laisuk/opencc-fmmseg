@@ -221,6 +221,10 @@ fn required_dictionary_files() -> &'static [&'static str] {
         "JPShinjitaiCharacters.txt",
         "JPShinjitaiCharactersRev.txt",
         "JPShinjitaiPhrases.txt",
+        "SealCharacters.txt",
+        "SealCharactersRev.txt",
+        "SealVariants.txt",
+        "SealVariantsRev.txt",
         "STPunctuations.txt",
         "TSPunctuations.txt",
     ]
@@ -238,5 +242,10 @@ mod tests {
 
         assert!(required.contains(&"TWVariantsPhrases.txt"));
         assert!(required.contains(&"HKVariantsPhrases.txt"));
+
+        assert!(required.contains(&"SealCharacters.txt"));
+        assert!(required.contains(&"SealCharactersRev.txt"));
+        assert!(required.contains(&"SealVariants.txt"));
+        assert!(required.contains(&"SealVariantsRev.txt"));
     }
 }

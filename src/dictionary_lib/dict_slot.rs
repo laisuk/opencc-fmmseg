@@ -90,16 +90,20 @@ pub enum DictSlot {
     /// Japanese Shinjitai phrase mappings.
     JPSPhrases,
 
-    /// Small Seal Script → Traditional character mappings.
+    /// Small Seal Script → regular-script transcription mappings.
     SealCharacters,
 
-    /// Traditional → Small Seal Script reverse character mappings.
+    /// Regular-script transcriptions → Small Seal Script reverse character mappings.
     SealCharactersRev,
 
-    /// Traditional → Small Seal Script variant mappings.
+    /// Standard Traditional forms → regular-script transcriptions used by Seal mappings.
+    ///
+    /// Bridges same-character variants only; no historical 本字/假借 substitutions.
     SealVariants,
 
-    /// Small Seal Script → Traditional reverse variant mappings.
+    /// Regular-script transcriptions → standard Traditional forms.
+    ///
+    /// Reverse same-character variant bridging after Small Seal Script decoding.
     SealVariantsRev,
 
     /// Simplified → Traditional punctuation mappings.
