@@ -6,11 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.12.1] -Unreleased
+## [0.12.1] - Unreleased
 
 ### Changed
 
-- Updated dictionary data.
+* Updated dictionary data.
+* Added more entries to the Unicode compatibility mapping table.
 - Reduced CBOR and readable JSON dictionary sizes by omitting redundant `starter_len_mask` metadata when
   `key_length_mask == 1`. Deserialization reconstructs omitted masks from Unicode scalar keys, including non-BMP
   characters, while preserving explicitly stored masks in older artifacts. Phrase and mixed-length dictionaries retain

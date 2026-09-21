@@ -136,17 +136,17 @@ pub enum OpenccConfig {
     /// and optional punctuation conversion.
     T2seal = 22,
 
-    /// Small Seal Script → Traditional Chinese.
-    ///
-    /// See [`OpenCC::seal2t`](crate::OpenCC::seal2t) for conversion rounds
-    /// and optional punctuation conversion.
-    Seal2t = 23,
-
     /// Small Seal Script → Simplified Chinese.
     ///
     /// See [`OpenCC::seal2s`](crate::OpenCC::seal2s) for conversion rounds
     /// and optional punctuation conversion.
-    Seal2s = 24,
+    Seal2s = 23,
+
+    /// Small Seal Script → Traditional Chinese.
+    ///
+    /// See [`OpenCC::seal2t`](crate::OpenCC::seal2t) for conversion rounds
+    /// and optional punctuation conversion.
+    Seal2t = 24,
 }
 
 impl TryFrom<&str> for OpenccConfig {
@@ -209,8 +209,8 @@ impl OpenccConfig {
         Self::T2jp,
         Self::S2seal,
         Self::T2seal,
-        Self::Seal2t,
         Self::Seal2s,
+        Self::Seal2t,
     ];
 
     /// Converts an FFI numeric config value into [`OpenccConfig`].
@@ -254,8 +254,8 @@ impl OpenccConfig {
             20 => Some(Self::Hk2tp),
             21 => Some(Self::S2seal),
             22 => Some(Self::T2seal),
-            23 => Some(Self::Seal2t),
-            24 => Some(Self::Seal2s),
+            23 => Some(Self::Seal2s),
+            24 => Some(Self::Seal2t),
             _ => None,
         }
     }
@@ -358,8 +358,8 @@ impl OpenccConfig {
             Self::T2jp => "t2jp",
             Self::S2seal => "s2seal",
             Self::T2seal => "t2seal",
-            Self::Seal2t => "seal2t",
             Self::Seal2s => "seal2s",
+            Self::Seal2t => "seal2t",
         }
     }
 

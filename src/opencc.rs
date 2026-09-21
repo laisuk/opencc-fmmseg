@@ -1756,14 +1756,7 @@ impl OpenCC {
         let round_2 = [&self.dictionary.seal_variants_rev];
         let u2 = self.dictionary.union_for(UnionKey::SealVariantsRevOnly);
 
-        self.apply_st_punctuation_only_round_3(
-            input,
-            punctuation,
-            &round_1,
-            u1,
-            &round_2,
-            u2,
-        )
+        self.apply_st_punctuation_only_round_3(input, punctuation, &round_1, u1, &round_2, u2)
     }
 
     /// Converts Traditional Chinese to Small Seal Script.
@@ -1785,14 +1778,7 @@ impl OpenCC {
         let round_2 = [&self.dictionary.seal_characters_rev];
         let u2 = self.dictionary.union_for(UnionKey::SealCharactersRevOnly);
 
-        self.apply_st_punctuation_only_round_3(
-            input,
-            punctuation,
-            &round_1,
-            u1,
-            &round_2,
-            u2,
-        )
+        self.apply_st_punctuation_only_round_3(input, punctuation, &round_1, u1, &round_2, u2)
     }
 
     /// Converts Simplified Chinese to Small Seal Script.
@@ -1819,15 +1805,7 @@ impl OpenCC {
         let round_3 = [&self.dictionary.seal_characters_rev];
         let u3 = self.dictionary.union_for(UnionKey::SealCharactersRevOnly);
 
-        self.apply_st_round_3(
-            input,
-            punctuation,
-            u1,
-            &round_2,
-            u2,
-            &round_3,
-            u3,
-        )
+        self.apply_st_round_3(input, punctuation, u1, &round_2, u2, &round_3, u3)
     }
 
     /// Converts Small Seal Script to Simplified Chinese.
@@ -1851,15 +1829,7 @@ impl OpenCC {
             .dictionary
             .union_for(UnionKey::T2S { punct: punctuation });
 
-        self.apply_ts_round_3(
-            input,
-            punctuation,
-            &round_1,
-            u1,
-            &round_2,
-            u2,
-            u3,
-        )
+        self.apply_ts_round_3(input, punctuation, &round_1, u1, &round_2, u2, u3)
     }
 
     /// Converts Chinese text using a configuration name (`&str`, case-insensitive).
@@ -1954,8 +1924,8 @@ impl OpenCC {
             OpenccConfig::T2jp => self.t2jp(input, punctuation),
             OpenccConfig::S2seal => self.s2seal(input, punctuation),
             OpenccConfig::T2seal => self.t2seal(input, punctuation),
-            OpenccConfig::Seal2t => self.seal2t(input, punctuation),
             OpenccConfig::Seal2s => self.seal2s(input, punctuation),
+            OpenccConfig::Seal2t => self.seal2t(input, punctuation),
         }
     }
 
