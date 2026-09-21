@@ -1025,7 +1025,7 @@ impl OpenCC {
     /// round using the shared punctuation-only starter union. Otherwise, only
     /// the first two rounds are applied.
     #[inline]
-    fn apply_with_st_punctuation_round_3(
+    fn apply_st_punctuation_only_round_3(
         &self,
         input: &str,
         punctuation: bool,
@@ -1756,7 +1756,7 @@ impl OpenCC {
         let round_2 = [&self.dictionary.seal_variants_rev];
         let u2 = self.dictionary.union_for(UnionKey::SealVariantsRevOnly);
 
-        self.apply_with_st_punctuation_round_3(
+        self.apply_st_punctuation_only_round_3(
             input,
             punctuation,
             &round_1,
@@ -1785,7 +1785,7 @@ impl OpenCC {
         let round_2 = [&self.dictionary.seal_characters_rev];
         let u2 = self.dictionary.union_for(UnionKey::SealCharactersRevOnly);
 
-        self.apply_with_st_punctuation_round_3(
+        self.apply_st_punctuation_only_round_3(
             input,
             punctuation,
             &round_1,
