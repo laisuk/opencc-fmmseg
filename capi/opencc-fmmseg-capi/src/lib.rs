@@ -638,8 +638,8 @@ fn free_c_string(ptr: *mut c_char) {
 /// Small Seal Script config IDs:
 /// - `21` (`s2seal`): Simplified Chinese → Small Seal Script.
 /// - `22` (`t2seal`): Traditional Chinese → Small Seal Script.
-/// - `23` (`seal2t`): Small Seal Script → Traditional Chinese.
-/// - `24` (`seal2s`): Small Seal Script → Simplified Chinese.
+/// - `23` (`seal2s`): Small Seal Script → Traditional Chinese.
+/// - `24` (`seal2t`): Small Seal Script → Simplified Chinese.
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
@@ -982,11 +982,11 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
     if eq_ascii_ci(bytes, b"t2seal") {
         return Some(OpenccConfig::T2seal);
     }
-    if eq_ascii_ci(bytes, b"seal2t") {
-        return Some(OpenccConfig::Seal2t);
-    }
     if eq_ascii_ci(bytes, b"seal2s") {
         return Some(OpenccConfig::Seal2s);
+    }
+    if eq_ascii_ci(bytes, b"seal2t") {
+        return Some(OpenccConfig::Seal2t);
     }
 
     None
@@ -1025,8 +1025,8 @@ fn config_to_c_name(cfg: OpenccConfig) -> *const c_char {
         OpenccConfig::T2jp => b"t2jp\0".as_ptr() as *const c_char,
         OpenccConfig::S2seal => b"s2seal\0".as_ptr() as *const c_char,
         OpenccConfig::T2seal => b"t2seal\0".as_ptr() as *const c_char,
-        OpenccConfig::Seal2t => b"seal2t\0".as_ptr() as *const c_char,
         OpenccConfig::Seal2s => b"seal2s\0".as_ptr() as *const c_char,
+        OpenccConfig::Seal2t => b"seal2t\0".as_ptr() as *const c_char,
     }
 }
 
@@ -1797,11 +1797,11 @@ mod tests {
         assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
         assert_eq!(out_id, 22);
 
-        let name = CString::new("seal2t").unwrap();
+        let name = CString::new("seal2s").unwrap();
         assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
         assert_eq!(out_id, 23);
 
-        let name = CString::new("seal2s").unwrap();
+        let name = CString::new("seal2t").unwrap();
         assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
         assert_eq!(out_id, 24);
     }
@@ -1827,10 +1827,10 @@ mod tests {
         assert_eq!(cstr.to_str().unwrap(), "t2seal");
 
         let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(23)) };
-        assert_eq!(cstr.to_str().unwrap(), "seal2t");
+        assert_eq!(cstr.to_str().unwrap(), "seal2s");
 
         let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(24)) };
-        assert_eq!(cstr.to_str().unwrap(), "seal2s");
+        assert_eq!(cstr.to_str().unwrap(), "seal2t");
     }
 
     #[test]

@@ -263,8 +263,8 @@ pub(crate) enum UnionKey {
     /// - `seal_characters`
     ///
     /// Used in:
-    /// - `seal2t` (round 1)
     /// - `seal2s` (round 1)
+    /// - `seal2t` (round 1)
     SealCharactersOnly,
 
     /// Union containing only Regular-script transcription → Small Seal Script reverse character mappings.
@@ -273,8 +273,8 @@ pub(crate) enum UnionKey {
     /// - `seal_characters_rev`
     ///
     /// Used in:
-    /// - `t2seal` (round 2)
     /// - `s2seal` (round 3)
+    /// - `t2seal` (round 2)
     SealCharactersRevOnly,
 
     /// Union containing only Standard Traditional form → regular-script transcription variant mappings.
@@ -283,8 +283,8 @@ pub(crate) enum UnionKey {
     /// - `seal_variants`
     ///
     /// Used in:
-    /// - `t2seal` (round 1)
     /// - `s2seal` (round 2)
+    /// - `t2seal` (round 1)
     SealVariantsOnly,
 
     /// Union containing only Regular-script transcription → standard Traditional form reverse variant mappings.
@@ -293,8 +293,8 @@ pub(crate) enum UnionKey {
     /// - `seal_variants_rev`
     ///
     /// Used in:
-    /// - `seal2t` (round 2)
     /// - `seal2s` (round 2)
+    /// - `seal2t` (round 2)
     SealVariantsRevOnly,
 
     // ============================
@@ -480,19 +480,16 @@ impl DictionaryMaxlength {
                 .seal_characters
                 .get_or_init(|| Arc::new(StarterUnion::build(&[&self.seal_characters])))
                 .clone(),
-
             UnionKey::SealCharactersRevOnly => self
                 .unions
                 .seal_characters_rev
                 .get_or_init(|| Arc::new(StarterUnion::build(&[&self.seal_characters_rev])))
                 .clone(),
-
             UnionKey::SealVariantsOnly => self
                 .unions
                 .seal_variants
                 .get_or_init(|| Arc::new(StarterUnion::build(&[&self.seal_variants])))
                 .clone(),
-
             UnionKey::SealVariantsRevOnly => self
                 .unions
                 .seal_variants_rev

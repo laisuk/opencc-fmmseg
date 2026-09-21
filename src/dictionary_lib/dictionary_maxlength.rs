@@ -151,7 +151,6 @@ pub struct DictionaryMaxlength {
     /// to standard Traditional forms after Small Seal Script decoding.
     #[serde(default)]
     pub seal_variants_rev: DictMaxLen,
-
     /// Simplified-to-Traditional punctuation mappings.
     #[serde(default)]
     pub st_punctuations: DictMaxLen,
@@ -352,6 +351,10 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// ├── JPShinjitaiCharacters.txt
     /// ├── JPShinjitaiCharactersRev.txt
     /// ├── JPShinjitaiPhrases.txt
+    /// ├── SealCharacters.txt
+    /// ├── SealCharactersRev.txt
+    /// ├── SealVariants.txt
+    /// ├── SealVariantsRev.txt
     /// ├── STPunctuations.txt
     /// └── TSPunctuations.txt
     /// ```
@@ -444,12 +447,10 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         self.jps_characters.populate_starter_indexes();
         self.jps_characters_rev.populate_starter_indexes();
         self.jps_phrases.populate_starter_indexes();
-
         self.seal_characters.populate_starter_indexes();
         self.seal_characters_rev.populate_starter_indexes();
         self.seal_variants.populate_starter_indexes();
         self.seal_variants_rev.populate_starter_indexes();
-
         self.st_punctuations.populate_starter_indexes();
         self.ts_punctuations.populate_starter_indexes();
     }
@@ -513,12 +514,10 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             &self.jps_characters,
             &self.jps_characters_rev,
             &self.jps_phrases,
-
             &self.seal_characters,
             &self.seal_characters_rev,
             &self.seal_variants,
             &self.seal_variants_rev,
-
             &self.st_punctuations,
             &self.ts_punctuations,
         ];
@@ -598,12 +597,10 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
             ("JPShinjitaiCharacters.txt", &self.jps_characters.map),
             ("JPShinjitaiCharactersRev.txt", &self.jps_characters_rev.map),
             ("JPShinjitaiPhrases.txt", &self.jps_phrases.map),
-
             ("SealCharacters.txt", &self.seal_characters.map),
             ("SealCharactersRev.txt", &self.seal_characters_rev.map),
             ("SealVariants.txt", &self.seal_variants.map),
             ("SealVariantsRev.txt", &self.seal_variants_rev.map),
-
             ("STPunctuations.txt", &self.st_punctuations.map),
             ("TSPunctuations.txt", &self.ts_punctuations.map),
         ]
@@ -1008,12 +1005,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
                 specs,
                 DictSlot::SealCharactersRev,
             )?,
-            seal_variants: load_slot(
-                base_dir,
-                "SealVariants.txt",
-                specs,
-                DictSlot::SealVariants,
-            )?,
+            seal_variants: load_slot(base_dir, "SealVariants.txt", specs, DictSlot::SealVariants)?,
             seal_variants_rev: load_slot(
                 base_dir,
                 "SealVariantsRev.txt",
@@ -1507,12 +1499,10 @@ impl Default for DictionaryMaxlength {
             jps_characters: DictMaxLen::default(),
             jps_characters_rev: DictMaxLen::default(),
             jps_phrases: DictMaxLen::default(),
-
             seal_characters: DictMaxLen::default(),
             seal_characters_rev: DictMaxLen::default(),
             seal_variants: DictMaxLen::default(),
             seal_variants_rev: DictMaxLen::default(),
-
             st_punctuations: DictMaxLen::default(),
             ts_punctuations: DictMaxLen::default(),
             // runtime-only cache (serde-skipped)

@@ -44,8 +44,8 @@
 /// | 20      | `Hk2tp`| Hong Kong → Traditional (with phrases)     | ✅                          |
 /// | 21      | `S2seal`| Simplified → Small Seal Script            | ✅                          |
 /// | 22      | `T2seal`| Traditional → Small Seal Script           | ✅                          |
-/// | 23      | `Seal2t`| Small Seal Script → Traditional           | ✅                          |
-/// | 24      | `Seal2s`| Small Seal Script → Simplified            | ✅                          |
+/// | 23      | `Seal2s`| Small Seal Script → Traditional           | ✅                          |
+/// | 24      | `Seal2t`| Small Seal Script → Simplified            | ✅                          |
 /// # Since
 ///
 /// Core configurations (`S2t` through `T2jp`) are available since **v0.8.4**.
@@ -59,8 +59,8 @@
 ///
 /// - `S2seal` — available since **v0.13.0**
 /// - `T2seal` — available since **v0.13.0**
-/// - `Seal2t` — available since **v0.13.0**
 /// - `Seal2s` — available since **v0.13.0**
+/// - `Seal2t` — available since **v0.13.0**
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpenccConfig {

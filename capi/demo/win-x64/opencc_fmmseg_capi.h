@@ -91,10 +91,10 @@ enum {
     OPENCC_CONFIG_S2SEAL = 21,
     /** Traditional Chinese → Small Seal Script. */
     OPENCC_CONFIG_T2SEAL = 22,
-    /** Small Seal Script → Traditional Chinese. */
-    OPENCC_CONFIG_SEAL2T = 23,
     /** Small Seal Script → Simplified Chinese. */
-    OPENCC_CONFIG_SEAL2S = 24
+    OPENCC_CONFIG_SEAL2S = 23,
+    /** Small Seal Script → Traditional Chinese. */
+    OPENCC_CONFIG_SEAL2T = 24,
 };
 
 // ============================================================================

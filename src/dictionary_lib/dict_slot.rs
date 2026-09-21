@@ -141,6 +141,10 @@ pub enum DictSlot {
 /// - `JPSCharacters`
 /// - `JPSCharactersRev`
 /// - `JPSPhrases`
+/// - `SealCharacters`
+/// - `SealCharactersRev`
+/// - `SealVariants`
+/// - `SealVariantsRev`
 ///
 /// File suffixes such as `.txt` are not accepted.
 ///
@@ -225,7 +229,6 @@ impl DictSlot {
         Self::JPSCharacters,
         Self::JPSCharactersRev,
         Self::JPSPhrases,
-
         Self::SealCharacters,
         Self::SealCharactersRev,
         Self::SealVariants,
@@ -276,7 +279,6 @@ impl DictSlot {
             Self::JPSCharacters => "JPSCharacters",
             Self::JPSCharactersRev => "JPSCharactersRev",
             Self::JPSPhrases => "JPSPhrases",
-
             Self::SealCharacters => "SealCharacters",
             Self::SealCharactersRev => "SealCharactersRev",
             Self::SealVariants => "SealVariants",

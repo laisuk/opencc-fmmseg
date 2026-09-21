@@ -40,8 +40,8 @@ fn test_dictionary_from_dicts_then_to_cbor() {
     let file_contents = fs::read(filename).unwrap();
     let actual_size = file_contents.len();
 
-    const MIN_CBOR_SIZE: usize = 1_300_000;
-    const MAX_CBOR_SIZE: usize = 1_600_000;
+    const MIN_CBOR_SIZE: usize = 1_500_000;
+    const MAX_CBOR_SIZE: usize = 1_800_000;
 
     assert!(
         (MIN_CBOR_SIZE..=MAX_CBOR_SIZE).contains(&actual_size),
@@ -73,8 +73,8 @@ fn test_dictionary_from_dicts_then_to_zstd() {
     encoder.finish().expect("Failed to finish compression");
 
     let compressed_size = fs::metadata(zstd_filename).unwrap().len();
-    let min_size = 480000;
-    let max_size = 680000;
+    let min_size = 500_000;
+    let max_size = 800_000;
     assert!(
         compressed_size >= min_size && compressed_size <= max_size,
         "Unexpected compressed size: {}",
