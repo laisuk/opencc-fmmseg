@@ -70,6 +70,19 @@ pub(super) struct Unions {
     /// Union combining Japanese Shinjitai phrases and characters.
     jps_pair: OnceLock<Arc<StarterUnion>>,
 
+    // Seal helpers
+    /// Union containing only Small Seal Script → Traditional character mappings.
+    seal_characters: OnceLock<Arc<StarterUnion>>,
+
+    /// Union containing only Traditional → Small Seal Script reverse character mappings.
+    seal_characters_rev: OnceLock<Arc<StarterUnion>>,
+
+    /// Union containing only Traditional → Small Seal Script variant mappings.
+    seal_variants: OnceLock<Arc<StarterUnion>>,
+
+    /// Union containing only Small Seal Script → Traditional reverse variant mappings.
+    seal_variants_rev: OnceLock<Arc<StarterUnion>>,
+
     /// Simplified → Traditional union punctuation only mappings.
     st_punct_only: OnceLock<Arc<StarterUnion>>,
 }
@@ -84,6 +97,7 @@ pub(super) struct Unions {
 /// These keys are used internally by
 /// [`DictionaryMaxlength::union_for`](DictionaryMaxlength::union_for)
 /// to select the appropriate cached [`StarterUnion`].
+#[derive(Clone, Copy)]
 pub(crate) enum UnionKey {
     // ============================
     // Simplified → Traditional
@@ -238,6 +252,48 @@ pub(crate) enum UnionKey {
     /// Used in:
     /// - `jp2t`
     JpsPair,
+
+    // ============================
+    // Small Seal Script Helpers
+    // ============================
+
+    /// Union containing only Small Seal Script → Traditional character mappings.
+    ///
+    /// Includes:
+    /// - `seal_characters`
+    ///
+    /// Used in:
+    /// - `seal2t` (round 1)
+    SealCharactersOnly,
+
+    /// Union containing only Traditional → Small Seal Script reverse character mappings.
+    ///
+    /// Includes:
+    /// - `seal_characters_rev`
+    ///
+    /// Used in:
+    /// - `t2seal` (round 2)
+    /// - `s2seal` (round 3)
+    SealCharactersRevOnly,
+
+    /// Union containing only Traditional → Small Seal Script variant mappings.
+    ///
+    /// Includes:
+    /// - `seal_variants`
+    ///
+    /// Used in:
+    /// - `t2seal` (round 1)
+    /// - `s2seal` (round 2)
+    SealVariantsOnly,
+
+    /// Union containing only Small Seal Script → Traditional reverse variant mappings.
+    ///
+    /// Includes:
+    /// - `seal_variants_rev`
+    ///
+    /// Used in:
+    /// - `seal2t` (round 2)
+    SealVariantsRevOnly,
 
     // ============================
     // Simplified-style → Traditional-style punctuation only
@@ -417,6 +473,29 @@ impl DictionaryMaxlength {
                     ]))
                 })
                 .clone(),
+            UnionKey::SealCharactersOnly => self
+                .unions
+                .seal_characters
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.seal_characters])))
+                .clone(),
+
+            UnionKey::SealCharactersRevOnly => self
+                .unions
+                .seal_characters_rev
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.seal_characters_rev])))
+                .clone(),
+
+            UnionKey::SealVariantsOnly => self
+                .unions
+                .seal_variants
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.seal_variants])))
+                .clone(),
+
+            UnionKey::SealVariantsRevOnly => self
+                .unions
+                .seal_variants_rev
+                .get_or_init(|| Arc::new(StarterUnion::build(&[&self.seal_variants_rev])))
+                .clone(),
             UnionKey::StPunctOnly => self
                 .unions
                 .st_punct_only
@@ -490,4 +569,42 @@ fn union_keys_distinct() {
     let a = d.union_for(UnionKey::S2T { punct: false });
     let b = d.union_for(UnionKey::S2T { punct: true });
     assert!(!std::ptr::eq(Arc::as_ptr(&a), Arc::as_ptr(&b)));
+}
+
+#[test]
+fn seal_unions_cached() {
+    let d = DictionaryMaxlength::default();
+
+    for key in [
+        UnionKey::SealCharactersOnly,
+        UnionKey::SealCharactersRevOnly,
+        UnionKey::SealVariantsOnly,
+        UnionKey::SealVariantsRevOnly,
+    ] {
+        let a = d.union_for(key);
+        let b = d.union_for(key);
+
+        assert!(std::ptr::eq(Arc::as_ptr(&a), Arc::as_ptr(&b)));
+    }
+}
+
+#[test]
+fn seal_union_keys_distinct() {
+    let d = DictionaryMaxlength::default();
+
+    let unions = [
+        d.union_for(UnionKey::SealCharactersOnly),
+        d.union_for(UnionKey::SealCharactersRevOnly),
+        d.union_for(UnionKey::SealVariantsOnly),
+        d.union_for(UnionKey::SealVariantsRevOnly),
+    ];
+
+    for i in 0..unions.len() {
+        for j in (i + 1)..unions.len() {
+            assert!(
+                !std::ptr::eq(Arc::as_ptr(&unions[i]), Arc::as_ptr(&unions[j])),
+                "Seal union cache slots {i} and {j} unexpectedly share the same Arc"
+            );
+        }
+    }
 }
