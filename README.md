@@ -116,7 +116,7 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.12.0"  # or latest version
+opencc-fmmseg = "0.12.1"  # or latest version
 ```
 
 ### Public Rust API paths
