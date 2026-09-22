@@ -866,6 +866,28 @@ impl OpenCC {
             })
     }
 
+    /// Applies a three-round conversion pipeline with shared orchestration.
+    #[inline]
+    fn apply_dicts_3(
+        &self,
+        input: &str,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+        round_2: &[&DictMaxLen],
+        u2: Arc<StarterUnion>,
+        round_3: &[&DictMaxLen],
+        u3: Arc<StarterUnion>,
+    ) -> String {
+        Self::clear_last_error();
+
+        DictRefs::new(round_1, u1)
+            .with_round_2(round_2, u2)
+            .with_round_3(round_3, u3)
+            .apply_segment_replace(input, |input, refs, max_len, union| {
+                self.segment_replace_with_union(input, refs, max_len, union)
+            })
+    }
+
     /// Applies a primary dictionary round followed by optional
     /// Simplified-to-Traditional punctuation normalization.
     #[inline]
@@ -936,6 +958,89 @@ impl OpenCC {
         } else {
             let round_2 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
             self.apply_dicts_2(input, round_1, u1, &round_2, u2)
+        }
+    }
+
+    /// Applies a shared S2T-style first round with optional punctuation maps.
+    ///
+    /// This helper selects either the 2-dictionary (`st_phrases`,
+    /// `st_characters`) or 3-dictionary (`+ st_punctuations`) first-round stack
+    /// based on `punctuation`, then forwards to [`apply_dicts_3`].
+    #[inline]
+    fn apply_st_round_3(
+        &self,
+        input: &str,
+        punctuation: bool,
+        u1: Arc<StarterUnion>,
+        round_2: &[&DictMaxLen],
+        u2: Arc<StarterUnion>,
+        round_3: &[&DictMaxLen],
+        u3: Arc<StarterUnion>,
+    ) -> String {
+        if punctuation {
+            let round_1 = [
+                &self.dictionary.st_phrases,
+                &self.dictionary.st_characters,
+                &self.dictionary.st_punctuations,
+            ];
+            self.apply_dicts_3(input, &round_1, u1, round_2, u2, round_3, u3)
+        } else {
+            let round_1 = [&self.dictionary.st_phrases, &self.dictionary.st_characters];
+            self.apply_dicts_3(input, &round_1, u1, round_2, u2, round_3, u3)
+        }
+    }
+
+    /// Applies a shared T2S-style third round with optional punctuation maps.
+    ///
+    /// This helper selects either the 2-dictionary (`ts_phrases`,
+    /// `ts_characters`) or 3-dictionary (`+ ts_punctuations`) third-round stack
+    /// based on `punctuation`, then forwards to [`apply_dicts_3`].
+    #[inline]
+    fn apply_ts_round_3(
+        &self,
+        input: &str,
+        punctuation: bool,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+        round_2: &[&DictMaxLen],
+        u2: Arc<StarterUnion>,
+        u3: Arc<StarterUnion>,
+    ) -> String {
+        if punctuation {
+            let round_3 = [
+                &self.dictionary.ts_phrases,
+                &self.dictionary.ts_characters,
+                &self.dictionary.ts_punctuations,
+            ];
+            self.apply_dicts_3(input, round_1, u1, round_2, u2, &round_3, u3)
+        } else {
+            let round_3 = [&self.dictionary.ts_phrases, &self.dictionary.ts_characters];
+            self.apply_dicts_3(input, round_1, u1, round_2, u2, &round_3, u3)
+        }
+    }
+
+    /// Applies two conversion rounds followed by an optional punctuation round.
+    ///
+    /// When `punctuation` is enabled, `st_punctuations` is applied as a third
+    /// round using the shared punctuation-only starter union. Otherwise, only
+    /// the first two rounds are applied.
+    #[inline]
+    fn apply_st_punctuation_only_round_3(
+        &self,
+        input: &str,
+        punctuation: bool,
+        round_1: &[&DictMaxLen],
+        u1: Arc<StarterUnion>,
+        round_2: &[&DictMaxLen],
+        u2: Arc<StarterUnion>,
+    ) -> String {
+        if punctuation {
+            let round_3 = [&self.dictionary.st_punctuations];
+            let u3 = self.dictionary.union_for(UnionKey::StPunctOnly);
+
+            self.apply_dicts_3(input, round_1, u1, round_2, u2, &round_3, u3)
+        } else {
+            self.apply_dicts_2(input, round_1, u1, round_2, u2)
         }
     }
 
@@ -1635,6 +1740,98 @@ impl OpenCC {
         self.apply_dicts_1_with_st_punctuation(input, punctuation, &round_1, u1)
     }
 
+    /// Converts Simplified Chinese to Small Seal Script.
+    ///
+    /// The conversion is performed in three sequential rounds:
+    ///
+    /// 1. Simplified → Traditional phrases and characters (`st_phrases`, `st_characters`).
+    /// 2. Same-character variant bridging → regular-script transcriptions (`seal_variants`).
+    /// 3. Regular-script transcriptions → Small Seal Script (`seal_characters_rev`).
+    ///
+    /// When `punctuation` is enabled, Simplified → Traditional punctuation
+    /// mappings (`st_punctuations`) are included in the first round.
+    ///
+    /// Variant bridging preserves character identity; it does not perform historical
+    /// 本字/假借 substitutions.
+    pub fn s2seal(&self, input: &str, punctuation: bool) -> String {
+        let u1 = self
+            .dictionary
+            .union_for(UnionKey::S2T { punct: punctuation });
+
+        let round_2 = [&self.dictionary.seal_variants];
+        let u2 = self.dictionary.union_for(UnionKey::SealVariantsOnly);
+
+        let round_3 = [&self.dictionary.seal_characters_rev];
+        let u3 = self.dictionary.union_for(UnionKey::SealCharactersRevOnly);
+
+        self.apply_st_round_3(input, punctuation, u1, &round_2, u2, &round_3, u3)
+    }
+
+    /// Converts Traditional Chinese to Small Seal Script.
+    ///
+    /// The conversion is performed in two sequential rounds:
+    ///
+    /// 1. Same-character variant bridging → regular-script transcriptions (`seal_variants`).
+    /// 2. Regular-script transcriptions → Small Seal Script (`seal_characters_rev`).
+    ///
+    /// When `punctuation` is enabled, Simplified → Traditional punctuation
+    /// mappings are applied as a third round.
+    ///
+    /// Variant bridging preserves character identity; it does not perform historical
+    /// 本字/假借 substitutions.
+    pub fn t2seal(&self, input: &str, punctuation: bool) -> String {
+        let round_1 = [&self.dictionary.seal_variants];
+        let u1 = self.dictionary.union_for(UnionKey::SealVariantsOnly);
+
+        let round_2 = [&self.dictionary.seal_characters_rev];
+        let u2 = self.dictionary.union_for(UnionKey::SealCharactersRevOnly);
+
+        self.apply_st_punctuation_only_round_3(input, punctuation, &round_1, u1, &round_2, u2)
+    }
+
+    /// Converts Small Seal Script to Simplified Chinese.
+    ///
+    /// The conversion is performed in three sequential rounds:
+    ///
+    /// 1. Small Seal Script → regular-script transcriptions (`seal_characters`).
+    /// 2. Same-character variant bridging → standard Traditional forms (`seal_variants_rev`).
+    /// 3. Traditional → Simplified phrases and characters (`ts_phrases`, `ts_characters`).
+    ///
+    /// When `punctuation` is enabled, Traditional → Simplified punctuation
+    /// mappings (`ts_punctuations`) are included in the third round.
+    pub fn seal2s(&self, input: &str, punctuation: bool) -> String {
+        let round_1 = [&self.dictionary.seal_characters];
+        let u1 = self.dictionary.union_for(UnionKey::SealCharactersOnly);
+
+        let round_2 = [&self.dictionary.seal_variants_rev];
+        let u2 = self.dictionary.union_for(UnionKey::SealVariantsRevOnly);
+
+        let u3 = self
+            .dictionary
+            .union_for(UnionKey::T2S { punct: punctuation });
+
+        self.apply_ts_round_3(input, punctuation, &round_1, u1, &round_2, u2, u3)
+    }
+
+    /// Converts Small Seal Script to Traditional Chinese.
+    ///
+    /// The conversion is performed in two sequential rounds:
+    ///
+    /// 1. Small Seal Script → regular-script transcriptions (`seal_characters`).
+    /// 2. Same-character variant bridging → standard Traditional forms (`seal_variants_rev`).
+    ///
+    /// When `punctuation` is enabled, Simplified → Traditional punctuation
+    /// mappings are applied as a third round.
+    pub fn seal2t(&self, input: &str, punctuation: bool) -> String {
+        let round_1 = [&self.dictionary.seal_characters];
+        let u1 = self.dictionary.union_for(UnionKey::SealCharactersOnly);
+
+        let round_2 = [&self.dictionary.seal_variants_rev];
+        let u2 = self.dictionary.union_for(UnionKey::SealVariantsRevOnly);
+
+        self.apply_st_punctuation_only_round_3(input, punctuation, &round_1, u1, &round_2, u2)
+    }
+
     /// Converts Chinese text using a configuration name (`&str`, case-insensitive).
     ///
     /// This is a **convenience / legacy** entry point that accepts OpenCC-style config names
@@ -1692,7 +1889,7 @@ impl OpenCC {
     /// # Example
     ///
     /// ```rust
-    /// use opencc_fmmseg::{ OpenccConfig, OpenCC};
+    /// use opencc_fmmseg::{OpenccConfig, OpenCC};
     ///
     /// let converter = OpenCC::new();
     /// let out = converter.convert_with_config("汉字转换测试", OpenccConfig::S2t, false);
@@ -1725,6 +1922,10 @@ impl OpenCC {
             OpenccConfig::Hk2tp => self.hk2tp(input, punctuation),
             OpenccConfig::Jp2t => self.jp2t(input, punctuation),
             OpenccConfig::T2jp => self.t2jp(input, punctuation),
+            OpenccConfig::S2seal => self.s2seal(input, punctuation),
+            OpenccConfig::T2seal => self.t2seal(input, punctuation),
+            OpenccConfig::Seal2s => self.seal2s(input, punctuation),
+            OpenccConfig::Seal2t => self.seal2t(input, punctuation),
         }
     }
 

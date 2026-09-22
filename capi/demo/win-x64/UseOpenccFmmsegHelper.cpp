@@ -178,6 +178,94 @@ int main(int argc, char** argv)
 
         std::cout << "Last Error:       "
                   << OpenccFmmsegHelper::lastError() << "\n";
+
+        // -------------------------------------------------------------
+        // Test 8: Small Seal Script conversion roundtrip
+        // -------------------------------------------------------------
+        std::cout << "\n== Test 8: Small Seal Script conversion roundtrip ==\n";
+
+        const std::string sealTraditional =
+            u8"你好，小篆國際編碼18";
+
+        const std::string sealSimplified =
+            u8"你好，小篆国际编码18";
+
+        const std::string sealExpected =
+            u8"你𿒛，𽌠𽴖𾇓𿭖𿛛碼18";
+
+        const std::string t2seal =
+            helper.convert_cfg(
+                sealTraditional,
+                OPENCC_CONFIG_T2SEAL,
+                false);
+
+        const std::string s2seal =
+            helper.convert_cfg(
+                sealSimplified,
+                OPENCC_CONFIG_S2SEAL,
+                false);
+
+        const std::string seal2t =
+            helper.convert_cfg(
+                sealExpected,
+                OPENCC_CONFIG_SEAL2T,
+                false);
+
+        const std::string seal2s =
+            helper.convert_cfg(
+                sealExpected,
+                OPENCC_CONFIG_SEAL2S,
+                false);
+
+        const std::string sealPunctuation =
+            helper.convert_cfg(
+                u8"你好，小篆“國際編碼18”",
+                OPENCC_CONFIG_T2SEAL,
+                true);
+
+        const bool t2sealPass =
+            t2seal == sealExpected;
+
+        const bool s2sealPass =
+            s2seal == sealExpected;
+
+        const bool seal2tPass =
+            seal2t == sealTraditional;
+
+        const bool seal2sPass =
+            seal2s == sealSimplified;
+
+        const bool punctuationPass =
+            sealPunctuation ==
+                u8"你𿒛，𽌠𽴖「𾇓𿭖𿛛碼18」";
+
+        std::cout << "T2Seal:            " << t2seal
+                  << " [" << (t2sealPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "S2Seal:            " << s2seal
+                  << " [" << (s2sealPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "Seal2T:            " << seal2t
+                  << " [" << (seal2tPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "Seal2S:            " << seal2s
+                  << " [" << (seal2sPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "T2Seal punctuation:" << sealPunctuation
+                  << " [" << (punctuationPass ? "PASS" : "FAIL") << "]\n";
+
+        std::cout << "Roundtrip:          "
+                  << (t2sealPass &&
+                      s2sealPass &&
+                      seal2tPass &&
+                      seal2sPass &&
+                      punctuationPass
+                          ? "PASS"
+                          : "FAIL")
+                  << "\n";
+
+        std::cout << "Last Error:         "
+                  << OpenccFmmsegHelper::lastError() << "\n";
     }
     catch (const std::exception& ex)
     {

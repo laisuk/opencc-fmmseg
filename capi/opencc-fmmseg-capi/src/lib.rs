@@ -635,6 +635,12 @@ fn free_c_string(ptr: *mut c_char) {
 /// Returns `1` on success and writes the numeric config id to `out_id`.
 /// Returns `0` on failure.
 ///
+/// Small Seal Script config IDs:
+/// - `21` (`s2seal`): Simplified Chinese → Small Seal Script.
+/// - `22` (`t2seal`): Traditional Chinese → Small Seal Script.
+/// - `23` (`seal2s`): Small Seal Script → Traditional Chinese.
+/// - `24` (`seal2t`): Small Seal Script → Simplified Chinese.
+///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
@@ -663,6 +669,9 @@ pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mu
 ///
 /// Returns a pointer to a static NUL-terminated UTF-8 string,
 /// or NULL if the id is invalid.
+///
+/// Small Seal Script IDs `21`–`24` return `s2seal`, `t2seal`, `seal2t`, and
+/// `seal2s`, respectively; see [`opencc_config_name_to_id`] for directions.
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
@@ -967,6 +976,18 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
     if eq_ascii_ci(bytes, b"t2jp") {
         return Some(OpenccConfig::T2jp);
     }
+    if eq_ascii_ci(bytes, b"s2seal") {
+        return Some(OpenccConfig::S2seal);
+    }
+    if eq_ascii_ci(bytes, b"t2seal") {
+        return Some(OpenccConfig::T2seal);
+    }
+    if eq_ascii_ci(bytes, b"seal2s") {
+        return Some(OpenccConfig::Seal2s);
+    }
+    if eq_ascii_ci(bytes, b"seal2t") {
+        return Some(OpenccConfig::Seal2t);
+    }
 
     None
 }
@@ -1002,6 +1023,10 @@ fn config_to_c_name(cfg: OpenccConfig) -> *const c_char {
         OpenccConfig::Hk2tp => b"hk2tp\0".as_ptr() as *const c_char,
         OpenccConfig::Jp2t => b"jp2t\0".as_ptr() as *const c_char,
         OpenccConfig::T2jp => b"t2jp\0".as_ptr() as *const c_char,
+        OpenccConfig::S2seal => b"s2seal\0".as_ptr() as *const c_char,
+        OpenccConfig::T2seal => b"t2seal\0".as_ptr() as *const c_char,
+        OpenccConfig::Seal2s => b"seal2s\0".as_ptr() as *const c_char,
+        OpenccConfig::Seal2t => b"seal2t\0".as_ptr() as *const c_char,
     }
 }
 
@@ -1039,6 +1064,15 @@ const OPENCC_DICT_SLOT_TS_PUNCTUATIONS: u32 = 21;
 const OPENCC_CUSTOM_DICT_APPEND: u32 = 1;
 const OPENCC_CUSTOM_DICT_OVERRIDE: u32 = 2;
 
+// Small Seal Script → regular-script transcriptions.
+const OPENCC_DICT_SLOT_SEAL_CHARACTERS: u32 = 22;
+// Regular-script transcriptions → Small Seal Script.
+const OPENCC_DICT_SLOT_SEAL_CHARACTERS_REV: u32 = 23;
+// Standard Traditional forms → regular-script transcriptions (same-character variants only).
+const OPENCC_DICT_SLOT_SEAL_VARIANTS: u32 = 24;
+// Regular-script transcriptions → standard Traditional forms (same-character variants only).
+const OPENCC_DICT_SLOT_SEAL_VARIANTS_REV: u32 = 25;
+
 // ============================================================================
 // Custom dictionary private helpers
 // ============================================================================
@@ -1072,6 +1106,11 @@ fn dict_slot_from_ffi(value: u32) -> Option<DictSlot> {
 
         OPENCC_DICT_SLOT_ST_PUNCTUATIONS => Some(DictSlot::STPunctuations),
         OPENCC_DICT_SLOT_TS_PUNCTUATIONS => Some(DictSlot::TSPunctuations),
+
+        OPENCC_DICT_SLOT_SEAL_CHARACTERS => Some(DictSlot::SealCharacters),
+        OPENCC_DICT_SLOT_SEAL_CHARACTERS_REV => Some(DictSlot::SealCharactersRev),
+        OPENCC_DICT_SLOT_SEAL_VARIANTS => Some(DictSlot::SealVariants),
+        OPENCC_DICT_SLOT_SEAL_VARIANTS_REV => Some(DictSlot::SealVariantsRev),
 
         _ => None,
     }
@@ -1749,6 +1788,22 @@ mod tests {
         let name = CString::new("hk2tp").unwrap();
         assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
         assert_eq!(out_id, 20);
+
+        let name = CString::new("s2seal").unwrap();
+        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(out_id, 21);
+
+        let name = CString::new("t2seal").unwrap();
+        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(out_id, 22);
+
+        let name = CString::new("seal2s").unwrap();
+        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(out_id, 23);
+
+        let name = CString::new("seal2t").unwrap();
+        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(out_id, 24);
     }
 
     #[test]
@@ -1764,6 +1819,18 @@ mod tests {
 
         let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(20)) };
         assert_eq!(cstr.to_str().unwrap(), "hk2tp");
+
+        let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(21)) };
+        assert_eq!(cstr.to_str().unwrap(), "s2seal");
+
+        let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(22)) };
+        assert_eq!(cstr.to_str().unwrap(), "t2seal");
+
+        let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(23)) };
+        assert_eq!(cstr.to_str().unwrap(), "seal2s");
+
+        let cstr = unsafe { CStr::from_ptr(opencc_config_id_to_name(24)) };
+        assert_eq!(cstr.to_str().unwrap(), "seal2t");
     }
 
     #[test]
@@ -1942,5 +2009,25 @@ mod tests {
 
         opencc_string_free(output);
         opencc_delete(instance);
+    }
+
+    #[test]
+    fn seal_custom_dict_slot_ids_are_stable() {
+        assert_eq!(
+            dict_slot_from_ffi(OPENCC_DICT_SLOT_SEAL_CHARACTERS),
+            Some(DictSlot::SealCharacters)
+        );
+        assert_eq!(
+            dict_slot_from_ffi(OPENCC_DICT_SLOT_SEAL_CHARACTERS_REV),
+            Some(DictSlot::SealCharactersRev)
+        );
+        assert_eq!(
+            dict_slot_from_ffi(OPENCC_DICT_SLOT_SEAL_VARIANTS),
+            Some(DictSlot::SealVariants)
+        );
+        assert_eq!(
+            dict_slot_from_ffi(OPENCC_DICT_SLOT_SEAL_VARIANTS_REV),
+            Some(DictSlot::SealVariantsRev)
+        );
     }
 }

@@ -390,6 +390,116 @@ int main(int argc, char **argv) {
     opencc_string_free(compat_normalized);
 
     // ---------------------------------------------------------------------
+    // Test 8: Small Seal Script conversion roundtrip (direct C API)
+    // ---------------------------------------------------------------------
+    std::cout << "\n== Test 8: Small Seal Script conversion roundtrip ==\n";
+
+    const char *seal_traditional =
+        u8"你好，小篆國際編碼18";
+
+    const char *seal_simplified =
+        u8"你好，小篆国际编码18";
+
+    const char *seal_expected =
+        u8"你𿒛，𽌠𽴖𾇓𿭖𿛛碼18";
+
+    char *t2seal = opencc_convert_cfg(
+        opencc,
+        seal_traditional,
+        OPENCC_CONFIG_T2SEAL,
+        false
+    );
+
+    char *s2seal = opencc_convert_cfg(
+        opencc,
+        seal_simplified,
+        OPENCC_CONFIG_S2SEAL,
+        false
+    );
+
+    char *seal2t = opencc_convert_cfg(
+        opencc,
+        seal_expected,
+        OPENCC_CONFIG_SEAL2T,
+        false
+    );
+
+    char *seal2s = opencc_convert_cfg(
+        opencc,
+        seal_expected,
+        OPENCC_CONFIG_SEAL2S,
+        false
+    );
+
+    char *seal_punctuation = opencc_convert_cfg(
+        opencc,
+        u8"你好，小篆“國際編碼18”",
+        OPENCC_CONFIG_T2SEAL,
+        true
+    );
+
+    const bool t2seal_pass =
+        t2seal != nullptr &&
+        std::strcmp(t2seal, seal_expected) == 0;
+
+    const bool s2seal_pass =
+        s2seal != nullptr &&
+        std::strcmp(s2seal, seal_expected) == 0;
+
+    const bool seal2t_pass =
+        seal2t != nullptr &&
+        std::strcmp(seal2t, seal_traditional) == 0;
+
+    const bool seal2s_pass =
+        seal2s != nullptr &&
+        std::strcmp(seal2s, seal_simplified) == 0;
+
+    const bool punctuation_pass =
+        seal_punctuation != nullptr &&
+        std::strcmp(
+            seal_punctuation,
+            u8"你𿒛，𽌠𽴖「𾇓𿭖𿛛碼18」"
+        ) == 0;
+
+    std::cout << "T2Seal:            "
+              << (t2seal != nullptr ? t2seal : "(null)")
+              << " [" << (t2seal_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "S2Seal:            "
+              << (s2seal != nullptr ? s2seal : "(null)")
+              << " [" << (s2seal_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "Seal2T:            "
+              << (seal2t != nullptr ? seal2t : "(null)")
+              << " [" << (seal2t_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "Seal2S:            "
+              << (seal2s != nullptr ? seal2s : "(null)")
+              << " [" << (seal2s_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "T2Seal punctuation:"
+              << (seal_punctuation != nullptr ? seal_punctuation : "(null)")
+              << " [" << (punctuation_pass ? "PASS" : "FAIL") << "]\n";
+
+    std::cout << "Roundtrip:          "
+              << (t2seal_pass &&
+                  s2seal_pass &&
+                  seal2t_pass &&
+                  seal2s_pass &&
+                  punctuation_pass
+                      ? "PASS"
+                      : "FAIL")
+              << "\n";
+
+    print_last_error_and_free();
+
+    opencc_string_free(seal_punctuation);
+    opencc_string_free(seal2s);
+    opencc_string_free(seal2t);
+    opencc_string_free(s2seal);
+    opencc_string_free(t2seal);
+
+    // ---------------------------------------------------------------------
     // Cleanup
     // ---------------------------------------------------------------------
     opencc_delete(opencc);

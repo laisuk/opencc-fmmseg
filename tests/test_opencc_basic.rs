@@ -362,10 +362,11 @@ fn rejects_removed_v0_11_4_japanese_slot_aliases() {
 
 #[test]
 fn dict_slot_names_roundtrip_and_case_insensitive_lookup_is_exhaustive() {
-    assert_eq!(DictSlot::ALL.len(), 21);
+    assert_eq!(DictSlot::ALL.len(), 25);
 
     for &slot in DictSlot::ALL {
         let canonical_name = slot.canonical_name();
+
         assert_eq!(DictSlot::try_from(canonical_name), Ok(slot));
         assert_eq!(
             DictSlot::from_name_ignore_ascii_case(&canonical_name.to_ascii_lowercase()),
