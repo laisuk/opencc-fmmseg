@@ -1,0 +1,49 @@
+   Compiling opencc-fmmseg v0.13.0 (D:\codes\Rust\opencc-fmmseg)
+    Finished release [optimized] target(s) in 23.45s
+     Running unittests src\lib.rs (target\release\deps\opencc_fmmseg-1e90ef02a7729fb1.exe)
+
+running 1 test
+test opencc::seal_diagnostic::cold_and_diverse ... CHECK,embedded_matches_text,SealCharacters
+CHECK,embedded_matches_text,SealVariantsRev
+CHECK,embedded_matches_text,STPhrases
+CHECK,embedded_matches_text,STCharacters
+CHECK,embedded_matches_text,STPunctuations
+CAP_SCAN,SealCharacters,key_visits=128323584
+BUILD,SealCharacters,0,129460000
+BUILD,SealCharacters,1,127318900
+BUILD,SealCharacters,2,130016300
+BUILD,SealCharacters,3,123839400
+BUILD,SealCharacters,4,130096400
+TIME,SealCharacters_astral_cap_scan,128323584,122455200.00,120541800.00,124714600.00
+CAP_SCAN,SealVariantsRev,key_visits=707412
+BUILD,SealVariantsRev,0,721200
+BUILD,SealVariantsRev,1,650400
+BUILD,SealVariantsRev,2,646500
+BUILD,SealVariantsRev,3,706400
+BUILD,SealVariantsRev,4,671100
+TIME,SealVariantsRev_astral_cap_scan,707412,629433.33,622192.19,636883.33
+CAP_SCAN,S2T,key_visits=4787536
+BUILD,S2T,0,4843500
+BUILD,S2T,1,4650400
+BUILD,S2T,2,4643800
+BUILD,S2T,3,4973500
+BUILD,S2T,4,5097000
+TIME,S2T_astral_cap_scan,4787536,4452500.00,4359175.00,4740787.50
+TIME,diverse_seal_fmm_round,11328,355012.50,353106.25,384305.21
+TIME,diverse_seal_scalar_round,11328,107196.61,106572.40,111591.67
+TIME,seal_two_scalar_rounds,11,148.97,145.91,163.57
+TIME,seal_two_scalar_rounds,110,1054.15,1034.70,1064.99
+TIME,seal_two_scalar_rounds,1001,9044.04,8977.98,9183.18
+TIME,seal_two_scalar_rounds,10010,91965.10,90085.16,94876.56
+TIME,seal_two_scalar_rounds,100001,963503.12,922997.92,1007425.00
+TIME,seal_two_scalar_rounds,1000010,10673500.00,10255533.33,10884100.00
+COLD_API,seal2t,0,134036300
+COLD_API,s2t,0,5575200
+COLD_API,seal2t,1,123305200
+COLD_API,s2t,1,4954900
+COLD_API,seal2t,2,129694600
+COLD_API,s2t,2,4962700
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 57 filtered out; finished in 5.30s
+

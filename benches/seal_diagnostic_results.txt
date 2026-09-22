@@ -1,0 +1,222 @@
+   Compiling opencc-fmmseg v0.13.0 (D:\codes\Rust\opencc-fmmseg)
+warning: field `segments` is never read
+  --> src\..\benches\seal_diagnostic.rs:17:39
+   |
+17 | #[derive(Default,Debug)]struct Counts{segments:usize,positions:usize,gate_rejected_positions:usize,lengths_excluded:usize,enumerated:usiz...
+   |                                ------ ^^^^^^^^
+   |                                |
+   |                                field in this struct
+   |
+   = note: `Counts` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `opencc-fmmseg` (lib test) generated 1 warning
+    Finished release [optimized] target(s) in 43.57s
+     Running unittests src\lib.rs (target\release\deps\opencc_fmmseg-1e90ef02a7729fb1.exe)
+
+running 1 test
+test opencc::seal_diagnostic::investigate ... META,threads=16,sample_scalars=11,sample_bytes=35
+INIT,opencc_ns=33021500
+DICT,SealCharacters,entries=11328,min=1,max=1,mask=0x1,lengths={1: 11328},value_lengths={1: 11328},all_bmp_keys=0,non_bmp_keys=11328,bmp_starters=0,astral_starters=11328,delimiter_keys=0
+DICT,SealVariantsRev,entries=1002,min=1,max=1,mask=0x1,lengths={1: 1002},value_lengths={1: 1002},all_bmp_keys=296,non_bmp_keys=706,bmp_starters=296,astral_starters=706,delimiter_keys=0
+DICT,STPhrases,entries=50887,min=2,max=12,mask=0xffe,lengths={2: 20060, 3: 14325, 4: 13410, 5: 1457, 6: 789, 7: 365, 8: 273, 9: 69, 10: 96, 11: 22, 12: 21},value_lengths={2: 20060, 3: 14325, 4: 13410, 5: 1457, 6: 789, 7: 365, 8: 273, 9: 69, 10: 96, 11: 22, 12: 21},all_bmp_keys=50874,non_bmp_keys=13,bmp_starters=3595,astral_starters=4,delimiter_keys=0
+DICT,STCharacters,entries=4014,min=1,max=1,mask=0x1,lengths={1: 4014},value_lengths={1: 4014},all_bmp_keys=2872,non_bmp_keys=1142,bmp_starters=2872,astral_starters=1142,delimiter_keys=0
+DICT,STPunctuations,entries=4,min=1,max=1,mask=0x1,lengths={1: 4},value_lengths={1: 4},all_bmp_keys=4,non_bmp_keys=0,bmp_starters=4,astral_starters=0,delimiter_keys=0
+COLD,SealCharacters_union_ns=136767000
+COLD,SealVariantsRev_union_ns=858100
+COLD,S2T_union_ns=5320900
+UNION,SealCharacters,bmp_active=0,astral=11328,bmp_table_bytes=589824
+UNION,SealVariantsRev,bmp_active=296,astral=706,bmp_table_bytes=589824
+UNION,S2T,bmp_active=5102,astral=1142,bmp_table_bytes=589824
+CHECK,all_seal_keys=11328
+COUNT,seal_round1,input_scalars=11,input_bytes=35,output_scalars=11,output_bytes=30,counts=Counts { segments: 2, positions: 11, gate_rejected_positions: 5, lengths_excluded: 5, enumerated: 6, dict_gate_rejected: 0, slices: 6, lookups: 6, matches: 6, copied: 5 },output=你好，𡭔篆國際編码18
+COUNT,seal_round2,input_scalars=11,input_bytes=30,output_scalars=11,output_bytes=29,counts=Counts { segments: 2, positions: 11, gate_rejected_positions: 10, lengths_excluded: 10, enumerated: 1, dict_gate_rejected: 0, slices: 1, lookups: 1, matches: 1, copied: 10 },output=你好，小篆國際編码18
+COUNT,seal_punct_round3,input_scalars=11,input_bytes=29,output_scalars=11,output_bytes=29,counts=Counts { segments: 2, positions: 11, gate_rejected_positions: 11, lengths_excluded: 11, enumerated: 0, dict_gate_rejected: 0, slices: 0, lookups: 0, matches: 0, copied: 11 },output=你好，小篆國際編码18
+COUNT,s2t_round1,input_scalars=11,input_bytes=35,output_scalars=11,output_bytes=35,counts=Counts { segments: 2, positions: 11, gate_rejected_positions: 9, lengths_excluded: 38, enumerated: 4, dict_gate_rejected: 4, slices: 4, lookups: 4, matches: 1, copied: 10 },output=你𿒛，𽌠𽴖𾇓𿭖𿛛碼18
+COUNT,s2t_punct_round1,input_scalars=11,input_bytes=35,output_scalars=11,output_bytes=35,counts=Counts { segments: 2, positions: 11, gate_rejected_positions: 9, lengths_excluded: 38, enumerated: 4, dict_gate_rejected: 7, slices: 4, lookups: 4, matches: 1, copied: 10 },output=你𿒛，𽌠𽴖𾇓𿭖𿛛碼18
+TIME,cached_union_seal,11,13.49,12.43,13.52
+TIME,cached_union_variants,11,12.44,12.17,13.51
+TIME,cached_union_s2t,11,13.53,12.73,13.61
+TIME,dictrefs_seal_construct,11,19.32,18.29,22.53
+TIME,dictrefs_s2t_construct,11,11.31,10.97,11.44
+TIME,clear_last_error,11,13.73,12.35,13.77
+INPUT,scalars=11,bytes=35,mid_bytes=30
+TIME,seal2t_seq,11,521.19,496.58,571.21
+TIME,s2t_seq,11,289.57,265.58,290.05
+TIME,seal2t_punct_seq,11,720.54,696.55,762.78
+TIME,s2t_punct_seq,11,268.91,261.71,270.06
+TIME,seal_rounds_prebuilt,11,465.88,461.98,472.90
+TIME,seal_round1,11,264.64,262.41,286.19
+TIME,seal_round2,11,219.38,212.76,241.49
+TIME,s2t_round_prebuilt,11,268.06,257.65,309.30
+TIME,seal_scalar_round1,11,81.15,79.87,88.73
+TIME,seal_scalar_plus_round2,11,274.51,269.25,277.96
+TIME,utf8_decode_vec,11,83.37,82.76,93.47
+TIME,segmentation,11,41.04,37.64,41.64
+TIME,seal_fmm_preallocated,11,108.78,100.10,139.22
+TIME,s2t_fmm_preallocated,11,105.18,95.83,107.71
+TIME,seal_scalar_lookups_no_output,11,20.67,20.30,20.85
+TIME,seal_union_gate_no_output,11,28.88,28.65,29.53
+TIME,seal_output_append_precomputed,11,46.47,44.37,47.61
+TIME,output_copy,11,28.31,25.72,28.90
+TIME,seal_config_enum,11,491.54,489.52,497.31
+TIME,seal_config_string,11,529.43,519.69,562.03
+INPUT,scalars=110,bytes=350,mid_bytes=300
+TIME,seal2t_seq,110,2638.68,2611.22,2738.27
+TIME,s2t_seq,110,1614.13,1505.56,1633.83
+TIME,seal2t_punct_seq,110,4021.45,3919.95,4307.15
+TIME,s2t_punct_seq,110,1652.82,1598.88,1705.39
+TIME,seal_rounds_prebuilt,110,2653.43,2559.15,2819.70
+TIME,seal_round1,110,1555.59,1542.61,1586.58
+TIME,seal_round2,110,1099.76,1008.05,1112.99
+TIME,s2t_round_prebuilt,110,1593.31,1445.07,1599.49
+TIME,seal_scalar_round1,110,486.11,475.09,497.32
+TIME,seal_scalar_plus_round2,110,1520.85,1505.21,1543.51
+TIME,utf8_decode_vec,110,165.69,164.86,167.70
+TIME,segmentation,110,201.45,188.12,221.15
+TIME,seal_fmm_preallocated,110,1041.25,979.45,1063.38
+TIME,s2t_fmm_preallocated,110,949.22,941.21,966.61
+TIME,seal_scalar_lookups_no_output,110,207.16,206.04,210.22
+TIME,seal_union_gate_no_output,110,283.85,279.16,299.57
+TIME,seal_output_append_precomputed,110,273.30,260.85,287.52
+TIME,output_copy,110,28.34,28.20,29.69
+INPUT,scalars=1001,bytes=3185,mid_bytes=2730
+TIME,seal2t_seq,1001,20345.51,19935.55,21206.58
+TIME,s2t_seq,1001,11774.93,11543.59,12618.00
+TIME,seal2t_punct_seq,1001,27425.98,27266.47,34229.30
+TIME,s2t_punct_seq,1001,12974.09,12112.79,13255.63
+TIME,seal_rounds_prebuilt,1001,22385.81,22056.64,22716.99
+TIME,seal_round1,1001,12682.42,12434.18,14028.09
+TIME,seal_round2,1001,7619.12,7514.48,8233.64
+TIME,s2t_round_prebuilt,1001,11721.42,11568.98,11809.83
+TIME,seal_scalar_round1,1001,4481.41,4012.55,4663.68
+TIME,seal_scalar_plus_round2,1001,13185.48,12153.45,13314.19
+TIME,utf8_decode_vec,1001,959.87,938.89,969.92
+TIME,segmentation,1001,1013.70,998.36,1030.06
+TIME,seal_fmm_preallocated,1001,9207.64,8531.69,9399.90
+TIME,s2t_fmm_preallocated,1001,9556.10,8859.91,9871.39
+TIME,seal_scalar_lookups_no_output,1001,2052.50,2041.45,2069.23
+TIME,seal_union_gate_no_output,1001,2508.90,2457.93,2747.25
+TIME,seal_output_append_precomputed,1001,2104.90,2096.53,2133.80
+TIME,output_copy,1001,37.95,37.33,41.23
+INPUT,scalars=10010,bytes=31850,mid_bytes=27300
+TIME,seal2t_seq,10010,211690.10,197493.75,214825.52
+TIME,s2t_seq,10010,123964.06,123769.53,128324.22
+TIME,seal2t_punct_seq,10010,261783.59,259792.19,282992.19
+TIME,s2t_punct_seq,10010,126586.72,115750.78,136076.95
+TIME,seal_rounds_prebuilt,10010,215536.46,192601.04,231722.92
+TIME,seal_round1,10010,135089.45,127947.66,143498.05
+TIME,seal_round2,10010,72895.70,71032.03,80488.54
+TIME,s2t_round_prebuilt,10010,111071.35,110123.70,113291.41
+TIME,seal_scalar_round1,10010,40719.66,39346.22,41704.30
+TIME,seal_scalar_plus_round2,10010,124548.44,118292.58,128056.25
+TIME,utf8_decode_vec,10010,10194.48,9720.97,10290.06
+TIME,segmentation,10010,7919.63,7715.31,8308.50
+TIME,seal_fmm_preallocated,10010,84863.02,84035.16,85336.20
+TIME,s2t_fmm_preallocated,10010,87216.15,85843.49,91281.25
+TIME,seal_scalar_lookups_no_output,10010,18699.32,18393.95,20364.40
+TIME,seal_union_gate_no_output,10010,27558.98,25698.57,28322.27
+TIME,seal_output_append_precomputed,10010,22634.83,20820.31,23169.34
+TIME,output_copy,10010,580.55,551.98,593.48
+INPUT,scalars=100001,bytes=318185,mid_bytes=272730
+TIME,seal2t_seq,100001,2188631.25,2173475.00,2196018.75
+TIME,s2t_seq,100001,1429733.33,1314520.83,1452583.33
+TIME,seal2t_punct_seq,100001,3112033.33,2958325.00,4698512.50
+TIME,s2t_punct_seq,100001,1441833.33,1394412.50,1451087.50
+TIME,seal_rounds_prebuilt,100001,2196081.25,2182512.50,2277018.75
+TIME,seal_round1,100001,1502379.17,1493741.67,1512116.67
+TIME,seal_round2,100001,967084.38,912204.17,990575.00
+TIME,s2t_round_prebuilt,100001,1421145.83,1403616.67,1453387.50
+TIME,seal_scalar_round1,100001,447806.25,409764.58,480715.62
+TIME,seal_scalar_plus_round2,100001,1282795.83,1257062.50,1285566.67
+TIME,utf8_decode_vec,100001,102145.31,100192.19,108723.96
+TIME,segmentation,100001,93664.58,91463.28,94735.68
+TIME,seal_fmm_preallocated,100001,948540.62,931208.33,969584.38
+TIME,s2t_fmm_preallocated,100001,961481.25,951140.62,974903.12
+TIME,seal_scalar_lookups_no_output,100001,206305.21,202533.85,252019.27
+TIME,seal_union_gate_no_output,100001,274258.59,272393.75,295378.91
+TIME,seal_output_append_precomputed,100001,237100.78,233472.40,242596.09
+TIME,output_copy,100001,5032.16,4991.96,5188.25
+INPUT,scalars=1000010,bytes=3181850,mid_bytes=2727300
+TIME,seal2t_seq,1000010,24869950.00,24200450.00,25742950.00
+TIME,s2t_seq,1000010,13264033.33,12885466.67,14413933.33
+TIME,seal2t_punct_seq,1000010,31812700.00,31077100.00,33434400.00
+TIME,s2t_punct_seq,1000010,13658333.33,13047266.67,14780300.00
+TIME,seal_rounds_prebuilt,1000010,25068250.00,23123400.00,25287300.00
+TIME,seal_round1,1000010,13833866.67,13793700.00,15036950.00
+TIME,seal_round2,1000010,9000675.00,8818150.00,9678150.00
+TIME,s2t_round_prebuilt,1000010,13270866.67,12922800.00,13487100.00
+TIME,seal_scalar_round1,1000010,4899575.00,4862062.50,4942725.00
+TIME,seal_scalar_plus_round2,1000010,14615900.00,13350400.00,14761200.00
+TIME,utf8_decode_vec,1000010,2001750.00,1917231.25,2116043.75
+TIME,segmentation,1000010,1367937.50,1305454.17,1394550.00
+TIME,seal_fmm_preallocated,1000010,8825050.00,8554125.00,9374125.00
+TIME,s2t_fmm_preallocated,1000010,9725725.00,9686675.00,10270675.00
+TIME,seal_scalar_lookups_no_output,1000010,2046518.75,2033056.25,2126506.25
+TIME,seal_union_gate_no_output,1000010,2687600.00,2515450.00,2738883.33
+TIME,seal_output_append_precomputed,1000010,3200050.00,3116791.67,3447191.67
+TIME,output_copy,1000010,450576.04,428209.38,459164.58
+PARALLEL,scalars=11,ranges=2,chunk=128,uses_rayon=false
+TIME,seal2t_parallel_enabled,11,566.94,536.32,576.78
+TIME,s2t_parallel_enabled,11,296.00,271.53,307.55
+PARALLEL,scalars=110,ranges=11,chunk=128,uses_rayon=false
+TIME,seal2t_parallel_enabled,110,2721.92,2683.27,2955.31
+TIME,s2t_parallel_enabled,110,1632.19,1600.52,1662.46
+PARALLEL,scalars=1001,ranges=92,chunk=128,uses_rayon=false
+TIME,seal2t_parallel_enabled,1001,23370.51,22925.59,23755.34
+TIME,s2t_parallel_enabled,1001,13198.08,12692.81,13414.91
+PARALLEL,scalars=10010,ranges=911,chunk=128,uses_rayon=true
+TIME,seal2t_parallel_enabled,10010,211875.52,208164.58,224601.04
+TIME,s2t_parallel_enabled,10010,108370.83,100716.41,110273.44
+PARALLEL,scalars=100001,ranges=9092,chunk=128,uses_rayon=true
+TIME,seal2t_parallel_enabled,100001,867877.08,864702.08,870104.17
+TIME,s2t_parallel_enabled,100001,472668.75,448779.17,490662.50
+PARALLEL,scalars=1000010,ranges=90911,chunk=946,uses_rayon=true
+TIME,seal2t_parallel_enabled,1000010,11922000.00,11778966.67,12405100.00
+TIME,s2t_parallel_enabled,1000010,6275933.33,6102883.33,6559266.67
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 36.58s
+
+     Running tests\test_dictionary_maxlength_basic.rs (target\release\deps\test_dictionary_maxlength_basic-4d22096dbe9bc761.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+
+     Running tests\test_dictionay_maxlength_roundtrip.rs (target\release\deps\test_dictionay_maxlength_roundtrip-38d6e138bc60a32f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests\test_opencc_basic.rs (target\release\deps\test_opencc_basic-7a0c6a61639d4df5.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running tests\test_opencc_fmmseg.rs (target\release\deps\test_opencc_fmmseg-b9d4fd0d245f2a59.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+     Running tests\test_opencc_ids.rs (target\release\deps\test_opencc_ids-28e942477e65ea4b.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests\test_opencc_seal.rs (target\release\deps\test_opencc_seal-a5a873225a315e64.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests\test_public_api_paths.rs (target\release\deps\test_public_api_paths-5e65bb6941862642.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+

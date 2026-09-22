@@ -176,18 +176,17 @@ impl StarterUnion {
                     }
                 } else {
                     *astral_mask.entry(c0).or_insert(0) |= mask;
-                    let cap = d
-                        .map
-                        .keys()
-                        .filter(|key| key.first().copied() == Some(c0))
-                        .map(|key| u8::try_from(key.len()).unwrap_or(u8::MAX))
-                        .max()
-                        .unwrap_or_else(|| DictMaxLen::max_len_from_mask(mask).unwrap_or(0) as u8);
+
+                    // starter_len_mask already contains the exact per-starter lengths
+                    // representable by the 64-bit mask. Keys longer than 64 are handled
+                    // by the long-key pass below.
+                    let cap = DictMaxLen::max_len_from_mask(mask).unwrap_or(0) as u8;
+
                     astral_cap
                         .entry(c0)
                         .and_modify(|m| {
                             if cap > *m {
-                                *m = cap
+                                *m = cap;
                             }
                         })
                         .or_insert(cap);
@@ -252,5 +251,103 @@ mod tests {
 
         assert_eq!(union.bmp_cap['中' as usize] as usize, 80);
         assert_ne!(union.bmp_mask['中' as usize] & (1u64 << 63), 0);
+    }
+
+    #[test]
+    fn build_preserves_long_astral_caps() {
+        let starter = '\u{20000}';
+        let key = starter.to_string().repeat(80);
+        let dict = DictMaxLen::build_from_pairs(vec![(key, "long".to_string())]);
+        // Long-only starters have no exact length bit, so the later pass must
+        // create both union entries despite the first pass skipping mask == 0.
+        assert_eq!(dict.starter_len_mask[&starter], 0);
+        let union = StarterUnion::build(&[&dict]);
+        assert_eq!(union.astral_cap[&starter], 80);
+        assert_eq!(union.astral_mask[&starter], 1u64 << 63);
+    }
+
+    #[test]
+    fn astral_mask_caps_match_key_scan_through_length_64() {
+        // Cover every representable maximum, with mixed lengths per starter.
+        let mut pairs = Vec::new();
+        for length in 1..=64 {
+            let starter = char::from_u32(0x20000 + length as u32).unwrap();
+            pairs.push((starter.to_string().repeat(length), "max".to_string()));
+            if length > 1 {
+                pairs.push((starter.to_string(), "short".to_string()));
+            }
+        }
+        let dict = DictMaxLen::build_from_pairs(pairs);
+        let union = StarterUnion::build(&[&dict]);
+        for (&starter, &mask) in &dict.starter_len_mask {
+            let scanned_cap = dict
+                .map
+                .keys()
+                .filter(|key| key.first() == Some(&starter))
+                .map(|key| key.len())
+                .max()
+                .unwrap();
+            assert_eq!(DictMaxLen::max_len_from_mask(mask), Some(scanned_cap));
+            assert_eq!(union.astral_cap[&starter] as usize, scanned_cap);
+            assert_eq!(union.astral_mask[&starter], mask);
+        }
+        let starter_64 = char::from_u32(0x20040).unwrap();
+        assert_eq!(union.astral_cap[&starter_64], 64);
+        assert_eq!(union.astral_mask[&starter_64], 1 | (1u64 << 63));
+    }
+
+    #[test]
+    fn build_merges_mixed_lengths_and_long_caps_in_either_order() {
+        let astral = '\u{20000}';
+        let short_astral = '\u{20001}';
+        let short = DictMaxLen::build_from_pairs(
+            [
+                ('中', 1),
+                ('中', 64),
+                (astral, 3),
+                (astral, 64),
+                ('文', 2),
+                (short_astral, 2),
+            ]
+            .into_iter()
+            .map(|(ch, len)| (ch.to_string().repeat(len), "short".to_string())),
+        );
+        let long = DictMaxLen::build_from_pairs(
+            [('中', 65), ('中', 80), (astral, 65), (astral, 255)]
+                .into_iter()
+                .map(|(ch, len)| (ch.to_string().repeat(len), "long".to_string())),
+        );
+        for dicts in [[&short, &long], [&long, &short]] {
+            let union = StarterUnion::build(&dicts);
+            assert_eq!(union.bmp_mask['中' as usize], 1 | (1u64 << 63));
+            assert_eq!(union.bmp_cap['中' as usize], 80);
+            assert_eq!(union.astral_mask[&astral], (1u64 << 2) | (1u64 << 63));
+            assert_eq!(union.astral_cap[&astral], 255);
+            // Global long-key maxima must not inflate unrelated starter caps.
+            assert_eq!(union.bmp_mask['文' as usize], 1u64 << 1);
+            assert_eq!(union.bmp_cap['文' as usize], 2);
+            assert_eq!(union.astral_mask[&short_astral], 1u64 << 1);
+            assert_eq!(union.astral_cap[&short_astral], 2);
+        }
+    }
+
+    #[test]
+    fn long_key_pass_repairs_mixed_starters_without_an_exact_64_key() {
+        let astral = '\u{20000}';
+        let mut dict = DictMaxLen::build_from_pairs([
+            ("中".to_string(), "short".to_string()),
+            (astral.to_string(), "short".to_string()),
+        ]);
+        dict.append_pairs([
+            ("中".repeat(65), "long".to_string()),
+            (astral.to_string().repeat(80), "long".to_string()),
+        ]);
+        assert_eq!(dict.starter_len_mask[&'中'], 1);
+        assert_eq!(dict.starter_len_mask[&astral], 1);
+        let union = StarterUnion::build(&[&dict]);
+        assert_eq!(union.bmp_mask['中' as usize], 1 | (1u64 << 63));
+        assert_eq!(union.bmp_cap['中' as usize], 65);
+        assert_eq!(union.astral_mask[&astral], 1 | (1u64 << 63));
+        assert_eq!(union.astral_cap[&astral], 80);
     }
 }
