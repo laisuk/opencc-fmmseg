@@ -2539,3 +2539,8 @@ impl Default for OpenCC {
         Self::new()
     }
 }
+
+// Removable diagnosis-only harness; absent from production builds.
+#[cfg(test)]
+#[path = "../benches/seal_diagnostic.rs"]
+mod seal_diagnostic;

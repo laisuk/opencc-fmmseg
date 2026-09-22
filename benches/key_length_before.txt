@@ -1,0 +1,34 @@
+   Compiling opencc-fmmseg v0.13.0 (D:\codes\Rust\opencc-fmmseg)
+    Finished test [unoptimized + debuginfo] target(s) in 4.22s
+     Running unittests src\lib.rs (target\debug\deps\opencc_fmmseg-869855f42b146c6c.exe)
+
+running 4 tests
+thread 'thread 'utils::key_length_tests::early_match_stops_long_and_short_enumerationutils::key_length_tests::boundaries_and_short_fallbacks' panicked at ' panicked at src\utils.rssrc\utils.rs::188172::1313:
+:
+assertion `left == right` failed
+  left: [65, 64]
+ right: [65, 64, 63]assertion `left == right` failed: cap=64
+  left: []
+ right: [64, 63, 1]
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test utils::key_length_tests::boundaries_and_short_fallbacks ... FAILED
+test utils::key_length_tests::early_match_stops_long_and_short_enumeration ... FAILED
+thread 'dictionary_lib::dict_max_len::key_length_tests::long_only_gate_uses_length_not_bucket_bit' panicked at src\dictionary_lib\dict_max_len.rs:1122:13:
+assertion failed: dict.starter_allows_dict(starter, 65, 63)
+thread 'dictionary_lib::dict_max_len::key_length_tests::mixed_short_long_pair_builder_and_candidate_gate' panicked at src\dictionary_lib\dict_max_len.rs:483:25:
+inconsistent mask for long key: starter='中', key_len=80, mask_max=1, mask=0x1
+test dictionary_lib::dict_max_len::key_length_tests::long_only_gate_uses_length_not_bucket_bit ... FAILED
+test dictionary_lib::dict_max_len::key_length_tests::mixed_short_long_pair_builder_and_candidate_gate ... FAILED
+
+failures:
+
+failures:
+    dictionary_lib::dict_max_len::key_length_tests::long_only_gate_uses_length_not_bucket_bit
+    dictionary_lib::dict_max_len::key_length_tests::mixed_short_long_pair_builder_and_candidate_gate
+    utils::key_length_tests::boundaries_and_short_fallbacks
+    utils::key_length_tests::early_match_stops_long_and_short_enumeration
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p opencc-fmmseg --lib`

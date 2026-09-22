@@ -1,0 +1,29 @@
+   Compiling opencc-fmmseg v0.13.0 (D:\codes\Rust\opencc-fmmseg)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.44s
+     Running `target\debug\examples\key_length_inventory.exe`
+st_characters: 1
+st_phrases: 12
+ts_characters: 1
+ts_phrases: 10
+tw_phrases: 15
+tw_phrases_rev: 13
+hk_phrases: 15
+hk_phrases_rev: 14
+tw_variants_phrases: 5
+tw_variants: 1
+tw_variants_rev: 1
+tw_variants_rev_phrases: 10
+hk_variants_phrases: 14
+hk_variants: 1
+hk_variants_rev: 1
+hk_variants_rev_phrases: 11
+jps_characters: 1
+jps_characters_rev: 1
+jps_phrases: 5
+seal_characters: 1
+seal_characters_rev: 1
+seal_variants: 1
+seal_variants_rev: 1
+st_punctuations: 1
+ts_punctuations: 1
+bundled_maximum=15

@@ -64,7 +64,11 @@ pub(crate) fn for_each_len_dec(mask: u64, cap_here: usize, mut f: impl FnMut(usi
     // Handle lengths 1..=min(64, cap_here) by iterating set bits high→low.
     let limit = cap_here.min(64);
     // Bitmask for [1..=limit]; shift-safe when limit==64.
-    let range_mask = 1u64.wrapping_shl(limit as u32).wrapping_sub(1);
+    let range_mask = if limit == 64 {
+        u64::MAX
+    } else {
+        (1u64 << limit) - 1
+    };
     // Apply, and drop CAP if we already consumed it via >64 path.
     let mut m = mask & range_mask & if cap_here > 64 { !CAP_BIT } else { !0 };
     // Highest-set-bit iteration.
@@ -156,4 +160,49 @@ pub(crate) fn find_max_utf8_len_bytes(bytes: &[u8], max: usize) -> usize {
         i -= 1;
     }
     i
+}
+
+#[cfg(test)]
+mod key_length_tests {
+    use super::for_each_len_dec;
+
+    #[test]
+    fn boundaries_and_short_fallbacks() {
+        let mask = 1 | (1u64 << 62) | (1u64 << 63);
+        for cap in [0, 1, 63, 64, 65, 80] {
+            let mut actual = Vec::new();
+            for_each_len_dec(mask, cap, |len| {
+                actual.push(len);
+                false
+            });
+            let expected: Vec<_> = (1..=cap)
+                .rev()
+                .filter(|&len| len == 1 || len >= 63)
+                .collect();
+            assert_eq!(actual, expected, "cap={cap}");
+        }
+        let mut actual = Vec::new();
+        for_each_len_dec(1 | (1u64 << 62), 80, |len| {
+            actual.push(len);
+            false
+        });
+        assert_eq!(actual, [63, 1]);
+        for_each_len_dec(0, 80, |_| panic!("empty mask"));
+    }
+
+    #[test]
+    fn early_match_stops_long_and_short_enumeration() {
+        for stop in [65, 64, 63, 1] {
+            let mut actual = Vec::new();
+            for_each_len_dec(1 | (1u64 << 62) | (1u64 << 63), 65, |len| {
+                actual.push(len);
+                len == stop
+            });
+            let expected: Vec<_> = [65, 64, 63, 1]
+                .into_iter()
+                .take_while(|&len| len >= stop)
+                .collect();
+            assert_eq!(actual, expected);
+        }
+    }
 }

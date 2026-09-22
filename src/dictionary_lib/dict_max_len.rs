@@ -455,8 +455,8 @@ impl DictMaxLen {
         {
             // For each key, ensure its starter's mask contains that length.
             // - For len <= 64: the exact bit must be set.
-            // - For len > 64: we can only assert that the mask's max is 64 (i.e., "64+ bucket"),
-            //   since the mask can't represent >64 exactly.
+            // - For len > 64: source masks have no bit for that length; validate
+            //   starter presence, the global bound, and the BMP cap instead.
             for (k_chars, _) in &dict.map {
                 if let Some(&c0) = k_chars.first() {
                     let mask = dict.starter_len_mask.get(&c0).copied().unwrap_or(0);
@@ -477,14 +477,16 @@ impl DictMaxLen {
                             c0, len, mask
                         );
                     } else {
-                        // For >64, we can't check an exact bit; ensure mask's max is 64 (i.e., bit63 set),
-                        // or at least that the mask isn't clearly contradicting long keys.
-                        let max_from_mask = Self::max_len_from_mask(mask).unwrap_or(0);
-                        debug_assert!(
-                            max_from_mask == 64 || mask == 0,
-                            "inconsistent mask for long key: starter={:?}, key_len={}, mask_max={}, mask={:#x}",
-                            c0, len, max_from_mask, mask
-                        );
+                        // Source masks encode only exact lengths <=64. A long
+                        // key may coexist with any short-key mask (including 0).
+                        debug_assert!(dict.starter_len_mask.contains_key(&c0));
+                        debug_assert!(len <= dict.max_len, "long key exceeds global cap");
+                        if (c0 as u32) <= 0xFFFF {
+                            debug_assert!(
+                                len <= dict.first_char_max_len[c0 as usize] as usize,
+                                "long key exceeds BMP starter cap"
+                            );
+                        }
                     }
                 }
             }
@@ -732,8 +734,8 @@ impl DictMaxLen {
     /// - ...
     /// - Bit `63` represents length `64`
     ///
-    /// Any length greater than `64` is **ignored by design**, as the internal
-    /// maximum matching span in `opencc-fmmseg` does not exceed this bound.
+    /// Lengths greater than `64` are not encoded here. Global/dense caps and
+    /// the StarterUnion long-key pass handle them separately.
     ///
     /// The resulting mask is used by `StarterUnion` to quickly determine which
     /// lengths need to be probed during longest-match lookup.
@@ -872,40 +874,27 @@ impl DictMaxLen {
 
     // ----- New: Starter Gate -----
     //
-    /// Checks whether this dictionary allows a word of the specified `length`
-    /// to start with the provided `starter` character.
+    /// Checks whether this dictionary may contain a candidate beginning with
+    /// `starter`. A successful gate still requires a dictionary map lookup.
     ///
-    /// This method performs a fast per-starter lookup using precomputed **length
-    /// bitmasks** (1..=64 → bits 0..=63), optionally backed by a dense BMP table:
+    /// Lengths 1..=64 use exact per-starter length bits: dense BMP tables when
+    /// populated, otherwise the sparse source mask. Length 64 is an exact bit,
+    /// not evidence that a longer key exists.
     ///
-    /// - For **BMP characters** (`u <= 0xFFFF`):
-    ///   - If dense arrays are populated (`first_len_mask64` and `first_char_max_len`
-    ///     both have length `0x10000`):
-    ///     1. For `length` in **1..=64**, test the corresponding bit in
-    ///        `first_len_mask64[u]`. This is the most selective and fastest path.
-    ///     2. For `length > 64`, compare against `first_char_max_len[u]` (a cap
-    ///        derived at build time from per-starter masks).
-    ///   - If dense arrays are **not** available, fall back to the sparse
-    ///     per-starter mask stored in [`Self::starter_len_mask`]. Only lengths 1..=64
-    ///     are representable in this mask; lengths > 64 will return `false`.
+    /// For lengths >64, populated BMP tables supply the true starter cap.
+    /// Astral starters (or missing dense tables) use the global `max_len` and
+    /// sparse starter presence as a conservative gate. A zero source mask can
+    /// denote a long-only starter and must not reject a long candidate.
+    /// These long-key gates can admit false positives; map lookup resolves them.
     ///
-    /// - For **astral characters** (`u > 0xFFFF`), the dense BMP tables do not
-    ///   apply; the method uses the sparse per-starter mask from
-    ///   [`Self::starter_len_mask`] (again, only 1..=64 are representable).
-    ///
-    /// This method is typically used **after** filtering with
-    /// [`DictMaxLen::has_key_len()`] to avoid redundant global range checks.
+    /// Normally called after [`Self::has_key_len`] rejects impossible global
+    /// lengths. No dictionary keys are scanned by this gate.
     ///
     /// # Parameters
     /// - `starter`: The candidate starting character.
-    /// - `length`: The word length to validate.
-    /// - `bit`: The bit index corresponding to `length` (usually `length - 1`);
-    ///   only meaningful for `length` in 1..=64.
-    ///
-    /// # Returns
-    /// - `true` if the dictionary contains at least one entry that starts with
-    ///   `starter` and has the specified `length`.
-    /// - `false` otherwise.
+    /// - `length`: The positive candidate length in Unicode scalars.
+    /// - `bit`: `length - 1` for lengths <=64; ignored for longer candidates,
+    ///   including when the caller passes the union's bucket bit 63.
     ///
     /// # Safety
     /// Uses unchecked indexing (`get_unchecked`) in the dense BMP path, guarded
@@ -934,7 +923,7 @@ impl DictMaxLen {
             let m = unsafe { *self.first_len_mask64.get_unchecked(i) };
 
             // Exact lengths 1..=64 via bit test
-            if bit < 64 {
+            if length <= 64 {
                 return ((m >> bit) & 1) != 0;
             }
 
@@ -943,9 +932,12 @@ impl DictMaxLen {
             return length <= cap;
         }
 
-        // Unified sparse path (BMP w/o dense OR astral)
-        if bit >= 64 {
-            return false; // sparse mask can’t represent >64
+        // Sparse masks are exact only through length 64. For longer keys there
+        // is no stored astral per-starter cap; conservatively admit a candidate
+        // within the global cap when the starter exists (even with mask == 0).
+        // The subsequent map lookup verifies the actual key without rescanning.
+        if length > 64 {
+            return length <= self.max_len && self.starter_len_mask.contains_key(&starter);
         }
         self.has_starter_len(starter, length)
     }
@@ -1090,3 +1082,38 @@ mod tests {
 #[cfg(test)]
 #[path = "dict_max_len_serde_tests.rs"]
 mod serde_tests;
+
+#[cfg(test)]
+mod key_length_tests {
+    use super::DictMaxLen;
+
+    #[test]
+    fn mixed_short_long_pair_builder_and_candidate_gate() {
+        for starter in ['中', '\u{20000}'] {
+            let dict = DictMaxLen::build_from_pairs([
+                (starter.to_string(), "short".to_string()),
+                (starter.to_string().repeat(80), "long".to_string()),
+            ]);
+            assert_eq!(dict.starter_len_mask[&starter], 1);
+            assert!(dict.starter_allows_dict(starter, 1, 0));
+            assert!(!dict.starter_allows_dict(starter, 64, 63));
+            assert!(dict.starter_allows_dict(starter, 80, 63));
+            assert!(!dict.starter_allows_dict(starter, 81, 63));
+            assert!(!dict.starter_allows_dict('外', 80, 63));
+        }
+    }
+
+    #[test]
+    fn long_only_gate_uses_length_not_bucket_bit() {
+        for starter in ['中', '\u{20000}'] {
+            let dict = DictMaxLen::build_from_pairs([(
+                starter.to_string().repeat(65),
+                "long".to_string(),
+            )]);
+            assert!(!dict.starter_allows_dict(starter, 63, 62));
+            assert!(!dict.starter_allows_dict(starter, 64, 63));
+            assert!(dict.starter_allows_dict(starter, 65, 63));
+            assert!(!dict.starter_allows_dict(starter, 66, 63));
+        }
+    }
+}

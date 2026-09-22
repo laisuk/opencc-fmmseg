@@ -1,0 +1,419 @@
+   Compiling opencc-fmmseg v0.13.0 (D:\codes\Rust\opencc-fmmseg)
+   Compiling opencc-tool-common v0.13.0 (D:\codes\Rust\opencc-fmmseg\tools\opencc-tool-common)
+   Compiling opencc-fmmseg-capi v0.13.0 (D:\codes\Rust\opencc-fmmseg\capi\opencc-fmmseg-capi)
+   Compiling opencc-clip v0.13.0 (D:\codes\Rust\opencc-fmmseg\tools\opencc-clip)
+   Compiling dict-generate v0.13.0 (D:\codes\Rust\opencc-fmmseg\tools\dict-generate)
+   Compiling opencc-rs v0.13.0 (D:\codes\Rust\opencc-fmmseg\tools\opencc-rs)
+    Finished test [unoptimized + debuginfo] target(s) in 3.00s
+     Running unittests src\main.rs (target\debug\deps\dict_generate-c572ff4242c8aff4.exe)
+
+running 7 tests
+test tests::required_files_include_forward_regional_phrase_dictionaries ... ok
+test json_io::tests::json_export_derives_metadata_through_public_api ... ok
+test json_io::slim_json_tests::old_json_with_explicit_masks_remains_readable ... ok
+test json_io::tests::json_import_rebuilds_derived_metadata_from_pairs ... ok
+test json_io::slim_json_tests::single_scalar_json_omits_masks_and_preserves_string_keys ... ok
+test json_io::slim_json_tests::phrase_and_mixed_json_keep_exact_masks ... ok
+test json_io::slim_json_tests::existing_character_and_phrase_json_artifacts ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running unittests src\main.rs (target\debug\deps\opencc_clip-bdafad517cd74b2b.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\opencc_fmmseg-35c5035e2ad8ae32.exe)
+
+running 66 tests
+test detofu::tests::parses_supported_level_aliases ... ok
+test compat_ideographs::tests::rejects_source_outside_supported_ranges ... ok
+test compat_ideographs::tests::parses_custom_table ... ok
+test compat_ideographs::tests::rejects_multi_char_source_or_target ... ok
+test compat_ideographs::tests::unmapped_compat_ideographs_stay_self ... ok
+test compat_ideographs::tests::normalizes_in_place ... ok
+test compat_ideographs::tests::normalizes_bmp_compat_ideographs ... ok
+test compat_ideographs::tests::leaves_normal_text_unchanged ... ok
+test detofu::tests::direct_custom_pair_overrides_builtin_mapping ... ok
+test detofu::tests::direct_custom_pair_can_target_bmp_character ... ok
+test detofu::tests::plain_builtin_map_uses_shared_table ... ok
+test detofu::tests::builtin_detofu_preserves_bmp_text ... ok
+test detofu::tests::map_detofu_into_reuses_output_buffer ... ok
+test detofu::tests::builtin_detofu_replaces_known_mapping ... ok
+test detofu::tests::free_detofu_into_appends ... ok
+test dictionary_lib::dict_max_len::key_length_tests::long_only_gate_uses_length_not_bucket_bit ... ok
+test dictionary_lib::dict_max_len::serde_tests::old_cbor_preserves_supplied_starter_masks ... ok
+test dictionary_lib::dict_max_len::key_length_tests::mixed_short_long_pair_builder_and_candidate_gate ... ok
+test dictionary_lib::dict_max_len::serde_tests::mixed_cbor_preserves_exact_starter_masks ... ok
+test dictionary_lib::dict_max_len::tests::dense_starter_cap_preserves_long_keys ... ok
+test dictionary_lib::dict_max_len::serde_tests::single_scalar_cbor_omits_and_restores_starter_masks ... ok
+test dictionary_lib::dict_max_len::serde_tests::phrase_cbor_preserves_exact_starter_masks ... ok
+test dictionary_lib::dict_max_len::serde_tests::empty_and_legacy_missing_metadata_keep_defaults ... ok
+test ids::tests::test_ids_range_at_incomplete_ids_returns_none ... ok
+test ids::tests::test_ids_range_at_complete_ids_prefix_only_returns_ids_range ... ok
+test ids::tests::test_ids_range_at_inside_text ... ok
+test ids::tests::test_ids_range_at_non_ids_returns_none ... ok
+test ids::tests::test_ids_range_at_operator_alone_returns_none ... ok
+test ids::tests::test_ids_range_at_nested_ids ... ok
+test ids::tests::test_ids_range_at_simple_binary_ids ... ok
+test dictionary_lib::starter_union::tests::astral_mask_caps_match_key_scan_through_length_64 ... ok
+test ids::tests::test_ids_range_at_simple_ternary_ids ... ok
+test ids::tests::test_ids_range_at_unary_ids ... ok
+test dictionary_lib::starter_union::tests::build_preserves_long_astral_caps ... ok
+test ids::tests::test_is_complete_ids ... ok
+test opencc::seal_diagnostic::cold_and_diverse ... ignored, manual cold-build and dictionary-diversity diagnosis
+test opencc::seal_diagnostic::investigate ... ignored, manual release-only investigation
+test unicode_compat::tests::ascii_and_unmapped_text_stay_unchanged ... ok
+test unicode_compat::tests::compat_mapping_has_precedence_without_chained_remapping ... ok
+test unicode_compat::tests::duplicate_sources_are_last_wins ... ok
+test unicode_compat::tests::empty_table_is_valid ... ok
+test unicode_compat::tests::extended_normalization_does_not_apply_compat_ideographs ... ok
+test unicode_compat::tests::normalize_all_combines_compat_and_extended_tables ... ok
+test dictionary_lib::starter_union::tests::build_merges_mixed_lengths_and_long_caps_in_either_order ... ok
+test unicode_compat::tests::normalize_all_in_place_combines_both_tables ... ok
+test unicode_compat::tests::normalize_in_place_uses_extended_table_only ... ok
+test dictionary_lib::starter_union::tests::build_preserves_long_bmp_caps ... ok
+test unicode_compat::tests::rejects_multi_scalar_source_or_target ... ok
+test unicode_compat::tests::rejects_empty_source_or_target ... ok
+test unicode_compat::tests::parses_comments_blank_lines_and_pairs ... ok
+test unicode_compat::tests::rejects_ascii_source ... ok
+test unicode_compat::tests::rejects_missing_target ... ok
+test unicode_compat::tests::builtin_is_cached ... ok
+test unicode_compat::tests::rejects_too_many_columns ... ok
+test unicode_compat::tests::supports_astral_source_and_target_scalars ... ok
+test utils::key_length_tests::boundaries_and_short_fallbacks ... ok
+test utils::key_length_tests::early_match_stops_long_and_short_enumeration ... ok
+test dictionary_lib::dict_max_len::serde_tests::slim_deserialization_preserves_starter_union_after_population ... ok
+test dictionary_lib::starter_union::tests::long_key_pass_repairs_mixed_starters_without_an_exact_64_key ... ok
+test dictionary_lib::dictionary_maxlength::union_cache::seal_unions_cached ... ok
+test dictionary_lib::dictionary_maxlength::union_cache::seal_union_keys_distinct ... ok
+test dictionary_lib::dictionary_maxlength::union_cache::union_init_once_parallel ... ok
+test dictionary_lib::dictionary_maxlength::union_cache::union_clear_invalidate ... ok
+test dictionary_lib::dictionary_maxlength::union_cache::union_cached ... ok
+test dictionary_lib::dictionary_maxlength::union_cache::union_keys_distinct ... ok
+test dictionary_lib::dict_max_len::serde_tests::existing_artifact_slim_roundtrip_preserves_conversion_and_reduces_size ... ok
+
+test result: ok. 64 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+     Running tests\test_dictionary_maxlength_basic.rs (target\debug\deps\test_dictionary_maxlength_basic-9d8159d5e12869d5.exe)
+
+running 22 tests
+test test_dictionary_from_dicts_then_to_cbor ... ignored
+test test_dictionary_from_dicts_then_to_zstd ... ignored
+test test_save_and_load_compressed ... ignored
+test test_save_compressed ... ignored
+test test_to_dicts_writes_expected_txt_files ... ignored
+test old_cbor_without_forward_variant_phrase_fields_deserializes ... ok
+test from_dicts_at_missing_forward_variant_phrase_files_defaults_empty ... ok
+test test_from_dicts_custom_override_st_phrases_ai_company ... ok
+test test_from_dicts_custom_files_st_phrases_palantir ... ok
+test test_from_dicts_custom_append_tw_variants_phrases ... ok
+test test_from_dicts_custom_append_hk_phrases ... ok
+test test_from_dicts_custom_override_tw_variants_phrases ... ok
+test test_from_dicts_custom_append_hk_variants_phrases ... ok
+test test_from_dicts_custom_override_hk_phrases_rev ... ok
+test test_from_dicts_custom_override_hk_variants_phrases ... ok
+test test_from_dicts_custom_multiple_slots ... ok
+test test_from_dicts_custom_append_st_phrases_palantir ... ok
+test test_with_custom_dicts_multiple_slots ... ok
+test test_with_custom_dicts_override_st_phrases_only_custom_pairs_remain ... ok
+test test_with_custom_dicts_append_st_phrases_palantir ... ok
+test test_dictionary_from_zstd ... ok
+test test_with_custom_dict_files_multiple_files_later_wins ... ok
+
+test result: ok. 17 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+     Running tests\test_dictionay_maxlength_roundtrip.rs (target\debug\deps\test_dictionay_maxlength_roundtrip-709f0df9bc96f5f7.exe)
+
+running 2 tests
+test tests::roundtrip_internal_cbor_zstd ... ignored
+test tests::roundtrip_zstd_from_disk_and_count ... ignored
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\test_key_lengths.rs (target\debug\deps\test_key_lengths-0144f3f49cf6c39b.exe)
+
+running 5 tests
+test key_length_sparse_false_positive_does_not_hide_later_match ... ok
+test key_length_failed_long_candidate_falls_back_to_short_key ... ok
+test key_length_mixed_one_and_eighty_in_same_dictionary ... ok
+test key_length_long_match_in_either_dictionary_beats_short_match ... ok
+test key_length_exact_boundaries_and_dictionary_precedence ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests\test_opencc_basic.rs (target\debug\deps\test_opencc_basic-47b1210edebedc8d.exe)
+
+running 29 tests
+test dict_slot_names_roundtrip_and_case_insensitive_lookup_is_exhaustive ... ok
+test parses_canonical_jps_slots ... ok
+test rejects_removed_v0_11_4_japanese_slot_aliases ... ok
+test builtin_detofu_replaces_known_st_mappings ... ok
+test test_detofu_custom_pairs_later_wins ... ok
+test test_detofu_custom_pairs_support_bmp_characters ... ok
+test test_detofu_custom_pairs_override_builtin_mapping ... ok
+test test_detofu_map_with_custom_pairs ... ok
+test test_detofu_map_with_custom_pairs_overrides_builtin ... ok
+test hk_variant_phrases_apply_before_variant_chars ... ok
+test test_opencc_from_dictionary_custom_palantir ... ok
+test normalize_compat_extended_is_superset_of_basic_compat_golden ... ok
+test opencc_normalize_compat_extended_then_convert_golden ... ok
+test direct_conversion_clears_stale_last_error_on_success ... ok
+test opencc_normalize_compat_then_convert_golden ... ok
+test opencc_normalize_compat_extended_variant_forms_golden ... ok
+test test_opencc_s2t_detofu ... ok
+test test_opencc_detofu ... ok
+test detofu_with_custom_file_loads_user_mapping ... ok
+test convert_preserves_original_line_endings_in_serial_mode ... ok
+test opencc_normalize_compat_extended_golden ... ok
+test tw_variant_phrases_apply_before_variant_chars ... ok
+test test_opencc_t2s_detofu ... ok
+test opencc_normalize_unicode_compat_golden ... ok
+test convert_preserves_original_line_endings ... ok
+test test_opencc_detofu_with_custom_pairs ... ok
+test convert_clears_stale_last_error_on_success ... ok
+test test_opencc_t2s_detofu_into ... ok
+test test_opencc_t2s_detofu_preserves_unmapped_character ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+     Running tests\test_opencc_fmmseg.rs (target\debug\deps\test_opencc_fmmseg-dda2d2ca77c4876b.exe)
+
+running 32 tests
+test tests::delimiters_diff_test ... ok
+test tests::delimiters_duplicate_test ... ok
+test json_io::slim_json_tests::old_json_with_explicit_masks_remains_readable ... ok
+test json_io::tests::json_import_rebuilds_derived_metadata_from_pairs ... ok
+test json_io::tests::json_export_derives_metadata_through_public_api ... ok
+test json_io::slim_json_tests::single_scalar_json_omits_masks_and_preserves_string_keys ... ok
+test json_io::slim_json_tests::phrase_and_mixed_json_keep_exact_masks ... ok
+test tests::serialize_to_cbor_roundtrip ... ignored
+test tests::hk2sp_custom_phrase_round_test ... ok
+test tests::s2hkp_custom_phrase_round_test ... ok
+test tests::jp2t_test ... ok
+test tests::test_dictionary_from_dicts_then_to_cbor ... ignored
+test tests::test_dictionary_from_dicts_then_to_json ... ignored
+test tests::test_split_ranges_on_newline ... ok
+test tests::s2t_extended_test ... ok
+test tests::s2t_punct_not_parallel_test ... ok
+test tests::is_parallel_test ... ok
+test tests::all_direct_conversion_apis_honor_punctuation ... ok
+test tests::last_error_test ... ok
+test tests::config_conversion_apis_apply_punctuation_to_direct_t_configs ... ok
+test tests::t2jp_test ... ok
+test tests::s2t_punct_test ... ok
+test tests::s2twp_test ... ok
+test tests::s2t_test ... ok
+test tests::s2twp_combined_taiwan_round_test ... ok
+test tests::s2tw_test ... ok
+test tests::test_dictionary_from_dicts ... ok
+test tests::t2s_test ... ok
+test tests::tw2s_test ... ok
+test tests::zho_check_test ... ok
+test tests::tw2sp_test ... ok
+test json_io::slim_json_tests::existing_character_and_phrase_json_artifacts ... ok
+
+test result: ok. 29 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.86s
+
+     Running tests\test_opencc_ids.rs (target\debug\deps\test_opencc_ids-62e908ba67ec891b.exe)
+
+running 13 tests
+test test_keep_ids_preserves_unary_ids ... ok
+test test_keep_ids_preserves_simple_ids ... ok
+test test_preserve_ids_default_false ... ok
+test test_keep_ids_preserves_ma_character_decomposition ... ok
+test test_keep_ids_disabled_nested_ma_ids_converts_components ... ok
+test test_keep_ids_preserves_nested_ma_ids ... ok
+test test_set_get_preserve_ids ... ok
+test test_keep_ids_preserves_ternary_ids ... ok
+test test_incomplete_ids_not_special_cased ... ok
+test test_keep_ids_preserves_ids_inside_sentence ... ok
+test test_keep_ids_preserves_nested_ids ... ok
+test test_keep_ids_disabled_allows_normal_conversion_inside_ids ... ok
+test test_keep_ids_disabled_nested_ids_converts_components ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+     Running tests\test_opencc_seal.rs (target\debug\deps\test_opencc_seal-08561a1ea1a8deb7.exe)
+
+running 7 tests
+test s2seal ... ok
+test inspect_seal_segmentation_boundary ... ok
+test t2seal ... ok
+test inspect_seal_conversions ... ok
+test seal_round_trip_preserves_s2t_segmentation_boundaries ... ok
+test seal2s ... ok
+test seal2t ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests\test_public_api_paths.rs (target\debug\deps\test_public_api_paths-9fff013334f62598.exe)
+
+running 1 test
+test advanced_dictionary_types_are_available_from_the_crate_root ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src\lib.rs (target\debug\deps\opencc_fmmseg_capi-dffe1fbb16098179.exe)
+
+running 34 tests
+test tests::opencc_abi_number_is_non_zero_and_stable ... ok
+test tests::opencc_new_custom_rejects_invalid_mode ... ok
+test tests::opencc_new_custom_rejects_null_pairs_with_nonzero_count ... ok
+test tests::opencc_new_custom_rejects_invalid_slot ... ok
+test tests::test_id_to_name_success ... ok
+test tests::seal_custom_dict_slot_ids_are_stable ... ok
+test tests::test_config_helpers_invalid_inputs ... ok
+test tests::opencc_new_custom_rejects_null_specs_with_nonzero_count ... ok
+test tests::test_name_to_id_success ... ok
+test tests::opencc_version_string_is_valid_utf8_and_non_empty ... ok
+test tests::c_api_last_error_is_thread_local_and_clear_is_isolated ... ok
+test tests::test_opencc_convert_cfg_mem_len_size_query_and_write ... ok
+test tests::test_opencc_last_error_default ... ok
+test tests::test_opencc_convert ... ok
+test tests::test_opencc_last_error_roundtrip ... ok
+test tests::test_opencc_convert_cfg ... ok
+test tests::test_opencc_convert_cfg_mem_null_out_required_sets_last_error ... ok
+test tests::test_opencc_transform_null_argument_sets_last_error ... ok
+test tests::test_opencc_convert_cfg_mem_len_invalid_utf8 ... ok
+test tests::test_opencc_convert_len_no_null ... ok
+test tests::test_opencc_convert_len ... ok
+test tests::test_opencc_detofu_rejects_invalid_level ... ok
+test tests::test_opencc_convert_cfg_mem_len_null_out_required_sets_last_error ... ok
+test tests::test_opencc_detofu ... ok
+test tests::opencc_new_custom_copies_caller_strings ... ok
+test tests::opencc_new_custom_empty_matches_normal_constructor ... ok
+test tests::opencc_new_custom_applies_st_phrases ... ok
+test tests::test_opencc_invalid_config ... ok
+test tests::test_opencc_convert_cfg_len_no_null ... ok
+test tests::test_opencc_convert_cfg_len ... ok
+test tests::test_opencc_transform_invalid_utf8_sets_last_error ... ok
+test tests::test_opencc_normalize_compat_extended_then_t2s ... ok
+test tests::test_opencc_normalize_compat ... ok
+test tests::test_opencc_zho_check ... ok
+
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+
+     Running unittests src\main.rs (target\debug\deps\opencc_rs-d14bcc4a11282ca8.exe)
+
+running 19 tests
+test office_converter::converter::tests::test_convert_bytes_rejects_empty_input ... ok
+test tests::validation_rejects_same_input_and_output ... ok
+test tests::validation_rejects_invalid_encoding_and_output_paths ... ok
+test text_converter::tests::custom_text_converter_wraps_plain_closure ... ok
+test office_converter::converter::tests::test_convert_bytes_rejects_invalid_zip ... ok
+test tests::detofu_file_requires_existing_regular_file ... ok
+test office_converter::converter::tests::test_convert_bytes_rejects_unsupported_format ... ok
+test office_converter::converter::tests::test_convert_bytes_rejects_epub_without_mimetype ... ok
+test office_converter::converter::tests::test_convert_bytes_rejects_zip_with_no_target_fragments ... ok
+test tests::detofu_file_loads_custom_mapping ... ok
+test office_converter::converter::tests::test_convert_bytes_target_matching_is_case_insensitive ... ok
+test office_converter::converter::tests::test_convert_bytes_uses_text_converter ... ok
+test office_converter::converter::tests::test_convert_bytes_xlsx_inline_string_cells ... ok
+test office_converter::converter::tests::test_convert_bytes_xlsx_formula_untouched ... ok
+test office_converter::converter::tests::test_convert_bytes_pptx_extended_text_parts ... ok
+test text_converter::tests::opencc_pipeline_can_run_without_optional_stages ... ok
+test tests::convert_file_preserves_original_line_endings ... ok
+test text_converter::tests::opencc_pipeline_applies_normalize_convert_detofu ... ok
+test tests::text_converter_applies_normalize_convert_detofu_pipeline ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running unittests src\lib.rs (target\debug\deps\opencc_tool_common-1501180bc59d185b.exe)
+
+running 3 tests
+test tests::rejects_empty_custom_dictionary_paths ... ok
+test tests::rejects_physical_japanese_dictionary_filename_stems ... ok
+test tests::parses_custom_dict_slots_case_insensitively ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests opencc-fmmseg
+
+running 76 tests
+test src\dict_refs.rs - dict_refs::DictRefs (line 69) ... ignored
+test src\dict_refs.rs - dict_refs::DictRefs<'a>::apply_segment_replace (line 197) ... ignored
+test src\dict_refs.rs - dict_refs::DictRefs<'a>::new (line 105) ... ignored
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::DictMaxLen::ensure_starter_indexes (line 521) ... ignored
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::DictMaxLen::is_populated (line 702) ... ignored
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::DictMaxLen::populate_starter_indexes (line 586) ... ignored
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::DictMaxLen::starter_allows_dict (line 905) ... ignored
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::debug_note (line 44) ... ignored
+test src\dictionary_lib\dict_slot.rs - dictionary_lib::dict_slot::CustomDictFileSpec (line 436) - compile ... ok
+test src\detofu.rs - detofu::DetofuLevel::parse (line 69) ... ok
+test src\delimiter_set.rs - delimiter_set::DelimiterSet::contains (line 39) ... ok
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::DictMaxLen::default (line 1046) ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength (line 73) - compile ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength::from_dicts_at (line 804) - compile ... ok
+test src\detofu.rs - detofu::DetofuMap::builtin (line 217) ... ok
+test src\detofu.rs - detofu::DetofuMap::with_custom_pairs (line 276) ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength::from_dicts_custom_files (line 712) - compile ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength::from_dicts_custom_files (line 735) - compile ... ok
+test src\dictionary_lib\dict_slot.rs - dictionary_lib::dict_slot::DictSlot::canonical_name (line 249) ... ok
+test src\dictionary_lib\dict_slot.rs - dictionary_lib::dict_slot::DictSlot (line 153) ... ok
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len (line 14) ... ok
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::DictMaxLen::build_from_pairs (line 323) ... ok
+test src\detofu.rs - detofu::DetofuMap::detofu_into (line 315) ... ok
+test src\detofu.rs - detofu::DetofuMap (line 188) ... ok
+test src\detofu.rs - detofu::DetofuMap::detofu (line 368) ... ok
+test src\detofu.rs - detofu::DetofuMap::with_custom_pairs (line 287) ... ok
+test src\opencc.rs - opencc::OpenCC::convert_by_union_into (line 536) ... ignored
+test src\dictionary_lib\dict_slot.rs - dictionary_lib::dict_slot::DictSlot::from_name_ignore_ascii_case (line 297) ... ok
+test src\dictionary_lib\dict_max_len.rs - dictionary_lib::dict_max_len::DictMaxLen (line 90) ... ok
+test src\dictionary_lib\dict_slot.rs - dictionary_lib::dict_slot::CustomDictMode (line 332) ... ok
+test src\dictionary_lib\dict_slot.rs - dictionary_lib::dict_slot::CustomDictSpec (line 383) ... ok
+test src\lib.rs - opencc (line 125) ... ok
+test src\lib.rs - (line 69) ... ok
+test src\opencc.rs - opencc::OpenCC::detofu_with_custom_file (line 2339) - compile ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength::from_zstd (line 223) ... ok
+test src\lib.rs - (line 13) ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength::from_dicts_custom (line 654) ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength::from_dicts (line 386) ... ok
+test src\dictionary_lib\dictionary_maxlength.rs - dictionary_lib::dictionary_maxlength::DictionaryMaxlength::populate_all (line 423) ... ok
+test src\lib.rs - (line 79) ... ok
+test src\opencc.rs - opencc::OpenCC (line 2531) ... ok
+test src\opencc.rs - opencc::OpenCC::clear_last_error (line 2505) ... ok
+test src\opencc.rs - opencc::OpenCC::convert_with_config (line 1891) ... ok
+test src\opencc.rs - opencc::OpenCC::convert (line 1859) ... ok
+test src\opencc.rs - opencc::OpenCC::detofu_with_custom_pairs (line 2375) ... ok
+test src\opencc.rs - opencc::OpenCC::detofu (line 2253) ... ok
+test src\opencc.rs - opencc::OpenCC::from_cbor (line 170) ... ok
+test src\opencc.rs - opencc::OpenCC::get_last_error (line 2478) ... ok
+test src\opencc.rs - opencc::OpenCC::segment_replace_with_union (line 371) ... ignored
+test src\opencc.rs - opencc::OpenCC::detofu (line 2236) ... ok
+test src\opencc.rs - opencc::OpenCC::detofu (line 2264) ... ok
+test src\opencc.rs - opencc::OpenCC::detofu_into (line 2300) ... ok
+test src\opencc_config.rs - opencc_config::OpenccConfig::as_str (line 312) ... ok
+test src\opencc.rs - opencc::OpenCC::get_parallel (line 761) ... ok
+test src\opencc_config.rs - opencc_config::OpenccConfig::from_ffi (line 223) ... ok
+test src\opencc_config.rs - opencc_config::OpenccConfig::is_valid_config (line 410) ... ok
+test src\opencc.rs - opencc::OpenCC::from_dictionary (line 222) ... ok
+test src\opencc.rs - opencc::OpenCC::normalize_compat_extended (line 2128) ... ok
+test src\utils.rs - utils::find_max_utf8_len_bytes (line 146) ... ignored
+test src\utils.rs - utils::find_max_utf8_length (line 104) ... ignored
+test src\utils.rs - utils::for_each_len_dec (line 35) ... ignored
+test src\opencc_config.rs - opencc_config::OpenccConfig::as_str (line 321) ... ok
+test src\opencc.rs - opencc::OpenCC::new (line 112) ... ok
+test src\opencc_config.rs - opencc_config::OpenccConfig::is_valid_config_ffi (line 433) ... ok
+test src\opencc_config.rs - opencc_config::OpenccConfig::to_ffi (line 279) ... ok
+test src\opencc.rs - opencc::OpenCC::from_dicts (line 140) ... ok
+test src\opencc.rs - opencc::OpenCC::set_preserve_ids (line 822) ... ok
+test src\opencc.rs - opencc::OpenCC::normalize_compat (line 2081) ... ok
+test src\opencc.rs - opencc::OpenCC::normalize_compat (line 2090) ... ok
+test src\opencc.rs - opencc::OpenCC::normalize_compat_extended (line 2140) ... ok
+test src\opencc.rs - opencc::OpenCC::zho_check (line 2034) ... ok
+test src\opencc.rs - opencc::OpenCC::normalize_unicode_compat (line 2186) ... ok
+test src\opencc.rs - opencc::OpenCC::normalize_unicode_compat (line 2197) ... ok
+test src\opencc.rs - opencc::OpenCC::s2t (line 1068) ... ok
+test src\opencc.rs - opencc::OpenCC::normalize_compat_extended (line 2152) ... ok
+test src\opencc.rs - opencc::OpenCC::set_parallel (line 780) ... ok
+
+test result: ok. 63 passed; 0 failed; 13 ignored; 0 measured; 0 filtered out; finished in 32.89s
+
+   Doc-tests opencc-tool-common
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

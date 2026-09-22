@@ -13,25 +13,40 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Added Seal script conversion support based on the upstream OpenCC Seal dictionaries.
 - Added direct Rust conversion APIs for Seal workflows:
 
-  - `OpenCC::seal2s()` for Seal → Simplified Chinese.
-  - `OpenCC::seal2t()` for Seal → Traditional Chinese.
-  - `OpenCC::t2seal()` for Traditional Chinese → Seal.
+    - `OpenCC::seal2s()` for Seal → Simplified Chinese.
+    - `OpenCC::seal2t()` for Seal → Traditional Chinese.
+    - `OpenCC::s2seal()` for Simplified Chinese → Seal.
+    - `OpenCC::t2seal()` for Traditional Chinese → Seal.
 - Added strongly typed `OpenccConfig` variants and string-config dispatch for the new Seal conversions.
-- Added Seal dictionary slots to the public dictionary model, allowing Seal mappings to participate in the existing custom-dictionary append/override workflow.
-- Added cached starter unions for Seal conversion paths, reusing the existing `StarterUnion` / `UnionCache` architecture and avoiding per-conversion union construction.
+- Added Seal dictionary slots to the public dictionary model, allowing Seal mappings to participate in the existing
+  custom-dictionary append/override workflow.
+- Added cached starter unions for Seal conversion paths, reusing the existing `StarterUnion` / `UnionCache` architecture
+  and avoiding per-conversion union construction.
 - Added C API configuration constants and conversion support for the new Seal configs.
 - Added C API round-trip and regression coverage for Seal conversions.
-- Added Rust regression tests covering direct Seal conversion helpers, config dispatch, dictionary references, cached unions, and conversion round trips.
-- Added documentation for Seal conversion configs, public APIs, dictionary slots, CLI usage, and custom-dictionary integration.
+- Added Rust regression tests covering direct Seal conversion helpers, config dispatch, dictionary references, cached
+  unions, and conversion round trips.
+- Added documentation for Seal conversion configs, public APIs, dictionary slots, CLI usage, and custom-dictionary
+  integration.
 
 ### Changed
 
-- Extended the internal conversion-plan and dictionary-reference infrastructure to support Seal conversion while preserving the existing cached-union conversion path.
-- Reordered the new Seal configuration numbers into their final public ordering before release, keeping the Rust `OpenccConfig` values and C API configuration constants aligned.
-- Clarified the naming of internal Seal conversion helpers so conversion direction and intermediate conversion stages are explicit.
+- Optimized `StarterUnion` construction for astral starters by deriving per-starter caps directly from existing length
+  metadata instead of repeatedly rescanning dictionary keys. This removes a long-standing quadratic initialization cost
+  exposed by the large Seal character set and also benefits existing conversion paths with astral dictionary keys.
+- Corrected long custom-dictionary key handling at the 64-scalar boundary and above, including length enumeration,
+  multi-dictionary gating for BMP and astral starters, mixed short/long starter metadata, and debug validation. The
+  existing 255-scalar maximum remains unchanged.
+- Extended the internal conversion-plan and dictionary-reference infrastructure to support Seal conversion while
+  preserving the existing cached-union conversion path.
+- Reordered the new Seal configuration numbers into their final public ordering before release, keeping the Rust
+  `OpenccConfig` values and C API configuration constants aligned.
+- Clarified the naming of internal Seal conversion helpers so conversion direction and intermediate conversion stages
+  are explicit.
 - Updated bundled OpenCC dictionary data with the Seal dictionaries and regenerated the embedded dictionary artifact.
 - Updated CLI configuration parsing and help output to include the new Seal conversion configs.
-- Updated public documentation and examples to reflect Seal support across the Rust API, C API, CLI, and custom-dictionary system.
+- Updated public documentation and examples to reflect Seal support across the Rust API, C API, CLI, and
+  custom-dictionary system.
 
 ---
 
