@@ -7,3 +7,4 @@
 python/build/
 python/dist/
 python/opencc_fmmseg.egg-info/
+python/opencc_fmmseg/__pycache__/
