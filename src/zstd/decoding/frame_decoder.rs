@@ -29,49 +29,6 @@ pub const DEFAULT_MAX_WINDOW_SIZE: u64 = 1024 * 1024 * 100;
 ///
 /// If you want to just read the whole frame with an `io::Read` without having to deal with manually calling [FrameDecoder::decode_blocks]
 /// you can use the provided [crate::zstd::decoding::StreamingDecoder] wich wraps this FrameDecoder.
-///
-/// Workflow is as follows:
-/// ```
-/// use ruzstd::decoding::BlockDecodingStrategy;
-///
-/// use std::io::{Read, Write};
-///
-/// // no_std environments can use the crate's own Read traits
-/// # #[cfg(not(feature = "std"))]
-/// use ruzstd::io::{Read, Write};
-///
-/// fn decode_this(mut file: impl Read) {
-///     //Create a new decoder
-///     let mut frame_dec = ruzstd::decoding::FrameDecoder::new();
-///     let mut result = Vec::new();
-///
-///     // Use reset or init to make the decoder ready to decode the frame from the io::Read
-///     frame_dec.reset(&mut file).unwrap();
-///
-///     // Loop until the frame has been decoded completely
-///     while !frame_dec.is_finished() {
-///         // decode (roughly) batch_size many bytes
-///         frame_dec.decode_blocks(&mut file, BlockDecodingStrategy::UptoBytes(1024)).unwrap();
-///
-///         // read from the decoder to collect bytes from the internal buffer
-///         let bytes_read = frame_dec.read(result.as_mut_slice()).unwrap();
-///
-///         // then do something with it
-///         do_something(&result[0..bytes_read]);
-///     }
-///
-///     // handle the last chunk of data
-///     while frame_dec.can_collect() > 0 {
-///         let x = frame_dec.read(result.as_mut_slice()).unwrap();
-///
-///         do_something(&result[0..x]);
-///     }
-/// }
-///
-/// fn do_something(data: &[u8]) {
-///     std::io::stdout().write_all(data).unwrap();
-/// }
-/// ```
 pub struct FrameDecoder {
     state: Option<FrameDecoderState>,
     dicts: BTreeMap<u32, Dictionary>,

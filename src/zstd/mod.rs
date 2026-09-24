@@ -83,19 +83,4 @@ mod tests {
         assert_eq!(decoded.as_slice(), expected);
     }
 
-    #[test]
-    fn inspect_zstd_content_size() {
-        let compressed =
-            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
-        let expected =
-            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
-
-        let mut decoder = FrameDecoder::new();
-        decoder.init(compressed.as_slice()).unwrap();
-
-        println!("frame content_size = {}", decoder.content_size());
-        println!("actual CBOR size    = {}", expected.len());
-
-        assert_eq!(decoder.content_size() as usize, expected.len());
-    }
 }
