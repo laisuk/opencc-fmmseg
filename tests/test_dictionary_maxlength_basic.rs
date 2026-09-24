@@ -188,6 +188,8 @@ fn from_dicts_at_missing_forward_variant_phrase_files_defaults_empty() {
     fs::remove_dir_all(&dir).expect("temp dict dir should be removed");
 }
 
+
+#[cfg(feature = "dictionary-build")]
 #[test]
 #[ignore]
 fn test_save_compressed() {
@@ -208,6 +210,7 @@ fn test_save_compressed() {
     fs::remove_file(compressed_file).expect("Failed to remove test file");
 }
 
+#[cfg(feature = "dictionary-build")]
 #[test]
 #[ignore]
 fn test_save_and_load_compressed() {

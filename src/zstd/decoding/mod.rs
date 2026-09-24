@@ -3,7 +3,7 @@
 pub mod errors;
 mod frame_decoder;
 
-pub(crate) use frame_decoder::{FrameDecoder, DEFAULT_MAX_WINDOW_SIZE};
+pub(crate) use frame_decoder::{BlockDecodingStrategy, FrameDecoder};
 
 pub(crate) mod block_decoder;
 pub(crate) mod decode_buffer;

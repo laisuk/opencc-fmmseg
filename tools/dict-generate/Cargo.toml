@@ -4,7 +4,8 @@ version = "0.13.0"
 edition = "2021"
 
 [dependencies]
-opencc-fmmseg = { path = "../.." }
+#opencc-fmmseg = { path = "../.." }
+opencc-fmmseg = { path = "../..", features = ["dictionary-build"] }
 opencc-tool-common = { path = "../opencc-tool-common" }
 clap = "=4.5"
 serde = { version = "1.0", features = ["derive"] }

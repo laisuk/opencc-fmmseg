@@ -17,7 +17,8 @@ use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
-use zstd::{Decoder, Encoder};
+#[cfg(feature = "dictionary-build")]
+use zstd::{Encoder};
 
 use crate::dictionary_lib::{DictMaxLen, DictSlot};
 use crate::{CustomDictFileSpec, CustomDictMode, CustomDictSpec};
@@ -244,34 +245,16 @@ impl DictionaryMaxlength {
     //
     //     Ok(dictionary.finish())
     // }
-    // pub fn from_zstd() -> Result<Self, DictionaryError> {
-    //     let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
-    //
-    //     let decompressed = crate::zstd::decompress(compressed_data).map_err(|err| {
-    //         DictionaryError::IoError(io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-    //     })?;
-    //
-    //     let dictionary: DictionaryMaxlength =
-    //         from_slice(&decompressed).map_err(DictionaryError::CborParseError)?;
-    //
-    //     Ok(dictionary.finish())
-    // }
     pub fn from_zstd() -> Result<Self, DictionaryError> {
-        const DICTIONARY_CBOR_SIZE: usize = 1_686_704;
-
         let compressed_data =
             include_bytes!("dicts/dictionary_maxlength.zstd");
 
-        let decompressed = crate::zstd::decompress_exact(
-            compressed_data,
-            DICTIONARY_CBOR_SIZE,
-        )
-            .map_err(|err| {
-                DictionaryError::IoError(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    err.to_string(),
-                ))
-            })?;
+        let decompressed = crate::zstd::decompress(compressed_data).map_err(|err| {
+            DictionaryError::IoError(io::Error::new(
+                io::ErrorKind::InvalidData,
+                err.to_string(),
+            ))
+        })?;
 
         let dictionary: DictionaryMaxlength =
             from_slice(&decompressed)
@@ -1301,6 +1284,7 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// The dictionary is written **as-is** without calling [`finish`](Self::finish),
     /// assuming it is already in a finalized state.
+    #[cfg(feature = "dictionary-build")]
     pub fn save_cbor_compressed(
         dictionary: &DictionaryMaxlength,
         path: &str,

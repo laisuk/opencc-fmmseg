@@ -19,7 +19,7 @@ mod huff0;
 mod io;
 
 pub(crate) use decoding::errors::FrameDecoderError;
-pub(crate) use decoding::FrameDecoder;
+pub(crate) use decoding::{BlockDecodingStrategy, FrameDecoder};
 
 /// Decompress Zstandard data into a caller-provided output buffer.
 ///
@@ -49,20 +49,32 @@ pub(crate) fn decompress_exact(
     Ok(output)
 }
 
+/// Decompress Zstandard data without requiring a known uncompressed size.
+///
+/// This path decodes incrementally and collects output while preserving the
+/// history window required for Zstandard backreferences. It is suitable for
+/// external or generated frames that do not declare a frame content size.
 pub(crate) fn decompress(
     input: &[u8],
 ) -> Result<Vec<u8>, FrameDecoderError> {
     let mut decoder = FrameDecoder::new();
-    decoder.init(input)?;
+    let mut source = input;
 
-    let expected_size = usize::try_from(decoder.content_size())
-        .map_err(|_| FrameDecoderError::TargetTooSmall)?;
+    // init() consumes the frame header from `source`.
+    decoder.init(&mut source)?;
 
-    let mut output = vec![0u8; expected_size];
+    let mut output = Vec::new();
 
-    // decode_all() initializes again, unfortunately.
-    let written = decoder.decode_all(input, &mut output)?;
-    output.truncate(written);
+    while !decoder.is_finished() {
+        decoder.decode_blocks(
+            &mut source,
+            BlockDecodingStrategy::UptoBytes(1024 * 1024),
+        )?;
+
+        if let Some(chunk) = decoder.collect() {
+            output.extend_from_slice(&chunk);
+        }
+    }
 
     Ok(output)
 }
@@ -72,9 +84,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn decompress_matches_original() {
-        let compressed = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
-        let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
+    fn decompress_exact_matches_original() {
+        let compressed =
+            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
+        let expected =
+            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
 
         let decoded =
             decompress_exact(compressed, expected.len())
@@ -83,4 +97,17 @@ mod tests {
         assert_eq!(decoded.as_slice(), expected);
     }
 
+    #[test]
+    fn decompress_unknown_size_matches_original() {
+        let compressed =
+            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
+        let expected =
+            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
+
+        let decoded =
+            decompress(compressed)
+                .expect("zstd decompression failed");
+
+        assert_eq!(decoded.as_slice(), expected);
+    }
 }
