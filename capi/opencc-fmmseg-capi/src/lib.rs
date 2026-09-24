@@ -638,8 +638,8 @@ fn free_c_string(ptr: *mut c_char) {
 /// Small Seal Script config IDs:
 /// - `21` (`s2seal`): Simplified Chinese → Small Seal Script.
 /// - `22` (`t2seal`): Traditional Chinese → Small Seal Script.
-/// - `23` (`seal2s`): Small Seal Script → Traditional Chinese.
-/// - `24` (`seal2t`): Small Seal Script → Simplified Chinese.
+/// - `23` (`seal2s`): Small Seal Script → Simplified Chinese.
+/// - `24` (`seal2t`): Small Seal Script → Traditional Chinese.
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
@@ -670,8 +670,8 @@ pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mu
 /// Returns a pointer to a static NUL-terminated UTF-8 string,
 /// or NULL if the id is invalid.
 ///
-/// Small Seal Script IDs `21`–`24` return `s2seal`, `t2seal`, `seal2t`, and
-/// `seal2s`, respectively; see [`opencc_config_name_to_id`] for directions.
+/// Small Seal Script IDs `21`–`24` return `s2seal`, `t2seal`, `seal2s`, and
+/// `seal2t`, respectively; see [`opencc_config_name_to_id`] for directions.
 ///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
