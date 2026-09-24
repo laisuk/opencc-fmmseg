@@ -121,6 +121,7 @@ mod opencc_config;
 mod unicode_compat;
 /// Common helpers for opencc-fmmseg.
 mod utils;
+mod zstd;
 
 // Text utilities
 pub use crate::delimiter_set::is_delimiter;
