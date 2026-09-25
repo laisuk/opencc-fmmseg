@@ -44,6 +44,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Clarified the naming of internal Seal conversion helpers so conversion direction and intermediate conversion stages
   are explicit.
 - Updated bundled OpenCC dictionary data with the Seal dictionaries and regenerated the embedded dictionary artifact.
+- Replaced the native Zstandard runtime dependency for embedded dictionary loading with a specialized pure-Rust decoder
+  adapted from `ruzstd`.
+- Trimmed the internal Zstandard decoder to the functionality required by OpenCC, while preserving compatibility with
+  legacy frames without a frame content size (FCS). When FCS is available, it is used for bounded output preallocation,
+  and decoded data is drained directly into the final buffer to reduce allocation and copying.
+- Kept the native `zstd` dependency optional under the `dictionary-build` feature for dictionary generation. Newly
+  generated embedded Zstandard artifacts now include FCS metadata.
 - Updated CLI configuration parsing and help output to include the new Seal conversion configs.
 - Updated public documentation and examples to reflect Seal support across the Rust API, C API, CLI, and
   custom-dictionary system.
