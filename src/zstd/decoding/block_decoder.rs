@@ -13,7 +13,7 @@ use crate::zstd::decoding::errors::{
 };
 use crate::zstd::decoding::scratch::DecoderScratch;
 use crate::zstd::decoding::sequence_execution::execute_sequences;
-use crate::zstd::io::Read;
+use std::io::Read;
 
 pub struct BlockDecoder {
     header_buffer: [u8; 3],
@@ -23,8 +23,6 @@ pub struct BlockDecoder {
 enum DecoderState {
     ReadyToDecodeNextHeader,
     ReadyToDecodeNextBody,
-    #[allow(dead_code)]
-    Failed, //TODO put "self.internal_state = DecoderState::Failed;" everywhere an unresolvable error occurs
 }
 
 /// Create a new [BlockDecoder].
@@ -44,7 +42,6 @@ impl BlockDecoder {
     ) -> Result<u64, DecodeBlockContentError> {
         match self.internal_state {
             DecoderState::ReadyToDecodeNextBody => { /* Happy :) */ }
-            DecoderState::Failed => return Err(DecodeBlockContentError::DecoderStateIsFailed),
             DecoderState::ReadyToDecodeNextHeader => {
                 return Err(DecodeBlockContentError::ExpectedHeaderOfPreviousBlock)
             }
@@ -110,12 +107,6 @@ impl BlockDecoder {
         let mut section = LiteralsSection::new();
         let bytes_in_literals_header = section.parse_from_header(raw)?;
         let raw = &raw[bytes_in_literals_header as usize..];
-        vprintln!(
-            "Found {} literalssection with regenerated size: {}, and compressed size: {:?}",
-            section.ls_type,
-            section.regenerated_size,
-            section.compressed_size
-        );
 
         let upper_limit_for_literals = match section.compressed_size {
             Some(x) => x as usize,
@@ -134,7 +125,6 @@ impl BlockDecoder {
         }
 
         let raw_literals = &raw[..upper_limit_for_literals];
-        vprintln!("Slice for literals: {}", raw_literals.len());
 
         workspace.literals_buffer.clear(); //all literals of the previous block must have been used in the sequence execution anyways. just be defensive here
         let bytes_used_in_literals_section = decode_literals(
@@ -152,16 +142,10 @@ impl BlockDecoder {
         assert!(bytes_used_in_literals_section == upper_limit_for_literals as u32);
 
         let raw = &raw[upper_limit_for_literals..];
-        vprintln!("Slice for sequences with headers: {}", raw.len());
 
         let mut seq_section = SequencesHeader::new();
         let bytes_in_sequence_header = seq_section.parse_from_header(raw)?;
         let raw = &raw[bytes_in_sequence_header as usize..];
-        vprintln!(
-            "Found sequencessection with sequences: {} and size: {}",
-            seq_section.num_sequences,
-            raw.len()
-        );
 
         assert!(
             u32::from(bytes_in_literals_header)
@@ -170,7 +154,6 @@ impl BlockDecoder {
                 + raw.len() as u32
                 == header.content_size
         );
-        vprintln!("Slice for sequences: {}", raw.len());
 
         if seq_section.num_sequences != 0 {
             decode_sequences(
@@ -179,7 +162,6 @@ impl BlockDecoder {
                 &mut workspace.fse,
                 &mut workspace.sequences,
             )?;
-            vprintln!("Executing sequences");
             execute_sequences(workspace)?;
         } else {
             if !raw.is_empty() {
@@ -202,11 +184,6 @@ impl BlockDecoder {
         &mut self,
         mut r: impl Read,
     ) -> Result<(BlockHeader, u8), BlockHeaderReadError> {
-        //match self.internal_state {
-        //    DecoderState::ReadyToDecodeNextHeader => {/* Happy :) */},
-        //    DecoderState::Failed => return Err(format!("Cant decode next block if failed along the way. Results will be nonsense")),
-        //    DecoderState::ReadyToDecodeNextBody => return Err(format!("Cant decode next block header, while expecting to decode the body of the previous block. Results will be nonsense")),
-        //}
 
         r.read_exact(&mut self.header_buffer[0..3])?;
 

@@ -9,13 +9,10 @@ Version used: 0.9.0
 License: MIT (see `LICENSE-RUZSTD`)
 
 OpenCC adaptation:
-- removed all encoder modules;
-- removed `StreamingDecoder`;
-- removed dictionary-building, fuzz, benchmark, and test-only encoder helpers;
-- removed no_std abstraction because opencc-fmmseg uses std;
-- adjusted internal `crate::...` paths for nesting under `crate::zstd`;
-- exposes a small `decompress_into()` entry point around `FrameDecoder::decode_all()`.
+- removed encoders, StreamingDecoder, dictionary building and decoding-dictionary APIs;
+- removed no_std, writer and unused upstream compatibility APIs;
+- removed unused alternative ring-buffer implementations, retaining the active algorithms;
+- adjusted internal paths for nesting under `crate::zstd`;
+- retained crate-private `decompress()`, `decompress_into()`, and `decompress_exact()`.
 
-The Zstandard *decoding dictionary* implementation remains because it is part
-of FrameDecoder's supported frame machinery; the unrelated dictionary-builder
-module is not included.
+See README.md for retained behavior and the dependency audit.

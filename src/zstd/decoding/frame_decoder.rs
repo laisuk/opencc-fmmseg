@@ -6,19 +6,15 @@
 
 use super::frame;
 use crate::zstd::decoding;
-use crate::zstd::decoding::dictionary::Dictionary;
 use crate::zstd::decoding::errors::FrameDecoderError;
 use crate::zstd::decoding::scratch::DecoderScratch;
-use crate::zstd::io::{Error, Read, Write};
-use std::collections::BTreeMap;
+use std::io::{Error, Read};
 use std::vec::Vec;
-use core::convert::TryInto;
 
 /// The default maximum window size, in bytes, that a [FrameDecoder] accepts.
 ///
 /// Defaults to 100mb to bound allocation for malformed or hostile frames. The
-/// spec permits far larger windows, so raise the limit with
-/// [FrameDecoder::set_max_window_size] for input you trust.
+/// spec permits far larger windows; this internal decoder keeps a fixed limit.
 pub const DEFAULT_MAX_WINDOW_SIZE: u64 = 1024 * 1024 * 100;
 
 /// Low level Zstandard decoder that can be used to decompress frames with fine control over when and how many bytes are decoded.
@@ -26,28 +22,18 @@ pub const DEFAULT_MAX_WINDOW_SIZE: u64 = 1024 * 1024 * 100;
 /// This decoder is able to decode frames only partially and gives control
 /// over how many bytes/blocks will be decoded at a time (so you don't have to decode a 10GB file into memory all at once).
 /// It reads bytes as needed from a provided source and can be read from to collect partial results.
-///
-/// If you want to just read the whole frame with an `io::Read` without having to deal with manually calling [FrameDecoder::decode_blocks]
-/// you can use the provided [crate::zstd::decoding::StreamingDecoder] wich wraps this FrameDecoder.
 pub struct FrameDecoder {
     state: Option<FrameDecoderState>,
-    dicts: BTreeMap<u32, Dictionary>,
-    max_window_size: u64,
 }
 
 struct FrameDecoderState {
     pub frame_header: frame::FrameHeader,
     decoder_scratch: DecoderScratch,
     frame_finished: bool,
-    block_counter: usize,
-    bytes_read_counter: u64,
     check_sum: Option<u32>,
-    using_dict: Option<u32>,
 }
 
 pub enum BlockDecodingStrategy {
-    All,
-    UptoBlocks(usize),
     UptoBytes(usize),
 }
 
@@ -56,32 +42,26 @@ impl FrameDecoderState {
         source: impl Read,
         max_window_size: u64,
     ) -> Result<FrameDecoderState, FrameDecoderError> {
-        let (frame, header_size) = frame::read_frame_header(source)?;
+        let (frame, _) = frame::read_frame_header(source)?;
         let window_size = frame.window_size()?;
         Self::check_window_size(window_size, max_window_size)?;
         Ok(FrameDecoderState {
             frame_header: frame,
             frame_finished: false,
-            block_counter: 0,
             decoder_scratch: DecoderScratch::new(window_size as usize),
-            bytes_read_counter: u64::from(header_size),
             check_sum: None,
-            using_dict: None,
         })
     }
 
     fn reset(&mut self, source: impl Read, max_window_size: u64) -> Result<(), FrameDecoderError> {
-        let (frame_header, header_size) = frame::read_frame_header(source)?;
+        let (frame_header, _) = frame::read_frame_header(source)?;
         let window_size = frame_header.window_size()?;
         Self::check_window_size(window_size, max_window_size)?;
 
         self.frame_header = frame_header;
         self.frame_finished = false;
-        self.block_counter = 0;
         self.decoder_scratch.reset(window_size as usize);
-        self.bytes_read_counter = u64::from(header_size);
         self.check_sum = None;
-        self.using_dict = None;
         Ok(())
     }
 
@@ -97,137 +77,35 @@ impl FrameDecoderState {
     }
 }
 
-impl Default for FrameDecoder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FrameDecoder {
     /// This will create a new decoder without allocating anything yet.
-    /// init()/reset() will allocate all needed buffers if it is the first time this decoder is used
+    /// init() will allocate all needed buffers if it is the first time this decoder is used
     /// else they just reset these buffers with not further allocations
     pub fn new() -> FrameDecoder {
-        FrameDecoder {
-            state: None,
-            dicts: BTreeMap::new(),
-            max_window_size: DEFAULT_MAX_WINDOW_SIZE,
-        }
-    }
-
-    /// Sets the maximum window size, in bytes, this decoder accepts. Frames
-    /// declaring a larger window are rejected with
-    /// [FrameDecoderError::WindowSizeTooBig].
-    ///
-    /// The default ([DEFAULT_MAX_WINDOW_SIZE], 100mb) bounds allocation for
-    /// untrusted input. Raising it reintroduces that large-allocation risk, so
-    /// only do so for sources you trust. Mirrors `ZSTD_d_windowLogMax` in libzstd.
-    ///
-    /// Clamped to the spec's maximum window size.
-    pub fn set_max_window_size(&mut self, max_window_size: u64) {
-        self.max_window_size = max_window_size.min(crate::zstd::common::MAX_WINDOW_SIZE);
-    }
-
-    /// Returns the current maximum accepted window size in bytes.
-    pub fn max_window_size(&self) -> u64 {
-        self.max_window_size
+        FrameDecoder { state: None }
     }
 
     /// init() will allocate all needed buffers if it is the first time this decoder is used
     /// else they just reset these buffers with not further allocations
     ///
-    /// Note that all bytes currently in the decodebuffer from any previous frame will be lost. Collect them with collect()/collect_to_writer()
-    ///
-    /// equivalent to reset()
+    /// Note that all bytes currently in the decodebuffer from any previous frame will be lost. Collect them with collect()
     pub fn init(&mut self, source: impl Read) -> Result<(), FrameDecoderError> {
-        self.reset(source)
-    }
-
-    /// reset() will allocate all needed buffers if it is the first time this decoder is used
-    /// else they just reset these buffers with not further allocations
-    ///
-    /// Note that all bytes currently in the decodebuffer from any previous frame will be lost. Collect them with collect()/collect_to_writer()
-    ///
-    /// equivalent to init()
-    pub fn reset(&mut self, source: impl Read) -> Result<(), FrameDecoderError> {
         use FrameDecoderError as err;
         let state = match &mut self.state {
             Some(s) => {
-                s.reset(source, self.max_window_size)?;
+                s.reset(source, DEFAULT_MAX_WINDOW_SIZE)?;
                 s
             }
             None => {
-                self.state = Some(FrameDecoderState::new(source, self.max_window_size)?);
+                self.state = Some(FrameDecoderState::new(source, DEFAULT_MAX_WINDOW_SIZE)?);
                 self.state.as_mut().unwrap()
             }
         };
         if let Some(dict_id) = state.frame_header.dictionary_id() {
-            let dict = self
-                .dicts
-                .get(&dict_id)
-                .ok_or(err::DictNotProvided { dict_id })?;
-            state.decoder_scratch.init_from_dict(dict);
-            state.using_dict = Some(dict_id);
+            // The entry points never provide a Zstandard decoding dictionary.
+            return Err(err::DictNotProvided { dict_id });
         }
         Ok(())
-    }
-
-    /// Add a dict to the FrameDecoder that can be used when needed. The FrameDecoder uses the appropriate one dynamically
-    pub fn add_dict(&mut self, dict: Dictionary) -> Result<(), FrameDecoderError> {
-        self.dicts.insert(dict.id, dict);
-        Ok(())
-    }
-
-    pub fn force_dict(&mut self, dict_id: u32) -> Result<(), FrameDecoderError> {
-        use FrameDecoderError as err;
-        let Some(state) = self.state.as_mut() else {
-            return Err(err::NotYetInitialized);
-        };
-
-        let dict = self
-            .dicts
-            .get(&dict_id)
-            .ok_or(err::DictNotProvided { dict_id })?;
-        state.decoder_scratch.init_from_dict(dict);
-        state.using_dict = Some(dict_id);
-
-        Ok(())
-    }
-
-    /// Returns how many bytes the frame contains after decompression
-    pub fn content_size(&self) -> u64 {
-        match &self.state {
-            None => 0,
-            Some(s) => s.frame_header.frame_content_size(),
-        }
-    }
-
-    /// Returns the checksum that was read from the data. Only available after all bytes have been read. It is the last 4 bytes of a zstd-frame
-    pub fn get_checksum_from_data(&self) -> Option<u32> {
-        let state = self.state.as_ref()?;
-
-        state.check_sum
-    }
-
-    /// Returns the checksum that was calculated while decoding.
-    /// Only a sensible value after all decoded bytes have been collected/read from the FrameDecoder
-    #[cfg(feature = "hash")]
-    pub fn get_calculated_checksum(&self) -> Option<u32> {
-        use core::hash::Hasher;
-
-        let state = self.state.as_ref()?;
-        let cksum_64bit = state.decoder_scratch.buffer.hash.finish();
-        //truncate to lower 32bit because reasons...
-        Some(cksum_64bit as u32)
-    }
-
-    /// Counter for how many bytes have been consumed while decoding the frame
-    pub fn bytes_read_from_source(&self) -> u64 {
-        let state = match &self.state {
-            None => return 0,
-            Some(s) => s,
-        };
-        state.bytes_read_counter
     }
 
     /// Whether the current frames last block has been decoded yet
@@ -245,19 +123,9 @@ impl FrameDecoder {
         }
     }
 
-    /// Counter for how many blocks have already been decoded
-    pub fn blocks_decoded(&self) -> usize {
-        let state = match &self.state {
-            None => return 0,
-            Some(s) => s,
-        };
-        state.block_counter
-    }
-
     /// Decodes blocks from a reader. It requires that the framedecoder has been initialized first.
     /// The Strategy influences how many blocks will be decoded before the function returns
-    /// This is important if you want to manage memory consumption carefully. If you don't care
-    /// about that you can just choose the strategy "All" and have all blocks of the frame decoded into the buffer
+    /// The byte target bounds how much output is decoded per call.
     pub fn decode_blocks(
         &mut self,
         mut source: impl Read,
@@ -269,32 +137,16 @@ impl FrameDecoder {
         let mut block_dec = decoding::block_decoder::new();
 
         let buffer_size_before = state.decoder_scratch.buffer.len();
-        let block_counter_before = state.block_counter;
         loop {
-            vprintln!("################");
-            vprintln!("Next Block: {}", state.block_counter);
-            vprintln!("################");
-            let (block_header, block_header_size) = block_dec
+            let (block_header, _) = block_dec
                 .read_block_header(&mut source)
                 .map_err(err::FailedToReadBlockHeader)?;
-            state.bytes_read_counter += u64::from(block_header_size);
 
-            vprintln!();
-            vprintln!(
-                "Found {} block with size: {}, which will be of size: {}",
-                block_header.block_type,
-                block_header.content_size,
-                block_header.decompressed_size
-            );
 
-            let bytes_read_in_block_body = block_dec
+            block_dec
                 .decode_block_content(&block_header, &mut state.decoder_scratch, &mut source)
                 .map_err(err::FailedToReadBlockBody)?;
-            state.bytes_read_counter += bytes_read_in_block_body;
 
-            state.block_counter += 1;
-
-            vprintln!("Output: {}", state.decoder_scratch.buffer.len());
 
             if block_header.last_block {
                 state.frame_finished = true;
@@ -303,7 +155,6 @@ impl FrameDecoder {
                     source
                         .read_exact(&mut chksum)
                         .map_err(err::FailedToReadChecksum)?;
-                    state.bytes_read_counter += 4;
                     let chksum = u32::from_le_bytes(chksum);
                     state.check_sum = Some(chksum);
                 }
@@ -311,12 +162,6 @@ impl FrameDecoder {
             }
 
             match strat {
-                BlockDecodingStrategy::All => { /* keep going */ }
-                BlockDecodingStrategy::UptoBlocks(n) => {
-                    if state.block_counter - block_counter_before >= n {
-                        break;
-                    }
-                }
                 BlockDecodingStrategy::UptoBytes(n) => {
                     if state.decoder_scratch.buffer.len() - buffer_size_before >= n {
                         break;
@@ -340,21 +185,6 @@ impl FrameDecoder {
         }
     }
 
-    /// Collect bytes and retain window_size bytes while decoding is still going on.
-    /// After decoding of the frame (is_finished() == true) has finished it will collect all remaining bytes
-    pub fn collect_to_writer(&mut self, w: impl Write) -> Result<usize, Error> {
-        let finished = self.is_finished();
-        let state = match &mut self.state {
-            None => return Ok(0),
-            Some(s) => s,
-        };
-        if finished {
-            state.decoder_scratch.buffer.drain_to_writer(w)
-        } else {
-            state.decoder_scratch.buffer.drain_to_window_size_writer(w)
-        }
-    }
-
     /// How many bytes can currently be collected from the decodebuffer, while decoding is going on this will be lower than the actual decodbuffer size
     /// because window_size bytes need to be retained for decoding.
     /// After decoding of the frame (is_finished() == true) has finished it will report all remaining bytes
@@ -373,111 +203,6 @@ impl FrameDecoder {
                 .can_drain_to_window_size()
                 .unwrap_or(0)
         }
-    }
-
-    /// Decodes as many blocks as possible from the source slice and reads from the decodebuffer into the target slice
-    /// The source slice may contain only parts of a frame but must contain at least one full block to make progress
-    ///
-    /// By all means use decode_blocks if you have a io.Reader available. This is just for compatibility with other decompressors
-    /// which try to serve an old-style c api
-    ///
-    /// Returns (read, written), if read == 0 then the source did not contain a full block and further calls with the same
-    /// input will not make any progress!
-    ///
-    /// Note that no kind of block can be bigger than 128kb.
-    /// So to be safe use at least 128*1024 (max block content size) + 3 (block_header size) + 18 (max frame_header size) bytes as your source buffer
-    ///
-    /// You may call this function with an empty source after all bytes have been decoded. This is equivalent to just call decoder.read(&mut target)
-    pub fn decode_from_to(
-        &mut self,
-        source: &[u8],
-        target: &mut [u8],
-    ) -> Result<(usize, usize), FrameDecoderError> {
-        use FrameDecoderError as err;
-        let bytes_read_at_start = match &self.state {
-            Some(s) => s.bytes_read_counter,
-            None => 0,
-        };
-
-        if !self.is_finished() || self.state.is_none() {
-            let mut mt_source = source;
-
-            if self.state.is_none() {
-                self.init(&mut mt_source)?;
-            }
-
-            //pseudo block to scope "state" so we can borrow self again after the block
-            {
-                let state = match &mut self.state {
-                    Some(s) => s,
-                    None => panic!("Bug in library"),
-                };
-                let mut block_dec = decoding::block_decoder::new();
-
-                if state.frame_header.descriptor.content_checksum_flag()
-                    && state.frame_finished
-                    && state.check_sum.is_none()
-                {
-                    //this block is needed if the checksum were the only 4 bytes that were not included in the last decode_from_to call for a frame
-                    if mt_source.len() >= 4 {
-                        let chksum = mt_source[..4].try_into().expect("optimized away");
-                        state.bytes_read_counter += 4;
-                        let chksum = u32::from_le_bytes(chksum);
-                        state.check_sum = Some(chksum);
-                    }
-                    return Ok((4, 0));
-                }
-
-                loop {
-                    //check if there are enough bytes for the next header
-                    if mt_source.len() < 3 {
-                        break;
-                    }
-                    let (block_header, block_header_size) = block_dec
-                        .read_block_header(&mut mt_source)
-                        .map_err(err::FailedToReadBlockHeader)?;
-
-                    // check the needed size for the block before updating counters.
-                    // If not enough bytes are in the source, the header will have to be read again, so act like we never read it in the first place
-                    if mt_source.len() < block_header.content_size as usize {
-                        break;
-                    }
-                    state.bytes_read_counter += u64::from(block_header_size);
-
-                    let bytes_read_in_block_body = block_dec
-                        .decode_block_content(
-                            &block_header,
-                            &mut state.decoder_scratch,
-                            &mut mt_source,
-                        )
-                        .map_err(err::FailedToReadBlockBody)?;
-                    state.bytes_read_counter += bytes_read_in_block_body;
-                    state.block_counter += 1;
-
-                    if block_header.last_block {
-                        state.frame_finished = true;
-                        if state.frame_header.descriptor.content_checksum_flag() {
-                            //if there are enough bytes handle this here. Else the block at the start of this function will handle it at the next call
-                            if mt_source.len() >= 4 {
-                                let chksum = mt_source[..4].try_into().expect("optimized away");
-                                state.bytes_read_counter += 4;
-                                let chksum = u32::from_le_bytes(chksum);
-                                state.check_sum = Some(chksum);
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        let result_len = self.read(target).map_err(err::FailedToDrainDecodebuffer)?;
-        let bytes_read_at_end = match &mut self.state {
-            Some(s) => s.bytes_read_counter,
-            None => panic!("Bug in library"),
-        };
-        let read_len = bytes_read_at_end - bytes_read_at_start;
-        Ok((read_len as usize, result_len))
     }
 
     /// Decode multiple frames into the output slice.
@@ -526,39 +251,6 @@ impl FrameDecoder {
         }
 
         Ok(total_bytes_written)
-    }
-
-    /// Decode multiple frames into the extra capacity of the output vector.
-    ///
-    /// `input` must contain an exact number of frames.
-    ///
-    /// `output` must have enough extra capacity to hold the decompressed data.
-    /// This function will not reallocate or grow the vector. If you don't know
-    /// how large the output will be, use [`FrameDecoder::decode_blocks`] instead.
-    ///
-    /// This calls [`FrameDecoder::init`], and all bytes currently in the decoder will be lost.
-    ///
-    /// The length of the output vector is updated to include the decompressed data.
-    /// The length is not changed if an error occurs.
-    pub fn decode_all_to_vec(
-        &mut self,
-        input: &[u8],
-        output: &mut Vec<u8>,
-    ) -> Result<(), FrameDecoderError> {
-        let len = output.len();
-        let cap = output.capacity();
-        output.resize(cap, 0);
-        match self.decode_all(input, &mut output[len..]) {
-            Ok(bytes_written) => {
-                let new_len = core::cmp::min(len + bytes_written, cap); // Sanitizes `bytes_written`.
-                output.resize(new_len, 0);
-                Ok(())
-            }
-            Err(e) => {
-                output.resize(len, 0);
-                Err(e)
-            }
-        }
     }
 }
 

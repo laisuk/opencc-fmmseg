@@ -1,48 +1,51 @@
-# OpenCC decoder-only Zstd module (experiment)
+# Internal Zstandard decoder
 
-This is a decoder-only adaptation of **ruzstd 0.9.0** for the `opencc-fmmseg`
-`zstd` experiment branch.
+Adapted from ruzstd 0.9.0 for opencc-fmmseg; requires Rust 1.75.
+See LICENSE-RUZSTD and NOTICE.md for attribution.
 
-## Install manually
+## Entry points and retained dependencies
 
-Copy this entire `zstd/` directory under the crate's `src/` directory and add:
+- `decompress()`: initializes a frame, calls `decode_blocks(UptoBytes(...))`,
+  and collects output. It does not depend on declared content size.
+- `decompress_into()`: calls `decode_all()`, which also needs slice reads,
+  `can_collect()`, frame reset, and skippable-frame handling.
+- `decompress_exact()`: allocates the requested capacity and delegates to
+  `decompress_into()`. It truncates to the bytes written; an undersized output
+  returns an error.
 
-```rust
-mod zstd;
-```
+Both paths require frame/block parsing, literal and sequence decoding, FSE and
+Huffman tables, bit readers, scratch state, and the ring buffer. Collection
+retains the history window until the frame finishes. Table resets remain
+necessary between frames; repeated tables within a frame remain supported.
 
-to the appropriate crate root/module tree.
+## Preserved behavior
 
-The internal paths currently assume the module is exactly `crate::zstd`.
+The generic path decodes one frame and ignores trailing input. The sized paths
+decode concatenated frames and skip skippable frames. A leading skippable frame
+is an error for the generic path. These are intentionally different existing
+behaviors.
 
-## Intended entry points
+Checksum bytes are consumed, and truncated checksums are errors. Checksums are
+not validated; the upstream hash feature was never enabled by this crate.
+The decoder keeps its 100 MiB window limit and format-level window validation.
 
-```rust
-let mut raw = vec![0u8; EXPECTED_UNCOMPRESSED_SIZE];
-let written = zstd::decompress_into(compressed, &mut raw)?;
-raw.truncate(written);
-```
+OpenCC's CBOR dictionaries are payloads, not Zstandard decoding dictionaries.
+The entry points never provided decoding dictionaries, so nonzero dictionary
+IDs still return `DictNotProvided`. Invalid offsets retain their previous
+errors, including `NotEnoughBytesInDictionary` with zero available bytes.
 
-or:
+## Trimming scope
 
-```rust
-let raw = zstd::decompress_exact(compressed, EXPECTED_UNCOMPRESSED_SIZE)?;
-```
+Removed the dictionary parser/registration/table-copy APIs, general-purpose
+frame getters and alternate output APIs, writer support and writer-only tests,
+inactive checksum hashing hooks, unused ring-buffer alternatives, unreachable
+error variants, and the std I/O compatibility module. The active decoding
+algorithms are retained.
 
-`decompress_into()` is the preferred fast path: one caller-owned allocation,
-no streaming wrapper, and no encoder code.
+Regression tests cover embedded data equality, unknown content size, history
+across collection boundaries, frame/skip boundaries, output capacity, checksum
+consumption, truncation, dictionary IDs, and window limits. Ring-buffer tests
+retain a test-only checked wrapper around the production copy routine.
 
-## Important experimental notes
-
-* This bundle intentionally removes `StreamingDecoder`, all encoders, no_std
-  support, dictionary building, fuzzing, benchmarks, and upstream tests.
-* Zstd *decoding dictionary* support remains because it is integrated with
-  `FrameDecoder`; it can be trimmed later after OpenCC regression testing.
-* Upstream checksum hashing is feature-gated by `#[cfg(feature = "hash")]`.
-  This bundle does not add `twox-hash`; therefore checksum calculation is not
-  enabled unless you deliberately wire that feature/dependency into the host
-  crate. Frame checksum bytes are still parsed as part of the frame format.
-* I could structurally inspect and trim the source in this environment, but
-  `rustc` is not installed here, so perform the first compile on the `zstd`
-  branch before further pruning.
-* Keep `LICENSE-RUZSTD` and `NOTICE.md` with redistributed source.
+The sized entry points and their dependencies can still produce dead-code
+warnings in non-test builds. They are deliberately retained and tested.

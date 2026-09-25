@@ -89,12 +89,6 @@ impl CompressionModes {
     }
 }
 
-impl Default for SequencesHeader {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SequencesHeader {
     /// Create a new [SequencesHeader].
     pub fn new() -> SequencesHeader {

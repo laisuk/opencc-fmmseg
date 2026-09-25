@@ -45,12 +45,6 @@ pub enum LiteralsSectionType {
     Treeless,
 }
 
-impl Default for LiteralsSection {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl LiteralsSection {
     /// Create a new [LiteralsSection].
     pub fn new() -> LiteralsSection {

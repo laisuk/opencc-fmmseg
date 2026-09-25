@@ -3,7 +3,7 @@
 use crate::zstd::bit_io::GetBitsError;
 use crate::zstd::blocks::block::BlockType;
 use crate::zstd::blocks::literals_section::LiteralsSectionType;
-use crate::zstd::io::Error;
+use std::io::Error;
 use std::vec::Vec;
 use core::fmt;
 use std::error::Error as StdError;
@@ -32,11 +32,6 @@ impl StdError for FrameDescriptorError {}
 pub enum FrameHeaderError {
     WindowTooBig { got: u64 },
     WindowTooSmall { got: u64 },
-    FrameDescriptorError(FrameDescriptorError),
-    DictIdTooSmall { got: usize, expected: usize },
-    MismatchedFrameSize { got: usize, expected: u8 },
-    FrameSizeIsZero,
-    InvalidFrameSize { got: u8 },
 }
 
 impl fmt::Display for FrameHeaderError {
@@ -54,38 +49,11 @@ impl fmt::Display for FrameHeaderError {
                 got,
                 crate::zstd::common::MIN_WINDOW_SIZE
             ),
-            Self::FrameDescriptorError(e) => write!(f, "{e:?}"),
-            Self::DictIdTooSmall { got, expected } => write!(
-                f,
-                "Not enough bytes in dict_id. Is: {got}, Should be: {expected}"
-            ),
-            Self::MismatchedFrameSize { got, expected } => write!(
-                f,
-                "frame_content_size does not have the right length. Is: {got}, Should be: {expected}"
-            ),
-            Self::FrameSizeIsZero => write!(f, "frame_content_size was zero"),
-            Self::InvalidFrameSize { got } => write!(
-                f,
-                "Invalid frame_content_size. Is: {got}, Should be one of 1, 2, 4, 8 bytes"
-            ),
         }
     }
 }
 
-impl StdError for FrameHeaderError {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match self {
-            FrameHeaderError::FrameDescriptorError(source) => Some(source),
-            _ => None,
-        }
-    }
-}
-
-impl From<FrameDescriptorError> for FrameHeaderError {
-    fn from(error: FrameDescriptorError) -> Self {
-        Self::FrameDescriptorError(error)
-    }
-}
+impl StdError for FrameHeaderError {}
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -335,7 +303,6 @@ impl From<ExecuteSequencesError> for DecompressBlockError {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DecodeBlockContentError {
-    DecoderStateIsFailed,
     ExpectedHeaderOfPreviousBlock,
     ReadError { step: BlockType, source: Error },
     DecompressBlockError(DecompressBlockError),
@@ -354,12 +321,6 @@ impl std::error::Error for DecodeBlockContentError {
 impl core::fmt::Display for DecodeBlockContentError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            DecodeBlockContentError::DecoderStateIsFailed => {
-                write!(
-                    f,
-                    "Can't decode next block if failed along the way. Results will be nonsense",
-                )
-            }
             DecodeBlockContentError::ExpectedHeaderOfPreviousBlock => {
                 write!(f,
                             "Can't decode next block body, while expecting to decode the header of the previous block. Results will be nonsense",
@@ -406,68 +367,14 @@ impl core::fmt::Display for DecodeBufferError {
 
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum DictionaryDecodeError {
-    NotEnoughBytes,
-    BadMagicNum { got: [u8; 4] },
-    FSETableError(FSETableError),
-    HuffmanTableError(HuffmanTableError),
-}
-
-impl std::error::Error for DictionaryDecodeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            DictionaryDecodeError::FSETableError(source) => Some(source),
-            DictionaryDecodeError::HuffmanTableError(source) => Some(source),
-            _ => None,
-        }
-    }
-}
-
-impl core::fmt::Display for DictionaryDecodeError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            DictionaryDecodeError::NotEnoughBytes => write!(
-                f,
-                "The raw bytes did not contain a full valid zstd dictionary"
-            ),
-            DictionaryDecodeError::BadMagicNum { got } => {
-                write!(
-                    f,
-                    "Bad magic_num at start of the dictionary; Got: {:#04X?}, Expected: {:#04x?}",
-                    got,
-                    crate::zstd::decoding::dictionary::MAGIC_NUM,
-                )
-            }
-            DictionaryDecodeError::FSETableError(e) => write!(f, "{e:?}"),
-            DictionaryDecodeError::HuffmanTableError(e) => write!(f, "{e:?}"),
-        }
-    }
-}
-
-impl From<FSETableError> for DictionaryDecodeError {
-    fn from(val: FSETableError) -> Self {
-        Self::FSETableError(val)
-    }
-}
-
-impl From<HuffmanTableError> for DictionaryDecodeError {
-    fn from(val: HuffmanTableError) -> Self {
-        Self::HuffmanTableError(val)
-    }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
 pub enum FrameDecoderError {
     ReadFrameHeaderError(ReadFrameHeaderError),
     FrameHeaderError(FrameHeaderError),
     WindowSizeTooBig { requested: u64, max: u64 },
-    DictionaryDecodeError(DictionaryDecodeError),
     FailedToReadBlockHeader(BlockHeaderReadError),
     FailedToReadBlockBody(DecodeBlockContentError),
     FailedToReadChecksum(Error),
     NotYetInitialized,
-    FailedToInitialize(FrameHeaderError),
     FailedToDrainDecodebuffer(Error),
     FailedToSkipFrame,
     TargetTooSmall,
@@ -479,11 +386,9 @@ impl StdError for FrameDecoderError {
         match self {
             FrameDecoderError::ReadFrameHeaderError(source) => Some(source),
             FrameDecoderError::FrameHeaderError(source) => Some(source),
-            FrameDecoderError::DictionaryDecodeError(source) => Some(source),
             FrameDecoderError::FailedToReadBlockHeader(source) => Some(source),
             FrameDecoderError::FailedToReadBlockBody(source) => Some(source),
             FrameDecoderError::FailedToReadChecksum(source) => Some(source),
-            FrameDecoderError::FailedToInitialize(source) => Some(source),
             FrameDecoderError::FailedToDrainDecodebuffer(source) => Some(source),
             _ => None,
         }
@@ -505,9 +410,6 @@ impl core::fmt::Display for FrameDecoderError {
                     "Specified window_size is too big; Requested: {requested}, Max: {max}",
                 )
             }
-            FrameDecoderError::DictionaryDecodeError(e) => {
-                write!(f, "{e:?}")
-            }
             FrameDecoderError::FailedToReadBlockHeader(e) => {
                 write!(f, "Failed to parse/decode block body: {e}")
             }
@@ -519,9 +421,6 @@ impl core::fmt::Display for FrameDecoderError {
             }
             FrameDecoderError::NotYetInitialized => {
                 write!(f, "Decoder must initialized or reset before using it",)
-            }
-            FrameDecoderError::FailedToInitialize(e) => {
-                write!(f, "Decoder encountered error while initializing: {e}")
             }
             FrameDecoderError::FailedToDrainDecodebuffer(e) => {
                 write!(
@@ -542,12 +441,6 @@ impl core::fmt::Display for FrameDecoderError {
                 write!(f, "Frame header specified dictionary id 0x{dict_id:X} that wasnt provided by add_dict() or reset_with_dict()")
             }
         }
-    }
-}
-
-impl From<DictionaryDecodeError> for FrameDecoderError {
-    fn from(val: DictionaryDecodeError) -> Self {
-        Self::DictionaryDecodeError(val)
     }
 }
 

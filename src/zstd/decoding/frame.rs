@@ -1,6 +1,6 @@
 use crate::zstd::common::{MAGIC_NUM, MAX_WINDOW_SIZE, MIN_WINDOW_SIZE};
 use crate::zstd::decoding::errors::{FrameDescriptorError, FrameHeaderError, ReadFrameHeaderError};
-use crate::zstd::io::Read;
+use std::io::Read;
 
 /// Read a single serialized frame from the reader and return a tuple containing the parsed frame and the number of bytes read.
 pub fn read_frame_header(mut r: impl Read) -> Result<(FrameHeader, u8), ReadFrameHeaderError> {
@@ -174,12 +174,6 @@ impl FrameDescriptor {
         self.0 >> 6
     }
 
-    /// This bit is reserved for some future feature, a compliant decoder **must ensure**
-    /// that this value is set to zero.
-    #[allow(dead_code)]
-    pub fn reserved_flag(&self) -> bool {
-        ((self.0 >> 3) & 0x1) == 1
-    }
     /// If this flag is set, data must be regenerated within a single continuous memory segment.
     ///
     /// In this case, the `Window_Descriptor` byte is skipped, but `Frame_Content_Size` is present.

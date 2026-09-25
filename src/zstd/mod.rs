@@ -6,20 +6,15 @@
 //!
 //! See `LICENSE-RUZSTD` and `NOTICE.md` in this directory.
 
-macro_rules! vprintln {
-    ($($x:expr),*) => {{ /* decoder tracing intentionally disabled */ }};
-}
-
 mod bit_io;
 mod blocks;
 mod common;
 mod decoding;
 mod fse;
 mod huff0;
-mod io;
 
 pub(crate) use decoding::errors::FrameDecoderError;
-pub(crate) use decoding::{BlockDecodingStrategy, FrameDecoder};
+use decoding::{BlockDecodingStrategy, FrameDecoder};
 
 /// Decompress Zstandard data into a caller-provided output buffer.
 ///
@@ -104,6 +99,9 @@ mod tests {
         let expected =
             include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
 
+        let (header, _) = decoding::frame::read_frame_header(&compressed[..]).unwrap();
+        assert_eq!(header.frame_content_size(), 0);
+
         let decoded =
             decompress(compressed)
                 .expect("zstd decompression failed");
@@ -111,3 +109,6 @@ mod tests {
         assert_eq!(decoded.as_slice(), expected);
     }
 }
+
+#[cfg(test)]
+mod regression_tests;

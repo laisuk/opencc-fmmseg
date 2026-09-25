@@ -88,18 +88,6 @@ impl HuffmanTable {
         }
     }
 
-    /// Completely empty the table then repopulate as a replica
-    /// of `other`.
-    pub fn reinit_from(&mut self, other: &Self) {
-        self.reset();
-        self.decode.extend_from_slice(&other.decode);
-        self.weights.extend_from_slice(&other.weights);
-        self.max_num_bits = other.max_num_bits;
-        self.bits.extend_from_slice(&other.bits);
-        self.rank_indexes.extend_from_slice(&other.rank_indexes);
-        self.fse_table.reinit_from(&other.fse_table);
-    }
-
     /// Completely empty the table of all data.
     pub fn reset(&mut self) {
         self.decode.clear();
@@ -160,10 +148,6 @@ impl HuffmanTable {
                     });
                 }
 
-                vprintln!(
-                    "Building fse table for huffman weights used: {}",
-                    bytes_used_by_fse_header
-                );
                 // Huffman headers are compressed using two interleaved
                 // FSE bitstreams, where the first state (decoder) handles
                 // even symbols, and the second handles odd symbols.
@@ -374,12 +358,6 @@ impl HuffmanTable {
         }
 
         Ok(())
-    }
-}
-
-impl Default for HuffmanTable {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
