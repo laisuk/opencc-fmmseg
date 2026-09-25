@@ -47,9 +47,7 @@ pub(crate) fn decompress(input: &[u8]) -> Result<Vec<u8>, FrameDecoderError> {
     while !decoder.is_finished() {
         decoder.decode_blocks(&mut source, BlockDecodingStrategy::UptoBytes(1024 * 1024))?;
 
-        if let Some(chunk) = decoder.collect() {
-            output.extend_from_slice(&chunk);
-        }
+        decoder.collect_into(&mut output);
     }
 
     Ok(output)
@@ -95,6 +93,78 @@ mod tests {
         let decoded = decompress(&compressed).expect("zstd decompression failed");
 
         assert_eq!(decoded.as_slice(), expected);
+    }
+
+    #[cfg(feature = "dictionary-build")]
+    #[test]
+    #[ignore]
+    fn compare_embedded_and_one_shot_zstd_metadata() {
+        let current = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
+        let cbor = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
+
+        let generated = zstd::bulk::compress(cbor, 19).expect("zstd compression failed");
+
+        let mut current_decoder = FrameDecoder::new();
+        current_decoder
+            .init(current.as_slice())
+            .expect("current frame initialization failed");
+
+        let mut generated_decoder = FrameDecoder::new();
+        generated_decoder
+            .init(generated.as_slice())
+            .expect("generated frame initialization failed");
+
+        println!("CBOR size:                {} bytes", cbor.len());
+        println!();
+        println!("Current .zstd:");
+        println!("  compressed size:        {} bytes", current.len());
+        println!(
+            "  frame content size:     {:?}",
+            current_decoder.content_size()
+        );
+        println!();
+        println!("One-shot .zstd:");
+        println!("  compressed size:        {} bytes", generated.len());
+        println!(
+            "  frame content size:     {:?}",
+            generated_decoder.content_size()
+        );
+
+        assert_eq!(current_decoder.content_size(), None);
+        assert_eq!(generated_decoder.content_size(), Some(cbor.len() as u64));
+    }
+
+    #[cfg(feature = "dictionary-build")]
+    #[test]
+    #[ignore]
+    fn inspect_csharp_zstd_metadata() {
+        use std::fs;
+
+        let json_path = r"R:\Media\dictionary_maxlength.json";
+        let zstd_path = r"R:\Media\dictionary_maxlength.zstd";
+
+        let json = fs::read(json_path).expect("failed to read C# JSON artifact");
+        let compressed = fs::read(zstd_path).expect("failed to read C# Zstd artifact");
+
+        let mut decoder = FrameDecoder::new();
+        decoder
+            .init(compressed.as_slice())
+            .expect("C# Zstd frame initialization failed");
+
+        let content_size = decoder.content_size();
+
+        let decoded = decompress(&compressed).expect("C# Zstd decompression failed");
+
+        println!("C# debug JSON size:       {} bytes", json.len());
+        println!("C# .zstd size:            {} bytes", compressed.len());
+        println!("C# frame content size:    {content_size:?}");
+        println!("Rust decoded size:        {} bytes", decoded.len());
+
+        assert_eq!(
+            content_size,
+            Some(decoded.len() as u64),
+            "C# Zstd FCS should match the actual decompressed payload size"
+        );
     }
 }
 

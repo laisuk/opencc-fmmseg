@@ -153,33 +153,15 @@ impl DecodeBuffer {
         }
     }
 
-    /// Drain as much as possible while retaining enough so that decoding si still possible with the required window_size
-    /// At best call only if can_drain_to_window_size reports a 'high' number of bytes to reduce allocations
-    pub fn drain_to_window_size(&mut self) -> Option<Vec<u8>> {
-        //TODO investigate if it is possible to return the std::vec::Drain iterator directly without collecting here
-        match self.can_drain_to_window_size() {
-            None => None,
-            Some(can_drain) => {
-                let mut vec = Vec::with_capacity(can_drain);
-                self.drain_to(can_drain, |buf| {
-                    vec.extend_from_slice(buf);
-                    (buf.len(), Ok(()))
-                })
-                .ok()?;
-                Some(vec)
-            }
-        }
-    }
-
-    /// drain the buffer completely
-    pub fn drain(&mut self) -> Vec<u8> {
-        let (slice1, slice2) = self.buffer.as_slices();
-
-        let mut vec = Vec::with_capacity(slice1.len() + slice2.len());
-        vec.extend_from_slice(slice1);
-        vec.extend_from_slice(slice2);
-        self.buffer.clear();
-        vec
+    /// Append and remove the requested number of decoded bytes without a temporary vector.
+    pub fn drain_into(&mut self, output: &mut Vec<u8>, amount: usize) {
+        // Reserve once for both slices when the ring buffer wraps.
+        output.reserve(amount);
+        self.drain_to(amount, |buf| {
+            output.extend_from_slice(buf);
+            (buf.len(), Ok(()))
+        })
+        .expect("appending to a Vec cannot return an I/O error");
     }
 
     /// Semantics of write_bytes:

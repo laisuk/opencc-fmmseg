@@ -79,6 +79,7 @@ fn dictionary_ids_and_window_limit() {
     ));
 }
 
+#[cfg(feature = "dictionary-build")]
 #[test]
 fn unknown_size_across_collection_and_history_boundaries() {
     use std::io::Write;
@@ -87,7 +88,7 @@ fn unknown_size_across_collection_and_history_boundaries() {
         .map(|i| ((i * 31 + i / 97) % 251) as u8)
         .collect();
 
-    let mut encoder = zstd::Encoder::new(Vec::new(), 3).unwrap();
+    let mut encoder = ::zstd::Encoder::new(Vec::new(), 3).unwrap();
     encoder.window_log(17).unwrap();
     encoder.include_checksum(true).unwrap();
     encoder.write_all(&input).unwrap();
@@ -95,6 +96,7 @@ fn unknown_size_across_collection_and_history_boundaries() {
 
     let (header, _) =
         super::decoding::frame::read_frame_header(compressed.as_slice()).unwrap();
+
     assert_eq!(header.frame_content_size(), 0);
     assert_eq!(decompress(&compressed).unwrap(), input);
 }
@@ -116,4 +118,41 @@ fn invalid_history_offsets_preserve_errors() {
             buf_len: 5
         })
     ));
+}
+
+#[test]
+fn collection_appends_wrapped_output_and_preserves_history() {
+    use super::decoding::decode_buffer::DecodeBuffer;
+
+    let mut buffer = DecodeBuffer::new(8);
+    let initial: Vec<u8> = (0..24).collect();
+    let mut output = b"prefix".to_vec();
+    buffer.push(&initial);
+    buffer.drain_into(&mut output, 16);
+    assert_eq!(buffer.len(), 8);
+
+    // Repeating the retained history wraps the ring's occupied region.
+    buffer.repeat(8, 24).unwrap();
+    buffer.drain_into(&mut output, 24);
+    assert_eq!(buffer.len(), 8);
+    buffer.repeat(8, 8).unwrap();
+    buffer.drain_into(&mut output, 16);
+    assert_eq!(buffer.len(), 0);
+
+    let mut expected = b"prefix".to_vec();
+    expected.extend_from_slice(&initial);
+    expected.extend_from_slice(&initial[16..].repeat(4));
+    assert_eq!(output, expected);
+
+    buffer.drain_into(&mut output, 0);
+    assert_eq!(output, expected);
+}
+
+#[test]
+fn fcs_remains_a_capacity_hint() {
+    for declared in [0, 2, 30] {
+        let mut frame = raw_frame(b"actual output", true);
+        frame[5] = declared;
+        assert_eq!(decompress(&frame).unwrap(), b"actual output");
+    }
 }

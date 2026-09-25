@@ -88,7 +88,7 @@ impl FrameDecoder {
     /// init() will allocate all needed buffers if it is the first time this decoder is used
     /// else they just reset these buffers with not further allocations
     ///
-    /// Note that all bytes currently in the decodebuffer from any previous frame will be lost. Collect them with collect()
+    /// Note that all bytes currently in the decodebuffer from any previous frame will be lost. Collect them with collect_into()
     pub fn init(&mut self, source: impl Read) -> Result<(), FrameDecoderError> {
         use FrameDecoderError as err;
         let state = match &mut self.state {
@@ -183,15 +183,18 @@ impl FrameDecoder {
         Ok(state.frame_finished)
     }
 
-    /// Collect bytes and retain window_size bytes while decoding is still going on.
-    /// After decoding of the frame (is_finished() == true) has finished it will collect all remaining bytes
-    pub fn collect(&mut self) -> Option<Vec<u8>> {
+    /// Append decoded bytes to output, retaining the history window until finished.
+    pub fn collect_into(&mut self, output: &mut Vec<u8>) {
         let finished = self.is_finished();
-        let state = self.state.as_mut()?;
-        if finished {
-            Some(state.decoder_scratch.buffer.drain())
+        let Some(state) = self.state.as_mut() else {
+            return;
+        };
+        let buffer = &mut state.decoder_scratch.buffer;
+        let amount = if finished {
+            buffer.len()
         } else {
-            state.decoder_scratch.buffer.drain_to_window_size()
-        }
+            buffer.can_drain_to_window_size().unwrap_or(0)
+        };
+        buffer.drain_into(output, amount);
     }
 }

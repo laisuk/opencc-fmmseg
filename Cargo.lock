@@ -620,7 +620,6 @@ name = "opencc-fmmseg"
 version = "0.13.0"
 dependencies = [
  "rayon",
- "rayon-core",
  "regex",
  "rustc-hash",
  "serde",
