@@ -110,8 +110,10 @@ impl FrameDecoder {
 
     /// Returns the uncompressed content size declared by the current frame.
     ///
-    /// Returns `None` if the decoder has not been initialized or if the frame
-    /// does not declare a content size.
+    /// Returns `Some(size)` when the frame contains a frame content size (FCS),
+    /// including `Some(0)` for an explicitly declared empty frame. Returns `None`
+    /// when the decoder has not been initialized or the frame does not contain an
+    /// FCS.
     pub(crate) fn content_size(&self) -> Option<u64> {
         self.state
             .as_ref()

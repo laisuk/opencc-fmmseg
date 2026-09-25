@@ -16,6 +16,8 @@ mod huff0;
 pub(crate) use decoding::errors::FrameDecoderError;
 use decoding::{BlockDecodingStrategy, FrameDecoder};
 
+const MAX_FCS_PREALLOC_SIZE: u64 = 64 * 1024 * 1024;
+
 /// Decompress Zstandard data into a caller-provided output buffer.
 ///
 /// This is the allocation-free fast path intended for embedded OpenCC resources
@@ -39,6 +41,7 @@ pub(crate) fn decompress_exact(
     output.truncate(written);
     Ok(output)
 }
+
 /// Decompresses Zstandard-compressed data into a newly allocated byte vector.
 ///
 /// The frame is decoded incrementally, so the uncompressed size does not need
@@ -58,11 +61,9 @@ pub(crate) fn decompress(input: &[u8]) -> Result<Vec<u8>, FrameDecoderError> {
 
     decoder.init(&mut source)?;
 
-    const MAX_PREALLOC_SIZE: u64 = 64 * 1024 * 1024;
-
     let mut output = decoder
         .content_size()
-        .filter(|&size| size <= MAX_PREALLOC_SIZE)
+        .filter(|&size| size <= MAX_FCS_PREALLOC_SIZE)
         .and_then(|size| usize::try_from(size).ok())
         .map(Vec::with_capacity)
         .unwrap_or_default();
