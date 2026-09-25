@@ -133,39 +133,6 @@ mod tests {
         assert_eq!(current_decoder.content_size(), None);
         assert_eq!(generated_decoder.content_size(), Some(cbor.len() as u64));
     }
-
-    #[cfg(feature = "dictionary-build")]
-    #[test]
-    #[ignore]
-    fn inspect_csharp_zstd_metadata() {
-        use std::fs;
-
-        let json_path = r"R:\Media\dictionary_maxlength.json";
-        let zstd_path = r"R:\Media\dictionary_maxlength.zstd";
-
-        let json = fs::read(json_path).expect("failed to read C# JSON artifact");
-        let compressed = fs::read(zstd_path).expect("failed to read C# Zstd artifact");
-
-        let mut decoder = FrameDecoder::new();
-        decoder
-            .init(compressed.as_slice())
-            .expect("C# Zstd frame initialization failed");
-
-        let content_size = decoder.content_size();
-
-        let decoded = decompress(&compressed).expect("C# Zstd decompression failed");
-
-        println!("C# debug JSON size:       {} bytes", json.len());
-        println!("C# .zstd size:            {} bytes", compressed.len());
-        println!("C# frame content size:    {content_size:?}");
-        println!("Rust decoded size:        {} bytes", decoded.len());
-
-        assert_eq!(
-            content_size,
-            Some(decoded.len() as u64),
-            "C# Zstd FCS should match the actual decompressed payload size"
-        );
-    }
 }
 
 #[cfg(test)]
