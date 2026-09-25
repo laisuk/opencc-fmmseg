@@ -147,6 +147,17 @@ impl FrameHeader {
     pub fn frame_content_size(&self) -> u64 {
         self.frame_content_size
     }
+
+    /// Returns the uncompressed content size declared by the frame, if present.
+    pub fn frame_content_size_opt(&self) -> Option<u64> {
+        if self.descriptor.frame_content_size_flag() != 0
+            || self.descriptor.single_segment_flag()
+        {
+            Some(self.frame_content_size)
+        } else {
+            None
+        }
+    }
 }
 
 /// The first byte is called the `Frame Header Descriptor`, and it describes what other fields

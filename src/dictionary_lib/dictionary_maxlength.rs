@@ -1268,7 +1268,9 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// - Embedding as an asset in external applications
     ///
     /// Unlike [`serialize_to_cbor`](Self::serialize_to_cbor), this function
-    /// performs both **serialization** and **compression** in one step.
+    /// serializes the dictionary to CBOR in memory and then compresses the
+    /// complete CBOR payload with Zstd. Using one-shot compression allows the
+    /// resulting Zstd frame to include its uncompressed content size.
     ///
     /// # Arguments
     ///
@@ -1289,12 +1291,14 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         dictionary: &DictionaryMaxlength,
         path: &str,
     ) -> Result<(), DictionaryError> {
-        let file = File::create(path).map_err(|e| DictionaryError::IoError(e))?;
-        let writer = BufWriter::new(file);
-        let mut encoder = Encoder::new(writer, 19).map_err(|e| DictionaryError::IoError(e))?;
-        serde_cbor::to_writer(&mut encoder, dictionary)
-            .map_err(|e| DictionaryError::CborParseError(e))?;
-        encoder.finish().map_err(|e| DictionaryError::IoError(e))?;
+        let cbor =
+            serde_cbor::to_vec(dictionary).map_err(DictionaryError::CborParseError)?;
+
+        let compressed =
+            zstd::bulk::compress(&cbor, 19).map_err(DictionaryError::IoError)?;
+
+        fs::write(path, compressed).map_err(DictionaryError::IoError)?;
+
         Ok(())
     }
 

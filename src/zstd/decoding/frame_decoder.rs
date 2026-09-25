@@ -108,6 +108,16 @@ impl FrameDecoder {
         Ok(())
     }
 
+    /// Returns the uncompressed content size declared by the current frame.
+    ///
+    /// Returns `None` if the decoder has not been initialized or if the frame
+    /// does not declare a content size.
+    pub(crate) fn content_size(&self) -> Option<u64> {
+        self.state
+            .as_ref()
+            .and_then(|state| state.frame_header.frame_content_size_opt())
+    }
+
     /// Whether the current frames last block has been decoded yet
     /// If this returns true you can call the drain* functions to get all content
     /// (the read() function will drain automatically if this returns true)

@@ -20,14 +20,10 @@ use decoding::{BlockDecodingStrategy, FrameDecoder};
 ///
 /// This is the allocation-free fast path intended for embedded OpenCC resources
 /// whose uncompressed size is known by the caller.
-pub(crate) fn decompress_into(
-    input: &[u8],
-    output: &mut [u8],
-) -> Result<usize, FrameDecoderError> {
+pub(crate) fn decompress_into(input: &[u8], output: &mut [u8]) -> Result<usize, FrameDecoderError> {
     let mut decoder = FrameDecoder::new();
     decoder.decode_all(input, output)
 }
-
 
 /// Decompress into a newly allocated vector of exactly `expected_size` bytes.
 ///
@@ -43,28 +39,36 @@ pub(crate) fn decompress_exact(
     output.truncate(written);
     Ok(output)
 }
-
-/// Decompress Zstandard data without requiring a known uncompressed size.
+/// Decompresses Zstandard-compressed data into a newly allocated byte vector.
 ///
-/// This path decodes incrementally and collects output while preserving the
-/// history window required for Zstandard backreferences. It is suitable for
-/// external or generated frames that do not declare a frame content size.
-pub(crate) fn decompress(
-    input: &[u8],
-) -> Result<Vec<u8>, FrameDecoderError> {
+/// The frame is decoded incrementally, so the uncompressed size does not need
+/// to be known in advance. This allows decoding older or streaming-generated
+/// Zstandard frames that do not contain a frame content size (FCS).
+///
+/// If the frame declares an FCS of at most 64 MiB, it is used only as a
+/// preallocation hint for the output vector. Larger or unavailable sizes are
+/// ignored, and the output vector grows as needed. The FCS therefore does not
+/// affect whether a valid frame can be decoded.
+///
+/// During incremental decoding, the decoder retains the history window required
+/// for Zstandard backreferences and collects output as it becomes available.
+pub(crate) fn decompress(input: &[u8]) -> Result<Vec<u8>, FrameDecoderError> {
     let mut decoder = FrameDecoder::new();
     let mut source = input;
 
-    // init() consumes the frame header from `source`.
     decoder.init(&mut source)?;
 
-    let mut output = Vec::new();
+    const MAX_PREALLOC_SIZE: u64 = 64 * 1024 * 1024;
+
+    let mut output = decoder
+        .content_size()
+        .filter(|&size| size <= MAX_PREALLOC_SIZE)
+        .and_then(|size| usize::try_from(size).ok())
+        .map(Vec::with_capacity)
+        .unwrap_or_default();
 
     while !decoder.is_finished() {
-        decoder.decode_blocks(
-            &mut source,
-            BlockDecodingStrategy::UptoBytes(1024 * 1024),
-        )?;
+        decoder.decode_blocks(&mut source, BlockDecodingStrategy::UptoBytes(1024 * 1024))?;
 
         if let Some(chunk) = decoder.collect() {
             output.extend_from_slice(&chunk);
@@ -77,36 +81,45 @@ pub(crate) fn decompress(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DictionaryMaxlength;
 
     #[test]
     fn decompress_exact_matches_original() {
-        let compressed =
-            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
-        let expected =
-            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
+        let compressed = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
+        let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
 
         let decoded =
-            decompress_exact(compressed, expected.len())
-                .expect("zstd decompression failed");
+            decompress_exact(compressed, expected.len()).expect("zstd decompression failed");
 
         assert_eq!(decoded.as_slice(), expected);
     }
 
     #[test]
     fn decompress_unknown_size_matches_original() {
-        let compressed =
-            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
-        let expected =
-            include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
+        let compressed = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
+        let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
 
         let (header, _) = decoding::frame::read_frame_header(&compressed[..]).unwrap();
         assert_eq!(header.frame_content_size(), 0);
 
-        let decoded =
-            decompress(compressed)
-                .expect("zstd decompression failed");
+        let decoded = decompress(compressed).expect("zstd decompression failed");
 
         assert_eq!(decoded.as_slice(), expected);
+    }
+
+    #[cfg(all(test, feature = "dictionary-build"))]
+    #[test]
+    fn one_shot_zstd_has_content_size() {
+        let input = b"OpenCC FCS regression test";
+
+        let compressed = zstd::bulk::compress(input, 3).expect("compression failed");
+
+        let mut decoder = FrameDecoder::new();
+        decoder
+            .init(compressed.as_slice())
+            .expect("frame initialization failed");
+
+        assert_eq!(decoder.content_size(), Some(input.len() as u64));
     }
 }
 
