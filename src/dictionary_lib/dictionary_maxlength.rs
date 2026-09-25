@@ -13,12 +13,10 @@ use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
-#[cfg(feature = "dictionary-build")]
-use zstd::{Encoder};
 
 use crate::dictionary_lib::{DictMaxLen, DictSlot};
 use crate::{CustomDictFileSpec, CustomDictMode, CustomDictSpec};
@@ -234,31 +232,15 @@ impl DictionaryMaxlength {
     ///
     /// # See also
     /// - [`from_dicts`](#method.from_dicts) — loads from plaintext `.txt` files.
-    // pub fn from_zstd() -> Result<Self, DictionaryError> {
-    //     // Embedded compressed CBOR file at compile time
-    //     let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
-    //
-    //     let cursor = Cursor::new(compressed_data);
-    //     let mut decoder = Decoder::new(cursor).map_err(DictionaryError::IoError)?;
-    //     let dictionary: DictionaryMaxlength =
-    //         from_reader(&mut decoder).map_err(DictionaryError::CborParseError)?;
-    //
-    //     Ok(dictionary.finish())
-    // }
     pub fn from_zstd() -> Result<Self, DictionaryError> {
-        let compressed_data =
-            include_bytes!("dicts/dictionary_maxlength.zstd");
+        let compressed_data = include_bytes!("dicts/dictionary_maxlength.zstd");
 
         let decompressed = crate::zstd::decompress(compressed_data).map_err(|err| {
-            DictionaryError::IoError(io::Error::new(
-                io::ErrorKind::InvalidData,
-                err.to_string(),
-            ))
+            DictionaryError::IoError(io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
         })?;
 
         let dictionary: DictionaryMaxlength =
-            from_slice(&decompressed)
-                .map_err(DictionaryError::CborParseError)?;
+            from_slice(&decompressed).map_err(DictionaryError::CborParseError)?;
 
         Ok(dictionary.finish())
     }
@@ -1291,11 +1273,9 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
         dictionary: &DictionaryMaxlength,
         path: &str,
     ) -> Result<(), DictionaryError> {
-        let cbor =
-            serde_cbor::to_vec(dictionary).map_err(DictionaryError::CborParseError)?;
+        let cbor = serde_cbor::to_vec(dictionary).map_err(DictionaryError::CborParseError)?;
 
-        let compressed =
-            zstd::bulk::compress(&cbor, 19).map_err(DictionaryError::IoError)?;
+        let compressed = zstd::bulk::compress(&cbor, 19).map_err(DictionaryError::IoError)?;
 
         fs::write(path, compressed).map_err(DictionaryError::IoError)?;
 
@@ -1328,18 +1308,6 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// Zstd compression makes large dictionary bundles highly compact while
     /// maintaining fast load times.
-    // pub fn load_cbor_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
-    //     let file = File::open(path).map_err(DictionaryError::IoError)?;
-    //     let reader = BufReader::new(file);
-    //
-    //     // `zstd::Decoder::new` returns an `io::Error` internally, so `IoError` is fine here.
-    //     let mut decoder = Decoder::new(reader).map_err(DictionaryError::IoError)?;
-    //
-    //     let dictionary: DictionaryMaxlength =
-    //         from_reader(&mut decoder).map_err(DictionaryError::CborParseError)?;
-    //
-    //     Ok(dictionary.finish())
-    // }
     pub fn load_cbor_compressed(path: &str) -> Result<DictionaryMaxlength, DictionaryError> {
         let compressed = fs::read(path).map_err(DictionaryError::IoError)?;
 

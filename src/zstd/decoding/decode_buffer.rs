@@ -54,7 +54,7 @@ impl DecodeBuffer {
         &mut self,
         read: R,
         fill_length: usize,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), Error> {
         self.buffer.extend_from_reader(read, fill_length)
     }
 
@@ -153,11 +153,6 @@ impl DecodeBuffer {
         }
     }
 
-    //How many bytes can be drained if the window_size does not have to be maintained
-    pub fn can_drain(&self) -> usize {
-        self.buffer.len()
-    }
-
     /// Drain as much as possible while retaining enough so that decoding si still possible with the required window_size
     /// At best call only if can_drain_to_window_size reports a 'high' number of bytes to reduce allocations
     pub fn drain_to_window_size(&mut self) -> Option<Vec<u8>> {
@@ -185,18 +180,6 @@ impl DecodeBuffer {
         vec.extend_from_slice(slice2);
         self.buffer.clear();
         vec
-    }
-
-    pub fn read_all(&mut self, target: &mut [u8]) -> Result<usize, Error> {
-        let amount = self.buffer.len().min(target.len());
-
-        let mut written = 0;
-        self.drain_to(amount, |buf| {
-            target[written..][..buf.len()].copy_from_slice(buf);
-            written += buf.len();
-            (buf.len(), Ok(()))
-        })?;
-        Ok(amount)
     }
 
     /// Semantics of write_bytes:
@@ -241,7 +224,7 @@ impl DecodeBuffer {
             res1?;
 
             // Only if the first call to write_bytes was not a partial write we can continue with slice2
-            // Partial writes SHOULD never happen without res1 being an error, but lets just protect against it anyways.
+            // Partial writes SHOULD never happen without res1 being an error, but let's just protect against it anyway.
             if written1 == n1 && n2 != 0 {
                 let (written2, res2) = write_bytes(&slice2[..n2]);
                 drain_guard.amount += written2;

@@ -18,30 +18,6 @@ use decoding::{BlockDecodingStrategy, FrameDecoder};
 
 const MAX_FCS_PREALLOC_SIZE: u64 = 64 * 1024 * 1024;
 
-/// Decompress Zstandard data into a caller-provided output buffer.
-///
-/// This is the allocation-free fast path intended for embedded OpenCC resources
-/// whose uncompressed size is known by the caller.
-pub(crate) fn decompress_into(input: &[u8], output: &mut [u8]) -> Result<usize, FrameDecoderError> {
-    let mut decoder = FrameDecoder::new();
-    decoder.decode_all(input, output)
-}
-
-/// Decompress into a newly allocated vector of exactly `expected_size` bytes.
-///
-/// Prefer this for embedded resources when their uncompressed size is available
-/// as build-time metadata. A size mismatch is reported by `FrameDecoder` rather
-/// than silently growing the allocation.
-pub(crate) fn decompress_exact(
-    input: &[u8],
-    expected_size: usize,
-) -> Result<Vec<u8>, FrameDecoderError> {
-    let mut output = vec![0u8; expected_size];
-    let written = decompress_into(input, &mut output)?;
-    output.truncate(written);
-    Ok(output)
-}
-
 /// Decompresses Zstandard-compressed data into a newly allocated byte vector.
 ///
 /// The frame is decoded incrementally, so the uncompressed size does not need
@@ -82,45 +58,43 @@ pub(crate) fn decompress(input: &[u8]) -> Result<Vec<u8>, FrameDecoderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DictionaryMaxlength;
 
     #[test]
-    fn decompress_exact_matches_original() {
+    fn decompress_without_fcs_matches_original() {
         let compressed = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
         let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
-
-        let decoded =
-            decompress_exact(compressed, expected.len()).expect("zstd decompression failed");
-
-        assert_eq!(decoded.as_slice(), expected);
-    }
-
-    #[test]
-    fn decompress_unknown_size_matches_original() {
-        let compressed = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
-        let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
-
-        let (header, _) = decoding::frame::read_frame_header(&compressed[..]).unwrap();
-        assert_eq!(header.frame_content_size(), 0);
-
-        let decoded = decompress(compressed).expect("zstd decompression failed");
-
-        assert_eq!(decoded.as_slice(), expected);
-    }
-
-    #[cfg(all(test, feature = "dictionary-build"))]
-    #[test]
-    fn one_shot_zstd_has_content_size() {
-        let input = b"OpenCC FCS regression test";
-
-        let compressed = zstd::bulk::compress(input, 3).expect("compression failed");
 
         let mut decoder = FrameDecoder::new();
         decoder
             .init(compressed.as_slice())
             .expect("frame initialization failed");
 
-        assert_eq!(decoder.content_size(), Some(input.len() as u64));
+        // The legacy streaming-generated dictionary does not declare an FCS.
+        assert_eq!(decoder.content_size(), None);
+
+        let decoded = decompress(compressed).expect("zstd decompression failed");
+
+        assert_eq!(decoded.as_slice(), expected);
+    }
+
+    #[cfg(feature = "dictionary-build")]
+    #[test]
+    fn decompress_with_fcs_matches_original() {
+        let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
+
+        // One-shot compression declares the uncompressed frame content size.
+        let compressed = zstd::bulk::compress(expected, 3).expect("zstd compression failed");
+
+        let mut decoder = FrameDecoder::new();
+        decoder
+            .init(compressed.as_slice())
+            .expect("frame initialization failed");
+
+        assert_eq!(decoder.content_size(), Some(expected.len() as u64));
+
+        let decoded = decompress(&compressed).expect("zstd decompression failed");
+
+        assert_eq!(decoded.as_slice(), expected);
     }
 }
 

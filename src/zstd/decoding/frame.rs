@@ -173,7 +173,7 @@ impl FrameDescriptor {
     /// This is a 2 bit flag, specifying if the `Frame_Content_Size` field is present
     /// within the header. It notates the number of bytes used by `Frame_Content_size`
     ///
-    /// When this value is is 0, `FCS_Field_Size` depends on Single_Segment_flag.
+    /// When this value is 0, `FCS_Field_Size` depends on Single_Segment_flag.
     /// If the `Single_Segment_flag` field is set in the frame header descriptor,
     /// the size of the `Frame_Content_Size` field of the header is 1 byte.
     /// Otherwise, `FCS_Field_Size` is 0, and the `Frame_Content_Size` is not provided.

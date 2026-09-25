@@ -3,10 +3,10 @@
 use crate::zstd::bit_io::GetBitsError;
 use crate::zstd::blocks::block::BlockType;
 use crate::zstd::blocks::literals_section::LiteralsSectionType;
-use std::io::Error;
-use std::vec::Vec;
 use core::fmt;
 use std::error::Error as StdError;
+use std::io::Error;
+use std::vec::Vec;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -135,13 +135,13 @@ impl std::error::Error for BlockHeaderReadError {
     }
 }
 
-impl ::core::fmt::Display for BlockHeaderReadError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+impl fmt::Display for BlockHeaderReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BlockHeaderReadError::ReadError(_) => write!(f, "Error while reading the block header"),
             BlockHeaderReadError::FoundReservedBlock => write!(
                 f,
-                "Reserved block occured. This is considered corruption by the documentation"
+                "Reserved block occurred. This is considered corruption by the documentation"
             ),
             BlockHeaderReadError::BlockTypeError(e) => write!(f, "Error getting block type: {e}"),
             BlockHeaderReadError::BlockSizeError(e) => {
@@ -177,8 +177,8 @@ pub enum BlockTypeError {
 
 impl std::error::Error for BlockTypeError {}
 
-impl core::fmt::Display for BlockTypeError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for BlockTypeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BlockTypeError::InvalidBlocktypeNumber { num } => {
                 write!(f,
@@ -197,8 +197,8 @@ pub enum BlockSizeError {
 
 impl std::error::Error for BlockSizeError {}
 
-impl core::fmt::Display for BlockSizeError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for BlockSizeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BlockSizeError::BlockSizeTooLarge { size } => {
                 write!(
@@ -241,8 +241,8 @@ impl std::error::Error for DecompressBlockError {
     }
 }
 
-impl core::fmt::Display for DecompressBlockError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for DecompressBlockError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DecompressBlockError::BlockContentReadError(e) => {
                 write!(f, "Error while reading the block content: {e}")
@@ -318,8 +318,8 @@ impl std::error::Error for DecodeBlockContentError {
     }
 }
 
-impl core::fmt::Display for DecodeBlockContentError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for DecodeBlockContentError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DecodeBlockContentError::ExpectedHeaderOfPreviousBlock => {
                 write!(f,
@@ -349,8 +349,8 @@ pub enum DecodeBufferError {
 
 impl std::error::Error for DecodeBufferError {}
 
-impl core::fmt::Display for DecodeBufferError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for DecodeBufferError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DecodeBufferError::NotEnoughBytesInDictionary { got, need } => {
                 write!(
@@ -375,9 +375,6 @@ pub enum FrameDecoderError {
     FailedToReadBlockBody(DecodeBlockContentError),
     FailedToReadChecksum(Error),
     NotYetInitialized,
-    FailedToDrainDecodebuffer(Error),
-    FailedToSkipFrame,
-    TargetTooSmall,
     DictNotProvided { dict_id: u32 },
 }
 
@@ -389,14 +386,13 @@ impl StdError for FrameDecoderError {
             FrameDecoderError::FailedToReadBlockHeader(source) => Some(source),
             FrameDecoderError::FailedToReadBlockBody(source) => Some(source),
             FrameDecoderError::FailedToReadChecksum(source) => Some(source),
-            FrameDecoderError::FailedToDrainDecodebuffer(source) => Some(source),
             _ => None,
         }
     }
 }
 
-impl core::fmt::Display for FrameDecoderError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+impl fmt::Display for FrameDecoderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FrameDecoderError::ReadFrameHeaderError(e) => {
                 write!(f, "{e:?}")
@@ -422,23 +418,8 @@ impl core::fmt::Display for FrameDecoderError {
             FrameDecoderError::NotYetInitialized => {
                 write!(f, "Decoder must initialized or reset before using it",)
             }
-            FrameDecoderError::FailedToDrainDecodebuffer(e) => {
-                write!(
-                    f,
-                    "Decoder encountered error while draining the decodebuffer: {e}",
-                )
-            }
-            FrameDecoderError::FailedToSkipFrame => {
-                write!(
-                    f,
-                    "Failed to skip bytes for the length given in the frame header"
-                )
-            }
-            FrameDecoderError::TargetTooSmall => {
-                write!(f, "Target must have at least as many bytes as the contentsize of the frame reports")
-            }
             FrameDecoderError::DictNotProvided { dict_id } => {
-                write!(f, "Frame header specified dictionary id 0x{dict_id:X} that wasnt provided by add_dict() or reset_with_dict()")
+                write!(f, "Frame header specified dictionary id 0x{dict_id:X} that wasn't provided by add_dict() or reset_with_dict()")
             }
         }
     }
@@ -488,8 +469,8 @@ impl std::error::Error for DecompressLiteralsError {
         }
     }
 }
-impl core::fmt::Display for DecompressLiteralsError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for DecompressLiteralsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DecompressLiteralsError::MissingCompressedSize => {
                 write!(f,
@@ -566,8 +547,8 @@ pub enum ExecuteSequencesError {
     ZeroOffset,
 }
 
-impl core::fmt::Display for ExecuteSequencesError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for ExecuteSequencesError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ExecuteSequencesError::DecodebufferError(e) => {
                 write!(f, "{e:?}")
@@ -628,8 +609,8 @@ impl std::error::Error for DecodeSequenceError {
     }
 }
 
-impl core::fmt::Display for DecodeSequenceError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for DecodeSequenceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DecodeSequenceError::GetBitsError(e) => write!(f, "{e:?}"),
             DecodeSequenceError::FSEDecoderError(e) => write!(f, "{e:?}"),
@@ -705,8 +686,8 @@ impl std::error::Error for LiteralsSectionParseError {
         }
     }
 }
-impl core::fmt::Display for LiteralsSectionParseError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for LiteralsSectionParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LiteralsSectionParseError::IllegalLiteralSectionType { got } => {
                 write!(
@@ -731,8 +712,8 @@ impl From<GetBitsError> for LiteralsSectionParseError {
     }
 }
 
-impl core::fmt::Display for LiteralsSectionType {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+impl fmt::Display for LiteralsSectionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             LiteralsSectionType::Compressed => write!(f, "Compressed"),
             LiteralsSectionType::Raw => write!(f, "Raw"),
@@ -750,8 +731,8 @@ pub enum SequencesHeaderParseError {
 
 impl std::error::Error for SequencesHeaderParseError {}
 
-impl core::fmt::Display for SequencesHeaderParseError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for SequencesHeaderParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SequencesHeaderParseError::NotEnoughBytes { need_at_least, got } => {
                 write!(
@@ -791,8 +772,8 @@ impl std::error::Error for FSETableError {
     }
 }
 
-impl core::fmt::Display for FSETableError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for FSETableError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FSETableError::AccLogIsZero => write!(f, "Acclog must be at least 1"),
             FSETableError::AccLogTooBig { got, max } => {
@@ -843,8 +824,8 @@ impl std::error::Error for FSEDecoderError {
     }
 }
 
-impl core::fmt::Display for FSEDecoderError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for FSEDecoderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FSEDecoderError::GetBitsError(e) => write!(f, "{e:?}"),
             FSEDecoderError::TableIsUninitialized => {
@@ -912,8 +893,8 @@ impl StdError for HuffmanTableError {
     }
 }
 
-impl core::fmt::Display for HuffmanTableError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+impl fmt::Display for HuffmanTableError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             HuffmanTableError::GetBitsError(e) => write!(f, "{e:?}"),
             HuffmanTableError::FSEDecoderError(e) => write!(f, "{e:?}"),
@@ -1003,8 +984,8 @@ pub enum HuffmanDecoderError {
     GetBitsError(GetBitsError),
 }
 
-impl core::fmt::Display for HuffmanDecoderError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for HuffmanDecoderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             HuffmanDecoderError::GetBitsError(e) => write!(f, "{e:?}"),
         }
