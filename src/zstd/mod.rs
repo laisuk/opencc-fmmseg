@@ -52,13 +52,12 @@ pub(crate) fn decompress(input: &[u8]) -> Result<Vec<u8>, FrameDecoderError> {
 
     Ok(output)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn decompress_without_fcs_matches_original() {
+    fn decompress_embedded_matches_original_and_has_valid_fcs() {
         let compressed = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
         let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
 
@@ -67,12 +66,20 @@ mod tests {
             .init(compressed.as_slice())
             .expect("frame initialization failed");
 
-        // The legacy streaming-generated dictionary does not declare an FCS.
-        assert_eq!(decoder.content_size(), None);
+        let content_size = decoder.content_size();
 
         let decoded = decompress(compressed).expect("zstd decompression failed");
 
+        // Verify the embedded artifact's actual payload first.
         assert_eq!(decoded.as_slice(), expected);
+
+        // The embedded artifact is generated with one-shot Zstd compression,
+        // so its FCS must describe the actual decompressed payload.
+        assert_eq!(
+            content_size,
+            Some(decoded.len() as u64),
+            "embedded Zstd FCS should match the actual decompressed size"
+        );
     }
 
     #[cfg(feature = "dictionary-build")]
@@ -93,45 +100,6 @@ mod tests {
         let decoded = decompress(&compressed).expect("zstd decompression failed");
 
         assert_eq!(decoded.as_slice(), expected);
-    }
-
-    #[cfg(feature = "dictionary-build")]
-    #[test]
-    #[ignore]
-    fn compare_embedded_and_one_shot_zstd_metadata() {
-        let current = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
-        let cbor = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
-
-        let generated = zstd::bulk::compress(cbor, 19).expect("zstd compression failed");
-
-        let mut current_decoder = FrameDecoder::new();
-        current_decoder
-            .init(current.as_slice())
-            .expect("current frame initialization failed");
-
-        let mut generated_decoder = FrameDecoder::new();
-        generated_decoder
-            .init(generated.as_slice())
-            .expect("generated frame initialization failed");
-
-        println!("CBOR size:                {} bytes", cbor.len());
-        println!();
-        println!("Current .zstd:");
-        println!("  compressed size:        {} bytes", current.len());
-        println!(
-            "  frame content size:     {:?}",
-            current_decoder.content_size()
-        );
-        println!();
-        println!("One-shot .zstd:");
-        println!("  compressed size:        {} bytes", generated.len());
-        println!(
-            "  frame content size:     {:?}",
-            generated_decoder.content_size()
-        );
-
-        assert_eq!(current_decoder.content_size(), None);
-        assert_eq!(generated_decoder.content_size(), Some(cbor.len() as u64));
     }
 }
 

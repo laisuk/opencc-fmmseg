@@ -18,12 +18,9 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::{fs, io};
 
+use super::union_cache::Unions;
 use crate::dictionary_lib::{DictMaxLen, DictSlot};
 use crate::{CustomDictFileSpec, CustomDictMode, CustomDictSpec};
-
-mod union_cache;
-pub(crate) use union_cache::UnionKey;
-// so callers can say `UnionKey::S2T { punct: ... }`
 
 // Define a global mutable variable to store the error message
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -159,7 +156,7 @@ pub struct DictionaryMaxlength {
 
     #[serde(skip)]
     #[serde(default)]
-    unions: union_cache::Unions,
+    pub(super) unions: Unions,
 }
 
 impl DictionaryMaxlength {

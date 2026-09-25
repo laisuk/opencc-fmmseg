@@ -20,9 +20,10 @@ mod dict_max_len;
 mod dict_slot;
 mod dictionary_maxlength;
 mod starter_union;
+mod union_cache;
 
 pub use self::dict_max_len::*;
 pub use self::dict_slot::*;
-pub(crate) use self::dictionary_maxlength::UnionKey;
 pub use self::dictionary_maxlength::{DictionaryError, DictionaryMaxlength};
 pub(crate) use self::starter_union::StarterUnion;
+pub(crate) use self::union_cache::UnionKey;

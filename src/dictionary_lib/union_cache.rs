@@ -256,7 +256,6 @@ pub(crate) enum UnionKey {
     // ============================
     // Small Seal Script Helpers
     // ============================
-
     /// Union containing only Small Seal Script → regular-script transcription mappings.
     ///
     /// Includes:

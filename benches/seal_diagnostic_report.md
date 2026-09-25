@@ -34,7 +34,7 @@ dictionaries → `apply_dicts_1` → the same error reset and `DictRefs` machine
 Neither direct API parses a configuration or looks up a conversion-plan object. The optional `convert` wrapper parses
 its string to `OpenccConfig`; `convert_with_config` matches the enum and calls the direct helper.
 
-`union_for` (`src/dictionary_lib/dictionary_maxlength/union_cache.rs:342`) selects a per-dictionary-instance
+`union_for` (`src/dictionary_lib/union_cache.rs:341`) selects a per-dictionary-instance
 `OnceLock<Arc<StarterUnion>>`: first access builds; later accesses clone the Arc. `DictRefs` computes the maximum key
 length and stores references plus the Arc per round; it does not clone dictionary maps.
 
