@@ -613,7 +613,7 @@ Usage: opencc-rs.exe convert [OPTIONS] --config <config>
 Options:
   -i, --input <file>                  Input file (use stdin if omitted for non-office documents)
   -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp)
+  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp | s2seal | t2seal | seal2s | seal2t)
   -p, --punct                         Enable punctuation conversion
   -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
   -E, --norm-compat-extended          Normalize extended Unicode compatibility forms before conversion.
@@ -636,7 +636,7 @@ Usage: opencc-rs.exe office [OPTIONS] --config <config>
 Options:
   -i, --input <file>                  Input file (use stdin if omitted for non-office documents)
   -o, --output <file>                 Output file (use stdout if omitted for non-office documents)
-  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp)
+  -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp | s2seal | t2seal | seal2s | seal2t)
   -p, --punct                         Enable punctuation conversion
   -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion.
   -E, --norm-compat-extended          Normalize extended Unicode compatibility forms before conversion.
@@ -707,18 +707,28 @@ Example `my_hk_dict.txt`:
 - Supported conversions:
     - `s2t` – Simplified to Traditional
     - `s2tw` – Simplified to Traditional Taiwan
+    - `s2twp` – Simplified to Traditional Taiwan with idioms
     - `s2hk` – Simplified to Traditional Hong Kong
     - `s2hkp` – Simplified to Traditional Hong Kong with idioms
-    - `t2hkp` – Traditional to Hong Kong Traditional with idioms
-    - `s2twp` – Simplified to Traditional Taiwan with idioms
     - `t2s` – Traditional to Simplified
+    - `t2tw` – Traditional to Traditional Taiwan
+    - `t2twp` – Traditional to Traditional Taiwan with idioms
+    - `t2hk` – Traditional to Traditional Hong Kong
+    - `t2hkp` – Traditional to Traditional Hong Kong with idioms
     - `tw2s` – Traditional Taiwan to Simplified
     - `tw2sp` – Traditional Taiwan to Simplified with idioms
+    - `tw2t` – Traditional Taiwan to general Traditional
+    - `tw2tp` – Traditional Taiwan with idioms to general Traditional
     - `hk2s` – Traditional Hong Kong to Simplified
     - `hk2sp` – Traditional Hong Kong to Simplified with idioms
-    - `hk2tp` – Hong Kong Traditional with idioms to general Traditional
-    - `jp2t`, `t2jp` - Japanese Shinjitai/Kyujitai
-    - etc
+    - `hk2t` – Traditional Hong Kong to general Traditional
+    - `hk2tp` – Traditional Hong Kong with idioms to general Traditional
+    - `jp2t` – Japanese Shinjitai to Traditional Chinese
+    - `t2jp` – Traditional Chinese to Japanese Shinjitai
+    - `s2seal` – Simplified Chinese to Seal script
+    - `t2seal` – Traditional Chinese to Seal script
+    - `seal2s` – Seal script to Simplified Chinese
+    - `seal2t` – Seal script to Traditional Chinese
 
 ### Lexicons
 
