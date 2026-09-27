@@ -8,6 +8,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.13.0] - Unreleased
 
+### Breaking
+
+- `save_cbor_compressed()` is now gated behind the `dictionary-build` feature. Applications that generate
+  Zstd-compressed CBOR dictionary artifacts must explicitly enable `dictionary-build`, for example
+  `opencc-fmmseg = { version = "0.13", features = ["dictionary-build"] }`. Runtime dictionary loading remains available
+  without this feature and uses the built-in pure-Rust Zstandard decoder.
+
 ### Added
 
 - Added Seal script conversion support based on the upstream OpenCC Seal dictionaries.
