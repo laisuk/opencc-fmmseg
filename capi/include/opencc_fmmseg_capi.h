@@ -87,13 +87,13 @@ enum {
     /** Hong Kong variant → Traditional Chinese (with phrases). */
     OPENCC_CONFIG_HK2TP = 20,
 
-    /** Simplified Chinese → Small Seal Script. */
+    /** Simplified Chinese → Small Seal Script. @since v0.13.0 */
     OPENCC_CONFIG_S2SEAL = 21,
-    /** Traditional Chinese → Small Seal Script. */
+    /** Traditional Chinese → Small Seal Script. @since v0.13.0 */
     OPENCC_CONFIG_T2SEAL = 22,
-    /** Small Seal Script → Simplified Chinese. */
+    /** Small Seal Script → Simplified Chinese. @since v0.13.0 */
     OPENCC_CONFIG_SEAL2S = 23,
-    /** Small Seal Script → Traditional Chinese. */
+    /** Small Seal Script → Traditional Chinese. @since v0.13.0 */
     OPENCC_CONFIG_SEAL2T = 24,
 };
 
@@ -194,16 +194,16 @@ enum {
     /** Traditional → Simplified punctuation mappings. */
     OPENCC_DICT_SLOT_TS_PUNCTUATIONS = 21,
 
-    /** Small Seal Script → Traditional character mappings. */
+    /** Small Seal Script → Traditional character mappings. @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_CHARACTERS = 22,
 
-    /** Traditional → Small Seal Script reverse character mappings. */
+    /** Traditional → Small Seal Script reverse character mappings. @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_CHARACTERS_REV = 23,
 
-    /** Traditional → Small Seal Script same-character variant mappings. */
+    /** Traditional → Small Seal Script same-character variant mappings. @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_VARIANTS = 24,
 
-    /** Small Seal Script → Traditional reverse variant mappings. */
+    /** Small Seal Script → Traditional reverse variant mappings. @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_VARIANTS_REV = 25
 };
 
@@ -559,7 +559,9 @@ char* opencc_convert(const void* instance, const char* input, const char* config
 char* opencc_convert_cfg(const void* instance, const char* input, opencc_config_t config, bool punctuation);
 
 /**
- * @deprecated Planned for removal. Prefer `opencc_convert()` or `opencc_convert_cfg()`.
+ * @deprecated Prefer `opencc_convert()` or `opencc_convert_cfg()` for ordinary
+ *     allocated-return conversion. Use `opencc_convert_cfg_mem_len()` only when
+ *     an explicit input length and caller-owned output buffer are required.
  *
  * Converts a UTF-8 input buffer with explicit byte length using a string config name.
  *
@@ -589,11 +591,34 @@ char* opencc_convert_len(
     const char* config,
     bool punctuation);
 
+/**
+ * @deprecated Prefer `opencc_convert_cfg()` for ordinary allocated-return
+ *     conversion. Use `opencc_convert_cfg_mem_len()` only when an explicit
+ *     input length and caller-owned output buffer are required.
+ *
+ * Converts a UTF-8 input buffer with explicit byte length using a numeric
+ * OpenCC config.
+ *
+ * The input buffer does not need to be null-terminated.
+ *
+ * @return
+ *     A newly allocated null-terminated UTF-8 string. The returned string must
+ *     be freed using `opencc_string_free()`.
+ */
+char* opencc_convert_cfg_len(
+    const void* instance,
+    const char* input,
+    size_t input_len,
+    opencc_config_t config,
+    bool punctuation);
+
 // ============================================================================
 // Conversion API (caller-provided buffer)
 // ============================================================================
 
 /**
+ * @deprecated Use `opencc_convert_cfg_mem_len()` instead.
+ *
  * Converts a null-terminated UTF-8 input string using a numeric OpenCC config,
  * writing the result into a caller-provided buffer.
  *

@@ -180,18 +180,13 @@ public:
     }
 
     // ---------------------------
-    // Advanced buffer-based APIs
+    // Legacy conversion aliases
     // ---------------------------
 
-    // Stateless explicit-length conversion (advanced).
-    //
-    // Wraps opencc_convert_cfg_mem_len().
-    // This API avoids scanning for '\0' and works directly on byte spans.
-    //
-    // Note:
-    // - Not guaranteed to be faster than convert_cfg().
-    // - Uses a size-query + write pattern (2 native calls).
-    // - Intended for interop / explicit buffer workflows.
+    // Compatibility alias retained for existing callers.
+    // New code should use convert_cfg(); the native buffer implementation is an
+    // internal detail because this wrapper returns an owning std::string.
+    [[deprecated("Use convert_cfg() instead.")]]
     [[nodiscard]] std::string convert_cfg_mem_len(
         const std::string_view input,
         const opencc_config_t configId,
@@ -201,7 +196,8 @@ public:
         return convertByCfgMemLen(input, configId, punctuation);
     }
 
-    // Stateful version (uses stored config/punctuation).
+    // Compatibility alias using the stored config/punctuation state.
+    [[deprecated("Use convert_cfg() instead.")]]
     [[nodiscard]] std::string convert_cfg_mem_len(const std::string_view input) const {
         if (input.empty()) return {};
         if (useConfigName_) {
@@ -214,7 +210,8 @@ public:
         return convertByCfgMemLen(input, configId_, punctuationEnabled_);
     }
 
-    // Convenience overload using a config name.
+    // Compatibility alias for the config-name conversion overload.
+    [[deprecated("Use convert() instead.")]]
     [[nodiscard]] std::string convert_mem_len(
         const std::string_view input,
         const std::string_view configName,

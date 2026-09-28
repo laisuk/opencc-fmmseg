@@ -263,6 +263,11 @@ pub extern "C" fn opencc_convert_cfg(
 ///
 /// Available since **v0.8.4**.
 ///
+/// Legacy compatibility API for callers with NUL-terminated UTF-8 input.
+///
+/// New bindings should prefer [`opencc_convert_cfg_mem_len`], which accepts an
+/// explicit input byte length and avoids the native NUL scan.
+///
 /// Writes the converted UTF-8 output into a caller-provided buffer.
 ///
 /// This legacy memory API accepts a NUL-terminated UTF-8 input string.
@@ -278,6 +283,7 @@ pub extern "C" fn opencc_convert_cfg(
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
+#[deprecated(note = "Use `opencc_convert_cfg_mem_len` instead")]
 #[no_mangle]
 pub extern "C" fn opencc_convert_cfg_mem(
     instance: *const OpenCC,
@@ -329,7 +335,7 @@ pub extern "C" fn opencc_convert_cfg_mem(
 ///
 /// This is the preferred allocation-minimizing buffer API for interop callers
 /// that already have UTF-8 bytes and know the exact input length. Unlike
-/// [`opencc_convert_cfg_mem`], the input does not need to be NUL-terminated.
+/// `opencc_convert_cfg_mem`, the input does not need to be NUL-terminated.
 ///
 /// Contract:
 /// - `out_required` must be non-NULL
@@ -389,9 +395,15 @@ pub extern "C" fn opencc_convert_cfg_mem_len(
 ///
 /// Converts a UTF-8 input buffer with explicit byte length using a string config.
 ///
+/// For ordinary allocated-return conversion, prefer [`opencc_convert`] or
+/// [`opencc_convert_cfg`]. New bindings that specifically require explicit input
+/// length and caller-owned output memory should prefer
+/// [`opencc_convert_cfg_mem_len`].
+///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
+#[deprecated(note = "Prefer `opencc_convert` or `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required")]
 #[no_mangle]
 pub extern "C" fn opencc_convert_len(
     instance: *const OpenCC,
@@ -422,9 +434,14 @@ pub extern "C" fn opencc_convert_len(
 ///
 /// Converts a UTF-8 input buffer with explicit byte length using a numeric config.
 ///
+/// For ordinary allocated-return conversion, prefer [`opencc_convert_cfg`].
+/// New bindings that specifically require explicit input length and caller-owned
+/// output memory should prefer [`opencc_convert_cfg_mem_len`].
+///
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
+#[deprecated(note = "Prefer `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required")]
 #[no_mangle]
 pub extern "C" fn opencc_convert_cfg_len(
     instance: *const OpenCC,
@@ -996,8 +1013,8 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
 fn eq_ascii_ci(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len()
         && a.iter()
-            .zip(b.iter())
-            .all(|(&x, &y)| x.to_ascii_lowercase() == y)
+        .zip(b.iter())
+        .all(|(&x, &y)| x.to_ascii_lowercase() == y)
 }
 
 #[inline]
@@ -1461,6 +1478,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)] // Compatibility coverage for a deprecated C ABI entry point.
     fn test_opencc_convert_len() {
         let opencc = OpenCC::new();
         let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
@@ -1487,6 +1505,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)] // Compatibility coverage for a deprecated C ABI entry point.
     fn test_opencc_convert_cfg_len() {
         let opencc = OpenCC::new();
         let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
@@ -1512,6 +1531,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)] // Compatibility coverage for a deprecated C ABI entry point.
     fn test_opencc_convert_len_no_null() {
         let opencc = OpenCC::new();
 
@@ -1540,6 +1560,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)] // Compatibility coverage for a deprecated C ABI entry point.
     fn test_opencc_convert_cfg_len_no_null() {
         let opencc = OpenCC::new();
 
@@ -1628,6 +1649,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)] // Compatibility coverage for a deprecated C ABI entry point.
     fn test_opencc_convert_cfg_mem_null_out_required_sets_last_error() {
         opencc_clear_last_error();
 
@@ -1719,6 +1741,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)] // Compatibility coverage for a deprecated C ABI entry point.
     fn c_api_last_error_is_thread_local_and_clear_is_isolated() {
         use std::sync::{Arc, Barrier};
 
