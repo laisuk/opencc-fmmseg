@@ -292,6 +292,13 @@ Last Error: Invalid config: what_is_this
 Last Error after clear: <none>
 ```
 
+For additional Rust examples covering custom dictionaries, Unicode compatibility normalization, DeTofu, the recommended
+normalization → conversion → DeTofu pipeline, and Small Seal Script conversion, see the full [
+`examples/use_opencc_fmmseg_test.rs`](https://raw.githubusercontent.com/laisuk/opencc-fmmseg/master/examples/use_opencc_fmmseg_test.rs)
+example.
+
+The extended example includes Tests 5–8 and demonstrates the newer APIs and configurations.
+
 ---
 
 ## Unicode compatibility normalization
@@ -707,22 +714,22 @@ Example `my_hk_dict.txt`:
 - Supported conversions:
     - `s2t` – Simplified to Traditional
     - `s2tw` – Simplified to Traditional Taiwan
-    - `s2twp` – Simplified to Traditional Taiwan with idioms
+    - `s2twp` – Simplified to Traditional Taiwan with regional terms
     - `s2hk` – Simplified to Traditional Hong Kong
-    - `s2hkp` – Simplified to Traditional Hong Kong with idioms
+    - `s2hkp` – Simplified to Traditional Hong Kong with regional terms
     - `t2s` – Traditional to Simplified
     - `t2tw` – Traditional to Traditional Taiwan
-    - `t2twp` – Traditional to Traditional Taiwan with idioms
+    - `t2twp` – Traditional to Traditional Taiwan with regional terms
     - `t2hk` – Traditional to Traditional Hong Kong
-    - `t2hkp` – Traditional to Traditional Hong Kong with idioms
+    - `t2hkp` – Traditional to Traditional Hong Kong with regional terms
     - `tw2s` – Traditional Taiwan to Simplified
-    - `tw2sp` – Traditional Taiwan to Simplified with idioms
+    - `tw2sp` – Traditional Taiwan to Simplified with regional terms
     - `tw2t` – Traditional Taiwan to general Traditional
-    - `tw2tp` – Traditional Taiwan with idioms to general Traditional
+    - `tw2tp` – Traditional Taiwan with regional terms to general Traditional
     - `hk2s` – Traditional Hong Kong to Simplified
-    - `hk2sp` – Traditional Hong Kong to Simplified with idioms
+    - `hk2sp` – Traditional Hong Kong to Simplified with regional terms
     - `hk2t` – Traditional Hong Kong to general Traditional
-    - `hk2tp` – Traditional Hong Kong with idioms to general Traditional
+    - `hk2tp` – Traditional Hong Kong with regional terms to general Traditional
     - `jp2t` – Japanese Shinjitai to Traditional Chinese
     - `t2jp` – Traditional Chinese to Japanese Shinjitai
     - `s2seal` – Simplified Chinese to Seal script

@@ -173,6 +173,64 @@ fn main() {
     println!("Converted:   {}", pipeline_converted);
     println!("Display:     {}", pipeline_display);
 
+    // ---------------------------------------------------------------------
+    // Test 8: Small Seal Script conversion roundtrip
+    // ---------------------------------------------------------------------
+    println!();
+    println!("== Test 8: Small Seal Script conversion roundtrip ==");
+
+    let seal_traditional = "你好，小篆國際編碼18";
+    let seal_simplified = "你好，小篆国际编码18";
+    let seal_expected = "你𿒛，𽌠𽴖𾇓𿭖𿛛碼18";
+
+    let t2seal = opencc.convert_with_config(seal_traditional, OpenccConfig::T2seal, false);
+    let s2seal = opencc.convert_with_config(seal_simplified, OpenccConfig::S2seal, false);
+    let seal2t = opencc.convert_with_config(seal_expected, OpenccConfig::Seal2t, false);
+    let seal2s = opencc.convert_with_config(seal_expected, OpenccConfig::Seal2s, false);
+
+    let seal_punctuation =
+        opencc.convert_with_config("你好，小篆“國際編碼18”", OpenccConfig::T2seal, true);
+
+    let t2seal_ok = t2seal == seal_expected;
+    let s2seal_ok = s2seal == seal_expected;
+    let seal2t_ok = seal2t == seal_traditional;
+    let seal2s_ok = seal2s == seal_simplified;
+    let punctuation_ok = seal_punctuation == "你𿒛，𽌠𽴖「𾇓𿭖𿛛碼18」";
+
+    println!(
+        "T2Seal:            {} [{}]",
+        t2seal,
+        if t2seal_ok { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "S2Seal:            {} [{}]",
+        s2seal,
+        if s2seal_ok { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "Seal2T:            {} [{}]",
+        seal2t,
+        if seal2t_ok { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "Seal2S:            {} [{}]",
+        seal2s,
+        if seal2s_ok { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "T2Seal punctuation: {} [{}]",
+        seal_punctuation,
+        if punctuation_ok { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "Roundtrip:          {}",
+        if t2seal_ok && s2seal_ok && seal2t_ok && seal2s_ok && punctuation_ok {
+            "PASS"
+        } else {
+            "FAIL"
+        }
+    );
+
     println!();
     println!("All tests completed.");
 }
