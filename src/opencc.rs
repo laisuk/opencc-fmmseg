@@ -427,8 +427,13 @@ impl OpenCC {
                 .par_chunks(chunk_ranges) // zero-copy chunks of &\[Range\]
                 .map(|chunk| {
                     // sequential inside each chunk
-                    let cap: usize = chunk.iter().map(|r| r.end - r.start).sum();
-                    let mut s = String::with_capacity(cap);
+                    let first = chunk.first().unwrap();
+                    let last = chunk.last().unwrap();
+                    let char_count = last.end - first.start;
+
+                    let cap = char_count.saturating_mul(text.len()).div_ceil(chars.len());
+
+                    let mut s = String::with_capacity(cap + (cap >> 6));
                     for r in chunk {
                         self.convert_by_union_into(
                             &chars[r.start..r.end],
