@@ -146,8 +146,7 @@ fn unknown_size_across_collection_and_history_boundaries() {
     encoder.write_all(&input).unwrap();
     let compressed = encoder.finish().unwrap();
 
-    let (header, _) =
-        zstd::decoding::frame::read_frame_header(compressed.as_slice()).unwrap();
+    let (header, _) = zstd::decoding::frame::read_frame_header(compressed.as_slice()).unwrap();
 
     assert_eq!(header.frame_content_size(), 0);
     assert_eq!(decompress(&compressed).unwrap(), input);
