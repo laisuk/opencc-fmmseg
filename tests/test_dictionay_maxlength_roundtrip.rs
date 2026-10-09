@@ -1,3 +1,4 @@
+#![cfg(feature = "dictionary-build")]
 #[cfg(test)]
 mod tests {
     use opencc_fmmseg::{DictMaxLen, DictionaryMaxlength};

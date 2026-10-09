@@ -9,7 +9,7 @@
 mod bit_io;
 mod blocks;
 mod common;
-mod decoding;
+pub(crate) mod decoding;
 mod fse;
 mod huff0;
 
@@ -52,56 +52,3 @@ pub(crate) fn decompress(input: &[u8]) -> Result<Vec<u8>, FrameDecoderError> {
 
     Ok(output)
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn decompress_embedded_matches_original_and_has_valid_fcs() {
-        let compressed = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.zstd");
-        let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
-
-        let mut decoder = FrameDecoder::new();
-        decoder
-            .init(compressed.as_slice())
-            .expect("frame initialization failed");
-
-        let content_size = decoder.content_size();
-
-        let decoded = decompress(compressed).expect("zstd decompression failed");
-
-        // Verify the embedded artifact's actual payload first.
-        assert_eq!(decoded.as_slice(), expected);
-
-        // The embedded artifact is generated with one-shot Zstd compression,
-        // so its FCS must describe the actual decompressed payload.
-        assert_eq!(
-            content_size,
-            Some(decoded.len() as u64),
-            "embedded Zstd FCS should match the actual decompressed size"
-        );
-    }
-
-    #[cfg(feature = "dictionary-build")]
-    #[test]
-    fn decompress_with_fcs_matches_original() {
-        let expected = include_bytes!("../dictionary_lib/dicts/dictionary_maxlength.cbor");
-
-        // One-shot compression declares the uncompressed frame content size.
-        let compressed = zstd::bulk::compress(expected, 3).expect("zstd compression failed");
-
-        let mut decoder = FrameDecoder::new();
-        decoder
-            .init(compressed.as_slice())
-            .expect("frame initialization failed");
-
-        assert_eq!(decoder.content_size(), Some(expected.len() as u64));
-
-        let decoded = decompress(&compressed).expect("zstd decompression failed");
-
-        assert_eq!(decoded.as_slice(), expected);
-    }
-}
-
-#[cfg(test)]
-mod regression_tests;

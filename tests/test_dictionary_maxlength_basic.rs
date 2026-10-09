@@ -5,9 +5,12 @@ use opencc_fmmseg::{
 use serde_cbor::from_slice;
 use std::error::Error;
 use std::fs;
+#[cfg(feature = "dictionary-build")]
 use std::fs::File;
+#[cfg(feature = "dictionary-build")]
 use std::io::Write;
 use std::path::Path;
+#[cfg(feature = "dictionary-build")]
 use zstd::stream::Encoder;
 
 fn dictionary_with_custom_pair(
@@ -56,6 +59,7 @@ fn test_dictionary_from_dicts_then_to_cbor() {
 
 #[test]
 #[ignore]
+#[cfg(feature = "dictionary-build")]
 fn test_dictionary_from_dicts_then_to_zstd() {
     let dictionary = DictionaryMaxlength::from_dicts().unwrap();
 
@@ -187,7 +191,6 @@ fn from_dicts_at_missing_forward_variant_phrase_files_defaults_empty() {
 
     fs::remove_dir_all(&dir).expect("temp dict dir should be removed");
 }
-
 
 #[cfg(feature = "dictionary-build")]
 #[test]

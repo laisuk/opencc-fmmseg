@@ -1,5 +1,57 @@
-use super::decoding::errors::ReadFrameHeaderError;
-use super::{decompress, FrameDecoderError};
+// Repository-only tests: the original CBOR fixture is not shipped in the crate.
+// Compile the private decoder here without exposing it through the library API.
+#[path = "../src/zstd/mod.rs"]
+mod zstd;
+
+use crate::zstd::decoding::errors::ReadFrameHeaderError;
+use crate::zstd::decoding::FrameDecoder;
+use crate::zstd::{decompress, FrameDecoderError};
+
+#[test]
+fn decompress_embedded_matches_original_and_has_valid_fcs() {
+    let compressed = include_bytes!("../src/dictionary_lib/dicts/dictionary_maxlength.zstd");
+    let expected = include_bytes!("../src/dictionary_lib/dicts/dictionary_maxlength.cbor");
+
+    let mut decoder = FrameDecoder::new();
+    decoder
+        .init(compressed.as_slice())
+        .expect("frame initialization failed");
+
+    let content_size = decoder.content_size();
+
+    let decoded = decompress(compressed).expect("zstd decompression failed");
+
+    // Verify the embedded artifact's actual payload first.
+    assert_eq!(decoded.as_slice(), expected);
+
+    // The embedded artifact is generated with one-shot Zstd compression,
+    // so its FCS must describe the actual decompressed payload.
+    assert_eq!(
+        content_size,
+        Some(decoded.len() as u64),
+        "embedded Zstd FCS should match the actual decompressed size"
+    );
+}
+
+#[cfg(feature = "dictionary-build")]
+#[test]
+fn decompress_with_fcs_matches_original() {
+    let expected = include_bytes!("../src/dictionary_lib/dicts/dictionary_maxlength.cbor");
+
+    // One-shot compression declares the uncompressed frame content size.
+    let compressed = ::zstd::bulk::compress(expected, 3).expect("zstd compression failed");
+
+    let mut decoder = FrameDecoder::new();
+    decoder
+        .init(compressed.as_slice())
+        .expect("frame initialization failed");
+
+    assert_eq!(decoder.content_size(), Some(expected.len() as u64));
+
+    let decoded = decompress(&compressed).expect("zstd decompression failed");
+
+    assert_eq!(decoded.as_slice(), expected);
+}
 
 fn raw_frame(data: &[u8], checksum: bool) -> Vec<u8> {
     assert!(data.len() < 256);
@@ -95,7 +147,7 @@ fn unknown_size_across_collection_and_history_boundaries() {
     let compressed = encoder.finish().unwrap();
 
     let (header, _) =
-        super::decoding::frame::read_frame_header(compressed.as_slice()).unwrap();
+        zstd::decoding::frame::read_frame_header(compressed.as_slice()).unwrap();
 
     assert_eq!(header.frame_content_size(), 0);
     assert_eq!(decompress(&compressed).unwrap(), input);
@@ -103,7 +155,7 @@ fn unknown_size_across_collection_and_history_boundaries() {
 
 #[test]
 fn invalid_history_offsets_preserve_errors() {
-    use super::decoding::{decode_buffer::DecodeBuffer, errors::DecodeBufferError};
+    use crate::zstd::decoding::{decode_buffer::DecodeBuffer, errors::DecodeBufferError};
     let mut buffer = DecodeBuffer::new(4);
     buffer.push(b"ab");
     assert!(matches!(
@@ -122,7 +174,7 @@ fn invalid_history_offsets_preserve_errors() {
 
 #[test]
 fn collection_appends_wrapped_output_and_preserves_history() {
-    use super::decoding::decode_buffer::DecodeBuffer;
+    use crate::zstd::decoding::decode_buffer::DecodeBuffer;
 
     let mut buffer = DecodeBuffer::new(8);
     let initial: Vec<u8> = (0..24).collect();
