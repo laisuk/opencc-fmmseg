@@ -40,10 +40,14 @@ include = [
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 # Exact direct dependency pins to preserve behavior and Rust 2021/MSRV compatibility.
 rayon = "=1.10"
-rayon-core = "=1.12.1"
+rayon-core = "=1.12"
 rustc-hash = "=2.1.1"
 
 regex = "1.13"

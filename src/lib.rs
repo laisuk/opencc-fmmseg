@@ -61,6 +61,9 @@
 //! | `tw2t` / `tw2tp` | [`OpenCC::tw2t`] / [`OpenCC::tw2tp`] | Taiwan variants to Traditional |
 //! | `t2jp` / `jp2t` | [`OpenCC::t2jp`] / [`OpenCC::jp2t`] | Traditional and Japanese kanji variants |
 //!
+//! | `s2seal` / `t2seal` | [`OpenCC::s2seal`] / [`OpenCC::t2seal`] | Simplified/Traditional to Small Seal Script |
+//! | `seal2s` / `seal2t` | [`OpenCC::seal2s`] / [`OpenCC::seal2t`] | Small Seal Script to Simplified/Traditional |
+//!
 //! All direct conversion methods take `(input, punctuation)`. Enabling
 //! punctuation converts curly Simplified-style quotation marks (`“”‘’`) to
 //! Traditional-style corner brackets (`「」『』`) for Traditional, regional, and
@@ -72,6 +75,37 @@
 //! let converter = OpenCC::new();
 //! assert_eq!(converter.t2tw("“滑鼠”", true), "「滑鼠」");
 //! assert_eq!(converter.t2tw("“滑鼠”", false), "“滑鼠”");
+//! ```
+//!
+//! # Small Seal Script (v0.13.0)
+//!
+//! The four Seal configurations use bundled character and variant dictionaries.
+//! Characters without a mapping pass through unchanged. Displaying Seal output
+//! requires a font that covers the output characters; conversion does not install
+//! fonts. Dictionary conversion can be many-to-one, so arbitrary round trips are
+//! not guaranteed to reproduce the original text.
+//!
+//! ```rust
+//! use opencc_fmmseg::{OpenCC, OpenccConfig};
+//!
+//! let converter = OpenCC::new();
+//! let seal = converter.convert_with_config("小篆", OpenccConfig::T2seal, false);
+//! assert_eq!(converter.seal2t(&seal, false), "小篆");
+//! ```
+//!
+//! # Cargo Features
+//!
+//! Normal conversion, embedded dictionary loading, custom dictionary overlays,
+//! and external dictionary loading require no optional features.
+//!
+//! Enable `dictionary-build` to use `DictionaryMaxlength::save_cbor_compressed`
+//! when generating Zstandard-compressed CBOR artifacts. This feature adds the
+//! native Zstandard encoder; runtime decompression uses the built-in pure-Rust
+//! decoder. Uncompressed CBOR serialization remains available without it.
+//!
+//! ```toml
+//! [dependencies]
+//! opencc-fmmseg = { version = "0.13.0", features = ["dictionary-build"] }
 //! ```
 //!
 //! # Custom Dictionaries
@@ -102,7 +136,23 @@
 //! Most high-level conversion methods return a [`String`] for compatibility with
 //! the C and scripting-language bindings. Non-fatal setup or configuration
 //! errors are recorded in [`OpenCC::get_last_error`]. Dictionary construction
-//! APIs return [`Result`] with [`DictionaryError`].
+//! APIs return [`Result`] with [`DictionaryError`]. An invalid string config
+//! returns `"Invalid config: {config}"` as the output and records that message;
+//! validate user-supplied names with [`OpenccConfig::parse`] before conversion.
+//!
+//! The Rust last-error slots are process-wide. Valid conversions clear the
+//! `OpenCC` slot; successful dictionary operations do not necessarily clear the
+//! separate dictionary slot. These diagnostics are shared across threads. For fallible setup, load a [`DictionaryMaxlength`] with a
+//! `Result`-returning constructor and pass it to [`OpenCC::from_dictionary`].
+//! [`OpenCC::new`] falls back to empty dictionaries if loading fails.
+//!
+//! # Optional Text Processing
+//!
+//! Compatibility normalization and DeTofu are explicit operations; conversion
+//! does not apply them automatically. If needed, normalize first, convert, then
+//! apply DeTofu. DeTofu changes code points for display compatibility.
+//! [`OpenCC::set_preserve_ids`] can preserve Unicode Ideographic Description
+//! Sequences during conversion; it is disabled by default.
 //!
 mod compat_ideographs;
 /// Delimiters helper for splitting and matching delimiters.

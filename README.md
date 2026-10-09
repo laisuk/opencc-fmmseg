@@ -116,8 +116,40 @@ To use `opencc-fmmseg` in your project, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-opencc-fmmseg = "0.12.1"  # or latest version
+opencc-fmmseg = "0.13.0"
 ```
+
+### v0.13.0: Small Seal Script and dictionary generation
+
+The Rust API supports all 24 configurations through `OpenccConfig`, string names,
+and direct helpers. New Seal names are `s2seal`, `t2seal`, `seal2s`, and `seal2t`.
+
+```rust
+use opencc_fmmseg::{OpenCC, OpenccConfig};
+
+fn main() {
+    let converter = OpenCC::new();
+    let seal = converter.convert_with_config("小篆", OpenccConfig::T2seal, false);
+    assert_eq!(converter.seal2t(&seal, false), "小篆");
+}
+```
+
+Unmapped characters pass through unchanged. Seal output needs a font covering
+its characters. Dictionary mappings can be many-to-one, so arbitrary round trips
+are not guaranteed to preserve the original text.
+
+**Migration from v0.12:** `DictionaryMaxlength::save_cbor_compressed` now requires
+`dictionary-build`. Enable it only when generating compressed dictionary artifacts:
+
+```toml
+opencc-fmmseg = { version = "0.13.0", features = ["dictionary-build"] }
+```
+
+Normal conversion, custom overlays, compressed dictionary loading, and uncompressed
+CBOR serialization remain available without this feature. Runtime decompression
+uses the built-in pure-Rust decoder; the feature enables the native Zstandard encoder.
+See the [public API reference](https://docs.rs/opencc-fmmseg) and
+[custom dictionary guide](CUSTOM_DICT_USER_GUIDE.md).
 
 ### Public Rust API paths
 

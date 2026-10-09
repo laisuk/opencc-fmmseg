@@ -475,7 +475,16 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// # Examples
     ///
-    /// Not shown here (internal helper).
+    /// ```rust
+    /// use opencc_fmmseg::{DictMaxLen, DictionaryMaxlength};
+    ///
+    /// let mut dictionary = DictionaryMaxlength::from_zstd()?;
+    /// dictionary.st_phrases = DictMaxLen::build_from_pairs([
+    ///     ("自定义词".to_string(), "自訂詞".to_string()),
+    /// ]);
+    /// let dictionary = dictionary.finish();
+    /// # Ok::<(), opencc_fmmseg::DictionaryError>(())
+    /// ```
     #[inline]
     pub fn finish(mut self) -> Self {
         self.populate_all();
@@ -1265,7 +1274,13 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// The dictionary is written **as-is** without calling [`finish`](Self::finish),
     /// assuming it is already in a finalized state.
+    ///
+    /// # Feature
+    ///
+    /// Requires the `dictionary-build` Cargo feature, which enables the native
+    /// Zstandard encoder. Runtime dictionary loading does not require it.
     #[cfg(feature = "dictionary-build")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "dictionary-build")))]
     pub fn save_cbor_compressed(
         dictionary: &DictionaryMaxlength,
         path: &str,
@@ -1281,7 +1296,11 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
 
     /// Loads the dictionary from a Zstd-compressed CBOR file.
     ///
-    /// This function reverses [`save_cbor_compressed`](Self::save_cbor_compressed) by:
+    /// Reads artifacts produced by `save_cbor_compressed` (available with the
+    /// `dictionary-build` feature) or the `dict-generate` CLI. Loading does not
+    /// require that feature and uses the built-in pure-Rust Zstandard decoder.
+    ///
+    /// This function loads the dictionary by:
     ///
     /// 1. Opening the specified file
     /// 2. Decompressing its Zstd stream

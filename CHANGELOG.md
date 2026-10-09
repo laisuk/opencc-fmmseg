@@ -61,6 +61,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Updated CLI configuration parsing and help output to include the new Seal conversion configs.
 - Updated public documentation and examples to reflect Seal support across the Rust API, C API, CLI, and
   custom-dictionary system.
+- Updated dictionary data and Unicode Compatibility mapping table.
+- core: estimate parallel chunk capacity in UTF-8 bytes.
+- CAPI: deprecate redundant conversion API variants.
 
 ---
 

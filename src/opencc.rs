@@ -123,11 +123,11 @@ impl OpenCC {
         Self::from_dictionary(dictionary)
     }
 
-    /// Creates an `OpenCC` instance using plaintext OpenCC dictionary objects.
+    /// Creates an `OpenCC` instance from the bundled plaintext dictionaries.
     ///
-    /// This method is useful for unit testing or embedding custom dictionaries directly
-    /// in code. It bypasses any file loading or embedded CBOR/JSON files, relying instead
-    /// on raw dictionaries defined in `DictionaryMaxlength::from_dicts()`.
+    /// Parses the plaintext dictionary data embedded in the crate, without runtime
+    /// file I/O. Prefer [`Self::new`] for the compressed embedded artifact, or
+    /// [`Self::from_dictionary`] for custom data.
     ///
     /// # Returns
     /// An `OpenCC` instance built from in-memory data.
@@ -2213,7 +2213,7 @@ impl OpenCC {
 
     /// Converts non-BMP CJK extension characters to display-safe fallbacks.
     ///
-    /// This is a convenience wrapper around [`detofu::detofu`]. It is intended
+    /// This applies the shared built-in DeTofu fallback table. It is intended
     /// for environments with incomplete rare-character font coverage, such as
     /// some systems, browsers, e-book readers, document viewers, or mobile
     /// platforms where non-BMP CJK extension characters may render as tofu boxes

@@ -20,8 +20,8 @@
 ///
 /// # Variants
 ///
-/// | Variant | Name   | Description                               | Punctuation parameter used? |
-/// |--------:|--------|-------------------------------------------|-----------------------------|
+/// | Variant | Name   | Description                                | Punctuation parameter used? |
+/// |--------:|--------|--------------------------------------------|-----------------------------|
 /// | 1       | `S2t`  | Simplified → Traditional                   | ✅ (passed through)         |
 /// | 2       | `S2tw` | Simplified → Traditional (Taiwan)          | ✅                          |
 /// | 3       | `S2twp`| Simplified → Taiwan (with phrases)         | ✅                          |
@@ -31,9 +31,9 @@
 /// | 7       | `T2twp`| Traditional → Taiwan (with phrases)        | ✅                          |
 /// | 8       | `T2hk` | Traditional → Hong Kong                    | ✅                          |
 /// | 9       | `Tw2s` | Taiwan → Simplified                        | ✅                          |
-/// | 10      | `Tw2sp`| Taiwan → Simplified (variant)              | ✅                          |
+/// | 10      | `Tw2sp`| Taiwan → Simplified (with phrases)         | ✅                          |
 /// | 11      | `Tw2t` | Taiwan → Traditional                       | ✅                          |
-/// | 12      | `Tw2tp`| Taiwan → Traditional (variant)             | ✅                          |
+/// | 12      | `Tw2tp`| Taiwan → Traditional (with phrases)        | ✅                          |
 /// | 13      | `Hk2s` | Hong Kong → Simplified                     | ✅                          |
 /// | 14      | `Hk2t` | Hong Kong → Traditional                    | ✅                          |
 /// | 15      | `Jp2t` | Japanese (Kanji variants) → Traditional    | ✅                          |
@@ -44,8 +44,8 @@
 /// | 20      | `Hk2tp`| Hong Kong → Traditional (with phrases)     | ✅                          |
 /// | 21      | `S2seal`| Simplified → Small Seal Script            | ✅                          |
 /// | 22      | `T2seal`| Traditional → Small Seal Script           | ✅                          |
-/// | 23      | `Seal2s`| Small Seal Script → Traditional           | ✅                          |
-/// | 24      | `Seal2t`| Small Seal Script → Simplified            | ✅                          |
+/// | 23      | `Seal2s`| Small Seal Script → Simplified            | ✅                          |
+/// | 24      | `Seal2t`| Small Seal Script → Traditional           | ✅                          |
 /// # Since
 ///
 /// Core configurations (`S2t` through `T2jp`) are available since **v0.8.4**.
