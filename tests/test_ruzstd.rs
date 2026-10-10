@@ -1,5 +1,6 @@
 // Repository-only tests: the original CBOR fixture is not shipped in the crate.
 // Compile the private decoder here without exposing it through the library API.
+#[allow(clippy::upper_case_acronyms)]
 #[path = "../src/zstd/mod.rs"]
 mod zstd;
 

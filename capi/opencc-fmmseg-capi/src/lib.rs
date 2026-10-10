@@ -403,7 +403,9 @@ pub extern "C" fn opencc_convert_cfg_mem_len(
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
-#[deprecated(note = "Prefer `opencc_convert` or `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required")]
+#[deprecated(
+    note = "Prefer `opencc_convert` or `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required"
+)]
 #[no_mangle]
 pub extern "C" fn opencc_convert_len(
     instance: *const OpenCC,
@@ -441,7 +443,9 @@ pub extern "C" fn opencc_convert_len(
 /// # Safety
 /// This function follows the OpenCC-FMMSEG C ABI contract.
 /// Pointers passed from C must be valid for the duration of the call.
-#[deprecated(note = "Prefer `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required")]
+#[deprecated(
+    note = "Prefer `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required"
+)]
 #[no_mangle]
 pub extern "C" fn opencc_convert_cfg_len(
     instance: *const OpenCC,
@@ -1013,8 +1017,8 @@ fn parse_ascii_config_name(bytes: &[u8]) -> Option<OpenccConfig> {
 fn eq_ascii_ci(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len()
         && a.iter()
-        .zip(b.iter())
-        .all(|(&x, &y)| x.to_ascii_lowercase() == y)
+            .zip(b.iter())
+            .all(|(&x, &y)| x.to_ascii_lowercase() == y)
 }
 
 #[inline]

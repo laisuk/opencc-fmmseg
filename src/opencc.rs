@@ -170,10 +170,8 @@ impl OpenCC {
     /// ```rust
     /// use opencc_fmmseg::OpenCC;
     ///
-    /// fn main() {
-    ///     let cc = OpenCC::from_cbor("./dicts.s2t.cbor");
-    ///     println!("{}", cc.convert("汉字", "s2t", false));
-    /// }
+    /// let cc = OpenCC::from_cbor("./dicts.s2t.cbor");
+    /// println!("{}", cc.convert("汉字", "s2t", false));
     /// ```
     pub fn from_cbor<P: AsRef<Path>>(filename: P) -> Self {
         let dictionary =
@@ -872,6 +870,7 @@ impl OpenCC {
     }
 
     /// Applies a three-round conversion pipeline with shared orchestration.
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     fn apply_dicts_3(
         &self,
@@ -971,6 +970,7 @@ impl OpenCC {
     /// This helper selects either the 2-dictionary (`st_phrases`,
     /// `st_characters`) or 3-dictionary (`+ st_punctuations`) first-round stack
     /// based on `punctuation`, then forwards to [`apply_dicts_3`].
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     fn apply_st_round_3(
         &self,
@@ -1000,6 +1000,7 @@ impl OpenCC {
     /// This helper selects either the 2-dictionary (`ts_phrases`,
     /// `ts_characters`) or 3-dictionary (`+ ts_punctuations`) third-round stack
     /// based on `punctuation`, then forwards to [`apply_dicts_3`].
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     fn apply_ts_round_3(
         &self,
@@ -2047,20 +2048,20 @@ impl OpenCC {
         if input.is_empty() {
             return 0;
         }
-        // pick the smaller of (1000, stripped length)
+
+        // Pick the smaller of (1000, input length).
         let check_len = find_max_utf8_length(input, 1000);
 
-        let _strip_text = strip_regex().replace_all(&input[..check_len], "");
-        let max_bytes = find_max_utf8_length(&_strip_text, 200);
-        let strip_text = &_strip_text[..max_bytes];
+        let stripped = strip_regex().replace_all(&input[..check_len], "");
+        let max_bytes = find_max_utf8_length(&stripped, 200);
+        let strip_text = &stripped[..max_bytes];
 
-        match (
-            strip_text != &self.ts(strip_text),
-            strip_text != &self.st(strip_text),
-        ) {
-            (true, _) => 1,
-            (_, true) => 2,
-            _ => 0,
+        if strip_text != self.ts(strip_text) {
+            1
+        } else if strip_text != self.st(strip_text) {
+            2
+        } else {
+            0
         }
     }
 

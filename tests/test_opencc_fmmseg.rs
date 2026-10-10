@@ -266,7 +266,7 @@ mod tests {
 
         // Serialize dictionary to CBOR
         let cbor_data = to_vec(&dictionary).expect("Failed to serialize dictionary to CBOR");
-        fs::write(filename, &cbor_data).expect("Failed to write CBOR file");
+        fs::write(filename, cbor_data).expect("Failed to write CBOR file");
 
         // Check the expected file size (update this value after first run)
         // let expected_cbor_size = 1431750; // Replace with actual size after first run
@@ -321,9 +321,9 @@ mod tests {
     #[test]
     fn is_parallel_test() {
         let mut opencc = OpenCC::new();
-        assert_eq!(opencc.get_parallel(), true);
+        assert!(opencc.get_parallel());
         opencc.set_parallel(false);
-        assert_eq!(opencc.get_parallel(), false);
+        assert!(!opencc.get_parallel());
     }
 
     #[test]

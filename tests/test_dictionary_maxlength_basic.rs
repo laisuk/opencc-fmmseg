@@ -269,8 +269,8 @@ fn test_to_dicts_writes_expected_txt_files() -> Result<(), Box<dyn Error>> {
     let stc_path = format!("{}/STCharacters.txt", output_dir);
     let stp_path = format!("{}/STPhrases.txt", output_dir);
 
-    let content_stc = fs::read_to_string(&stc_path)?;
-    let content_stp = fs::read_to_string(&stp_path)?;
+    let content_stc = fs::read_to_string(stc_path)?;
+    let content_stp = fs::read_to_string(stp_path)?;
 
     assert!(content_stc.contains("测试\t測試"));
     assert!(content_stc.contains("语言\t語言"));

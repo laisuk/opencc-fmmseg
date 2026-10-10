@@ -76,11 +76,9 @@ fn inspect_seal_segmentation_boundary() {
 fn seal_round_trip_preserves_s2t_segmentation_boundaries() {
     let cc = OpenCC::from_dicts();
 
-    const SIMPLIFIED: &str =
-        "她的发色展示了他自己开发的新颖染发霜颜色";
+    const SIMPLIFIED: &str = "她的发色展示了他自己开发的新颖染发霜颜色";
 
-    const SEAL: &str =
-        "她𾌀𾧋𾨓𾡝𽀒𿯄他𽨋𿮛𿊵𿗺𾌀𿩱𾏷𿄻𾧋𿇝𾤽𾨓";
+    const SEAL: &str = "她𾌀𾧋𾨓𾡝𽀒𿯄他𽨋𿮛𿊵𿗺𾌀𿩱𾏷𿄻𾧋𿇝𾤽𾨓";
 
     assert_eq!(cc.s2seal(SIMPLIFIED, false), SEAL);
     assert_eq!(cc.seal2s(SEAL, false), SIMPLIFIED);

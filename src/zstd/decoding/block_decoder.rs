@@ -184,7 +184,6 @@ impl BlockDecoder {
         &mut self,
         mut r: impl Read,
     ) -> Result<(BlockHeader, u8), BlockHeaderReadError> {
-
         r.read_exact(&mut self.header_buffer[0..3])?;
 
         let btype = self.block_type()?;

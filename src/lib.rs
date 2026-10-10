@@ -171,6 +171,7 @@ mod opencc_config;
 mod unicode_compat;
 /// Common helpers for opencc-fmmseg.
 mod utils;
+#[allow(clippy::upper_case_acronyms)]
 mod zstd;
 
 // Text utilities

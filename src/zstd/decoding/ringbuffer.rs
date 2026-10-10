@@ -1,5 +1,5 @@
-use std::io::Read;
 use std::alloc::{alloc, dealloc, Layout};
+use std::io::Read;
 use std::ptr::NonNull;
 use std::slice;
 
@@ -481,7 +481,6 @@ impl RingBuffer {
         self.tail = (self.tail + fill_length) % self.cap;
         Ok(())
     }
-
 }
 
 impl Drop for RingBuffer {

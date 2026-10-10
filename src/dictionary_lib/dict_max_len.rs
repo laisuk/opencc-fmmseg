@@ -457,7 +457,7 @@ impl DictMaxLen {
             // - For len <= 64: the exact bit must be set.
             // - For len > 64: source masks have no bit for that length; validate
             //   starter presence, the global bound, and the BMP cap instead.
-            for (k_chars, _) in &dict.map {
+            for k_chars in dict.map.keys() {
                 if let Some(&c0) = k_chars.first() {
                     let mask = dict.starter_len_mask.get(&c0).copied().unwrap_or(0);
                     let len = k_chars.len();
