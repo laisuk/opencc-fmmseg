@@ -6,6 +6,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.13.1] - Unreleased
+
+### Changed
+
+- Cleaned up Rust Clippy warnings across the core library and C API without changing runtime behavior.
+- Improved C API safety contracts by marking FFI functions that require caller-enforced pointer validity as
+  `unsafe extern "C"`, with clearer `# Safety` documentation.
+- Preserved all exported C ABI symbols, signatures, and compatibility with existing language bindings.
+- Refined internal code to address Clippy suggestions while preserving performance-sensitive logic.
+- Applied narrowly scoped Clippy allowances where appropriate to retain upstream vendored code and existing API designs.
+- Updated Rust tests to respect the explicit FFI safety contracts.
+
+---
+
 ## [0.13.0] - 2026-10-09
 
 ### Breaking

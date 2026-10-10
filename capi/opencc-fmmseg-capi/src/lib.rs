@@ -95,9 +95,6 @@ pub extern "C" fn opencc_version_string() -> *const c_char {
 /// records the exact initialization error in the calling thread's C API
 /// last-error state.
 ///
-/// # Safety
-/// This function follows the opencc-fmmseg C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
 #[no_mangle]
 pub extern "C" fn opencc_new() -> *mut OpenCC {
     let dictionary = DictionaryMaxlength::new().unwrap_or_else(|error| {
@@ -122,16 +119,16 @@ pub extern "C" fn opencc_new() -> *mut OpenCC {
 /// it on that same thread immediately after failure.
 ///
 /// # Safety
-///
-/// When `spec_count > 0`, `specs` must point to a contiguous array containing
-/// at least `spec_count` valid [`OpenccCustomDictSpec`] elements.
-///
-/// For every specification with `pair_count > 0`, `pairs` must point to a
-/// contiguous array containing at least `pair_count` valid
-/// [`OpenccCustomPair`] elements.
-///
-/// Every non-NULL string pointer must point to a valid NUL-terminated byte
-/// sequence for the duration of the call.
+/// Non-NULL `specs` with nonzero `spec_count` must reference an aligned,
+/// initialized, readable array of at least `spec_count` specifications in one
+/// allocation. Each non-NULL `pairs` with nonzero `pair_count` must likewise
+/// reference at least `pair_count` initialized pairs. Array byte sizes must
+/// not exceed `isize::MAX`. NULL arrays with nonzero counts are rejected.
+/// Every non-NULL source/target pointer must reference a readable NUL-terminated
+/// byte sequence in one allocation. All arrays and strings must remain valid
+/// and unchanged throughout the call; ownership stays with the caller.
+/// Data is copied. A non-NULL result is caller-owned and must be destroyed
+/// exactly once with [`opencc_delete`].
 #[no_mangle]
 pub unsafe extern "C" fn opencc_new_custom(
     specs: *const OpenccCustomDictSpec,
@@ -152,10 +149,12 @@ pub unsafe extern "C" fn opencc_new_custom(
 /// C API function `opencc_delete`.
 ///
 /// # Safety
-/// This function follows the opencc-fmmseg C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// `instance` must be NULL or the original, still-live pointer returned by
+/// `opencc_new` or `opencc_new_custom`, not previously freed. This call takes
+/// ownership and destroys it exactly once. No references or other accesses
+/// to the instance may be active during or after this call.
 #[no_mangle]
-pub extern "C" fn opencc_delete(instance: *mut OpenCC) {
+pub unsafe extern "C" fn opencc_delete(instance: *mut OpenCC) {
     free_opencc_instance(instance);
 }
 
@@ -163,10 +162,12 @@ pub extern "C" fn opencc_delete(instance: *mut OpenCC) {
 /// C API function `opencc_free`.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// `instance` must be NULL or the original, still-live pointer returned by
+/// `opencc_new` or `opencc_new_custom`, not previously freed. This call takes
+/// ownership and destroys it exactly once. No references or other accesses
+/// to the instance may be active during or after this call.
 #[no_mangle]
-pub extern "C" fn opencc_free(instance: *mut OpenCC) {
+pub unsafe extern "C" fn opencc_free(instance: *mut OpenCC) {
     free_opencc_instance(instance);
 }
 
@@ -188,10 +189,12 @@ fn free_opencc_instance(instance: *mut OpenCC) {
 /// Returns `false` if `instance` is NULL.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
 #[no_mangle]
-pub extern "C" fn opencc_get_parallel(instance: *const OpenCC) -> bool {
+pub unsafe extern "C" fn opencc_get_parallel(instance: *const OpenCC) -> bool {
     match unsafe { instance.as_ref() } {
         Some(opencc) => opencc.get_parallel(),
         None => false,
@@ -203,10 +206,12 @@ pub extern "C" fn opencc_get_parallel(instance: *const OpenCC) -> bool {
 /// Does nothing if `instance` is NULL.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must be exclusively accessible during this call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
 #[no_mangle]
-pub extern "C" fn opencc_set_parallel(instance: *mut OpenCC, is_parallel: bool) {
+pub unsafe extern "C" fn opencc_set_parallel(instance: *mut OpenCC, is_parallel: bool) {
     if let Some(opencc) = unsafe { instance.as_mut() } {
         opencc.set_parallel(is_parallel);
     }
@@ -219,10 +224,16 @@ pub extern "C" fn opencc_set_parallel(instance: *mut OpenCC, is_parallel: bool) 
 /// C API function `opencc_convert`.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input`, `config` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
 #[no_mangle]
-pub extern "C" fn opencc_convert(
+pub unsafe extern "C" fn opencc_convert(
     instance: *const OpenCC,
     input: *const c_char,
     config: *const c_char,
@@ -245,10 +256,16 @@ pub extern "C" fn opencc_convert(
 /// Available since **v0.8.4**.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
 #[no_mangle]
-pub extern "C" fn opencc_convert_cfg(
+pub unsafe extern "C" fn opencc_convert_cfg(
     instance: *const OpenCC,
     input: *const c_char,
     config: u32,
@@ -281,11 +298,21 @@ pub extern "C" fn opencc_convert_cfg(
 /// - Returns `true` on success, `false` on failure
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// Non-NULL `out_required` must be aligned and exclusively writable for one
+/// `usize`; NULL is rejected. If `out_buf` is non-NULL and `out_cap > 0`,
+/// it must be exclusively writable for `out_cap` bytes throughout the call.
+/// Output regions must not overlap each other, the instance, or input memory.
+/// NULL output or zero capacity queries the required size, including the NUL.
+/// A successful write requires capacity of at least that size.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
 #[deprecated(note = "Use `opencc_convert_cfg_mem_len` instead")]
 #[no_mangle]
-pub extern "C" fn opencc_convert_cfg_mem(
+pub unsafe extern "C" fn opencc_convert_cfg_mem(
     instance: *const OpenCC,
     input: *const c_char,
     config: u32,
@@ -345,10 +372,21 @@ pub extern "C" fn opencc_convert_cfg_mem(
 /// - Returns `true` on success, `false` on failure
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference at least `input_len` readable bytes in
+/// one allocation, even for zero length, with `input_len <= isize::MAX`.
+/// Input need not be NUL-terminated and must remain unchanged during the call.
+/// Non-NULL `out_required` must be aligned and exclusively writable for one
+/// `usize`; NULL is rejected. If `out_buf` is non-NULL and `out_cap > 0`,
+/// it must be exclusively writable for `out_cap` bytes throughout the call.
+/// Output regions must not overlap each other, the instance, or input memory.
+/// NULL output or zero capacity queries the required size, including the NUL.
+/// A successful write requires capacity of at least that size.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
 #[no_mangle]
-pub extern "C" fn opencc_convert_cfg_mem_len(
+pub unsafe extern "C" fn opencc_convert_cfg_mem_len(
     instance: *const OpenCC,
     input: *const u8,
     input_len: usize,
@@ -401,13 +439,22 @@ pub extern "C" fn opencc_convert_cfg_mem_len(
 /// [`opencc_convert_cfg_mem_len`].
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference at least `input_len` readable bytes in
+/// one allocation, even for zero length, with `input_len <= isize::MAX`.
+/// Input need not be NUL-terminated and must remain unchanged during the call.
+/// Non-NULL `config` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
 #[deprecated(
     note = "Prefer `opencc_convert` or `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required"
 )]
 #[no_mangle]
-pub extern "C" fn opencc_convert_len(
+pub unsafe extern "C" fn opencc_convert_len(
     instance: *const OpenCC,
     input: *const c_char,
     input_len: usize,
@@ -441,13 +488,20 @@ pub extern "C" fn opencc_convert_len(
 /// output memory should prefer [`opencc_convert_cfg_mem_len`].
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference at least `input_len` readable bytes in
+/// one allocation, even for zero length, with `input_len <= isize::MAX`.
+/// Input need not be NUL-terminated and must remain unchanged during the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
 #[deprecated(
     note = "Prefer `opencc_convert_cfg`; use `opencc_convert_cfg_mem_len` when explicit input length and caller-owned output are required"
 )]
 #[no_mangle]
-pub extern "C" fn opencc_convert_cfg_len(
+pub unsafe extern "C" fn opencc_convert_cfg_len(
     instance: *const OpenCC,
     input: *const c_char,
     input_len: usize,
@@ -474,10 +528,16 @@ pub extern "C" fn opencc_convert_cfg_len(
 /// The returned string must be released using [`opencc_string_free`].
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
 #[no_mangle]
-pub extern "C" fn opencc_normalize_compat(
+pub unsafe extern "C" fn opencc_normalize_compat(
     instance: *const OpenCC,
     input: *const c_char,
 ) -> *mut c_char {
@@ -494,10 +554,16 @@ pub extern "C" fn opencc_normalize_compat(
 /// The returned string must be released using [`opencc_string_free`].
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
 #[no_mangle]
-pub extern "C" fn opencc_normalize_compat_extended(
+pub unsafe extern "C" fn opencc_normalize_compat_extended(
     instance: *const OpenCC,
     input: *const c_char,
 ) -> *mut c_char {
@@ -517,10 +583,16 @@ pub extern "C" fn opencc_normalize_compat_extended(
 /// The returned string must be released using [`opencc_string_free`].
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
 #[no_mangle]
-pub extern "C" fn opencc_detofu(
+pub unsafe extern "C" fn opencc_detofu(
     instance: *const OpenCC,
     input: *const c_char,
     level: u32,
@@ -544,10 +616,14 @@ pub extern "C" fn opencc_detofu(
 /// calling thread through [`opencc_last_error`].
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
 #[no_mangle]
-pub extern "C" fn opencc_zho_check(instance: *const OpenCC, input: *const c_char) -> i32 {
+pub unsafe extern "C" fn opencc_zho_check(instance: *const OpenCC, input: *const c_char) -> i32 {
     if instance.is_null() || input.is_null() {
         set_c_api_last_error("Invalid argument: instance/input is NULL");
         return -1;
@@ -580,8 +656,6 @@ pub extern "C" fn opencc_zho_check(instance: *const OpenCC, input: *const c_char
 /// error on the same thread immediately after a failed C API call. The returned
 /// string is an independent allocation and never borrows thread-local storage.
 ///
-/// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
 #[no_mangle]
 pub extern "C" fn opencc_last_error() -> *mut c_char {
     let msg = match get_c_api_last_error() {
@@ -601,8 +675,6 @@ pub extern "C" fn opencc_last_error() -> *mut c_char {
 /// Clears only the C API last-error state belonging to the calling thread. It
 /// does not free strings previously returned by [`opencc_last_error`].
 ///
-/// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
 #[no_mangle]
 pub extern "C" fn opencc_clear_last_error() {
     clear_c_api_last_error();
@@ -611,10 +683,13 @@ pub extern "C" fn opencc_clear_last_error() {
 /// C API function `opencc_error_free`.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// `ptr` must be NULL or the original pointer to a still-live string allocation
+/// returned by an allocating OpenCC C API function, not previously freed.
+/// Its terminating NUL must not have moved. This call takes ownership and
+/// frees it exactly once. No other accesses may be active during or after
+/// this call. Static version/config strings must never be passed here.
 #[no_mangle]
-pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
+pub unsafe extern "C" fn opencc_error_free(ptr: *mut c_char) {
     free_c_string(ptr);
 }
 
@@ -629,10 +704,13 @@ pub extern "C" fn opencc_error_free(ptr: *mut c_char) {
 /// `opencc_normalize_compat_extended()`, or `opencc_detofu()`.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// `ptr` must be NULL or the original pointer to a still-live string allocation
+/// returned by an allocating OpenCC C API function, not previously freed.
+/// Its terminating NUL must not have moved. This call takes ownership and
+/// frees it exactly once. No other accesses may be active during or after
+/// this call. Static version/config strings must never be passed here.
 #[no_mangle]
-pub extern "C" fn opencc_string_free(ptr: *mut c_char) {
+pub unsafe extern "C" fn opencc_string_free(ptr: *mut c_char) {
     free_c_string(ptr);
 }
 
@@ -663,10 +741,17 @@ fn free_c_string(ptr: *mut c_char) {
 /// - `24` (`seal2t`): Small Seal Script → Traditional Chinese.
 ///
 /// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
-/// Pointers passed from C must be valid for the duration of the call.
+/// Non-NULL `name_utf8` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// Non-NULL `out_id` must be aligned and exclusively writable for one `u32`
+/// throughout the call, without overlap with the name. NULL arguments return
+/// failure without access.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
 #[no_mangle]
-pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mut u32) -> u8 {
+pub unsafe extern "C" fn opencc_config_name_to_id(
+    name_utf8: *const c_char,
+    out_id: *mut u32,
+) -> u8 {
     if name_utf8.is_null() || out_id.is_null() {
         return 0;
     }
@@ -694,8 +779,6 @@ pub extern "C" fn opencc_config_name_to_id(name_utf8: *const c_char, out_id: *mu
 /// Small Seal Script IDs `21`–`24` return `s2seal`, `t2seal`, `seal2s`, and
 /// `seal2t`, respectively; see [`opencc_config_name_to_id`] for directions.
 ///
-/// # Safety
-/// This function follows the OpenCC-FMMSEG C ABI contract.
 #[no_mangle]
 pub extern "C" fn opencc_config_id_to_name(id: u32) -> *const c_char {
     match OpenccConfig::from_ffi(id) {
@@ -918,13 +1001,14 @@ fn fail_with_buffer_msg(
     out_required: *mut usize,
 ) -> bool {
     set_c_api_last_error(msg);
+
     let bytes = msg.as_bytes();
     let safe_bytes = if bytes.contains(&0) { b"Error" } else { bytes };
 
     let write_ok =
         unsafe { write_output_bytes(safe_bytes, out_buf, out_cap, out_required).is_ok() };
 
-    if !write_ok && !(out_buf.is_null() || out_cap == 0) {
+    if !write_ok && !out_buf.is_null() && out_cap != 0 {
         set_c_api_last_error("Output buffer too small");
     }
 
@@ -1298,10 +1382,10 @@ mod tests {
         let opencc = OpenCC::new();
         let input = CString::new("你好，世界，欢迎").unwrap();
 
-        let result = opencc_zho_check(&opencc as *const OpenCC, input.as_ptr());
+        let result = unsafe { opencc_zho_check(&opencc as *const OpenCC, input.as_ptr()) };
         assert_eq!(result, 2);
 
-        let result = opencc_zho_check(ptr::null(), input.as_ptr());
+        let result = unsafe { opencc_zho_check(ptr::null(), input.as_ptr()) };
         assert_eq!(result, -1);
         assert_eq!(
             read_and_free(opencc_last_error()),
@@ -1315,7 +1399,7 @@ mod tests {
         let input = CString::new("天龍八部書裡的聼眾‧聼聼竒羙⽟䂖甁噐⾳").unwrap();
 
         let normalized_ptr =
-            opencc_normalize_compat_extended(&opencc as *const OpenCC, input.as_ptr());
+            unsafe { opencc_normalize_compat_extended(&opencc as *const OpenCC, input.as_ptr()) };
 
         assert!(!normalized_ptr.is_null());
 
@@ -1327,12 +1411,14 @@ mod tests {
         assert_eq!(normalized, "天龍八部書裡的聽眾·聽聽奇美玉石瓶器音");
 
         let normalized_input = CString::new(normalized).unwrap();
-        let simplified_ptr = opencc_convert_cfg(
-            &opencc as *const OpenCC,
-            normalized_input.as_ptr(),
-            OpenccConfig::T2s.to_ffi(),
-            false,
-        );
+        let simplified_ptr = unsafe {
+            opencc_convert_cfg(
+                &opencc as *const OpenCC,
+                normalized_input.as_ptr(),
+                OpenccConfig::T2s.to_ffi(),
+                false,
+            )
+        };
 
         assert!(!simplified_ptr.is_null());
 
@@ -1343,8 +1429,8 @@ mod tests {
 
         assert_eq!(simplified, "天龙八部书里的听众·听听奇美玉石瓶器音");
 
-        opencc_string_free(normalized_ptr);
-        opencc_string_free(simplified_ptr);
+        unsafe { opencc_string_free(normalized_ptr) };
+        unsafe { opencc_string_free(simplified_ptr) };
     }
 
     #[test]
@@ -1352,14 +1438,15 @@ mod tests {
         let opencc = OpenCC::new();
         let input = CString::new("天龍八部書").unwrap();
 
-        let result_ptr = opencc_normalize_compat(&opencc as *const OpenCC, input.as_ptr());
+        let result_ptr =
+            unsafe { opencc_normalize_compat(&opencc as *const OpenCC, input.as_ptr()) };
 
         assert!(!result_ptr.is_null());
 
         let result = unsafe { CStr::from_ptr(result_ptr) }.to_str().unwrap();
         assert_eq!(result, "天龍八部書");
 
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
     }
 
     #[test]
@@ -1367,14 +1454,14 @@ mod tests {
         let opencc = OpenCC::new();
         let input = CString::new("骖𬴂").unwrap();
 
-        let result_ptr = opencc_detofu(&opencc as *const OpenCC, input.as_ptr(), 0);
+        let result_ptr = unsafe { opencc_detofu(&opencc as *const OpenCC, input.as_ptr(), 0) };
 
         assert!(!result_ptr.is_null());
 
         let result = unsafe { CStr::from_ptr(result_ptr) }.to_str().unwrap();
         assert_eq!(result, "骖騑");
 
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
     }
 
     #[test]
@@ -1384,7 +1471,7 @@ mod tests {
         let opencc = OpenCC::new();
         let input = CString::new("骖𬴂").unwrap();
 
-        let result_ptr = opencc_detofu(&opencc as *const OpenCC, input.as_ptr(), 99);
+        let result_ptr = unsafe { opencc_detofu(&opencc as *const OpenCC, input.as_ptr(), 99) };
 
         assert!(!result_ptr.is_null());
 
@@ -1398,7 +1485,7 @@ mod tests {
             "Invalid DeTofu level: 99"
         );
 
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
     }
 
     #[test]
@@ -1406,7 +1493,7 @@ mod tests {
         opencc_clear_last_error();
 
         let input = CString::new("天龍八部").unwrap();
-        let result_ptr = opencc_normalize_compat(ptr::null(), input.as_ptr());
+        let result_ptr = unsafe { opencc_normalize_compat(ptr::null(), input.as_ptr()) };
 
         assert!(result_ptr.is_null());
         assert_eq!(
@@ -1422,8 +1509,9 @@ mod tests {
         let opencc = OpenCC::new();
         let input = [0xFFu8, 0x00u8];
 
-        let result_ptr =
-            opencc_normalize_compat(&opencc as *const OpenCC, input.as_ptr() as *const c_char);
+        let result_ptr = unsafe {
+            opencc_normalize_compat(&opencc as *const OpenCC, input.as_ptr() as *const c_char)
+        };
 
         assert!(!result_ptr.is_null());
         assert_eq!(
@@ -1432,7 +1520,7 @@ mod tests {
         );
         assert_eq!(read_and_free(opencc_last_error()), "Invalid UTF-8 input");
 
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
     }
 
     #[test]
@@ -1441,16 +1529,18 @@ mod tests {
         let input = CString::new("意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。").unwrap();
         let config = CString::new("s2twp").unwrap();
 
-        let result_ptr = opencc_convert(
-            &opencc as *const OpenCC,
-            input.as_ptr(),
-            config.as_ptr(),
-            true,
-        );
+        let result_ptr = unsafe {
+            opencc_convert(
+                &opencc as *const OpenCC,
+                input.as_ptr(),
+                config.as_ptr(),
+                true,
+            )
+        };
         let result = unsafe { CStr::from_ptr(result_ptr) }
             .to_string_lossy()
             .into_owned();
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
 
         assert_eq!(
             result,
@@ -1463,17 +1553,19 @@ mod tests {
         let opencc = OpenCC::new();
         let input = CString::new("意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。").unwrap();
 
-        let result_ptr = opencc_convert_cfg(
-            &opencc as *const OpenCC,
-            input.as_ptr(),
-            OpenccConfig::S2twp.to_ffi(),
-            true,
-        );
+        let result_ptr = unsafe {
+            opencc_convert_cfg(
+                &opencc as *const OpenCC,
+                input.as_ptr(),
+                OpenccConfig::S2twp.to_ffi(),
+                true,
+            )
+        };
 
         let result = unsafe { CStr::from_ptr(result_ptr) }
             .to_string_lossy()
             .into_owned();
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
 
         assert_eq!(
             result,
@@ -1489,18 +1581,20 @@ mod tests {
         let input = CString::new(input_str).unwrap();
         let config = CString::new("s2twp").unwrap();
 
-        let result_ptr = opencc_convert_len(
-            &opencc as *const OpenCC,
-            input.as_ptr(),
-            input_str.len(), // explicit length (no '\0' scan)
-            config.as_ptr(),
-            true,
-        );
+        let result_ptr = unsafe {
+            opencc_convert_len(
+                &opencc as *const OpenCC,
+                input.as_ptr(),
+                input_str.len(), // explicit length (no '\0' scan)
+                config.as_ptr(),
+                true,
+            )
+        };
 
         let result = unsafe { CStr::from_ptr(result_ptr) }
             .to_string_lossy()
             .into_owned();
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
 
         assert_eq!(
             result,
@@ -1515,18 +1609,20 @@ mod tests {
         let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
         let input = CString::new(input_str).unwrap();
 
-        let result_ptr = opencc_convert_cfg_len(
-            &opencc as *const OpenCC,
-            input.as_ptr(),
-            input_str.len(), // explicit length
-            OpenccConfig::S2twp.to_ffi(),
-            true,
-        );
+        let result_ptr = unsafe {
+            opencc_convert_cfg_len(
+                &opencc as *const OpenCC,
+                input.as_ptr(),
+                input_str.len(), // explicit length
+                OpenccConfig::S2twp.to_ffi(),
+                true,
+            )
+        };
 
         let result = unsafe { CStr::from_ptr(result_ptr) }
             .to_string_lossy()
             .into_owned();
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
 
         assert_eq!(
             result,
@@ -1544,18 +1640,20 @@ mod tests {
 
         let config = CString::new("s2twp").unwrap();
 
-        let result_ptr = opencc_convert_len(
-            &opencc as *const OpenCC,
-            input_bytes.as_ptr() as *const c_char,
-            input_bytes.len(), // exact length, no '\0'
-            config.as_ptr(),
-            true,
-        );
+        let result_ptr = unsafe {
+            opencc_convert_len(
+                &opencc as *const OpenCC,
+                input_bytes.as_ptr() as *const c_char,
+                input_bytes.len(), // exact length, no '\0'
+                config.as_ptr(),
+                true,
+            )
+        };
 
         let result = unsafe { CStr::from_ptr(result_ptr) }
             .to_string_lossy()
             .into_owned();
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
 
         assert_eq!(
             result,
@@ -1571,18 +1669,20 @@ mod tests {
         let input_str = "意大利罗浮宫里收藏的“蒙娜丽莎的微笑”画像是旷世之作。";
         let input_bytes = input_str.as_bytes(); // raw buffer
 
-        let result_ptr = opencc_convert_cfg_len(
-            &opencc as *const OpenCC,
-            input_bytes.as_ptr() as *const c_char,
-            input_bytes.len(),
-            OpenccConfig::S2twp.to_ffi(),
-            true,
-        );
+        let result_ptr = unsafe {
+            opencc_convert_cfg_len(
+                &opencc as *const OpenCC,
+                input_bytes.as_ptr() as *const c_char,
+                input_bytes.len(),
+                OpenccConfig::S2twp.to_ffi(),
+                true,
+            )
+        };
 
         let result = unsafe { CStr::from_ptr(result_ptr) }
             .to_string_lossy()
             .into_owned();
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
 
         assert_eq!(
             result,
@@ -1597,31 +1697,35 @@ mod tests {
         let input_bytes = input.as_bytes();
         let mut required = 0usize;
 
-        let ok_query = opencc_convert_cfg_mem_len(
-            &opencc as *const OpenCC,
-            input_bytes.as_ptr(),
-            input_bytes.len(),
-            OpenccConfig::S2twp.to_ffi(),
-            true,
-            ptr::null_mut(),
-            0,
-            &mut required,
-        );
+        let ok_query = unsafe {
+            opencc_convert_cfg_mem_len(
+                &opencc as *const OpenCC,
+                input_bytes.as_ptr(),
+                input_bytes.len(),
+                OpenccConfig::S2twp.to_ffi(),
+                true,
+                ptr::null_mut(),
+                0,
+                &mut required,
+            )
+        };
 
         assert!(ok_query);
         assert!(required > 0);
 
         let mut out = vec![0u8; required];
-        let ok_write = opencc_convert_cfg_mem_len(
-            &opencc as *const OpenCC,
-            input_bytes.as_ptr(),
-            input_bytes.len(),
-            OpenccConfig::S2twp.to_ffi(),
-            true,
-            out.as_mut_ptr() as *mut c_char,
-            out.len(),
-            &mut required,
-        );
+        let ok_write = unsafe {
+            opencc_convert_cfg_mem_len(
+                &opencc as *const OpenCC,
+                input_bytes.as_ptr(),
+                input_bytes.len(),
+                OpenccConfig::S2twp.to_ffi(),
+                true,
+                out.as_mut_ptr() as *mut c_char,
+                out.len(),
+                &mut required,
+            )
+        };
 
         assert!(ok_write);
         assert_eq!(
@@ -1637,16 +1741,18 @@ mod tests {
         let input_bytes = [0xFFu8, 0x00u8];
         let mut required = 0usize;
 
-        let ok = opencc_convert_cfg_mem_len(
-            &opencc as *const OpenCC,
-            input_bytes.as_ptr(),
-            input_bytes.len(),
-            OpenccConfig::S2t.to_ffi(),
-            false,
-            ptr::null_mut(),
-            0,
-            &mut required,
-        );
+        let ok = unsafe {
+            opencc_convert_cfg_mem_len(
+                &opencc as *const OpenCC,
+                input_bytes.as_ptr(),
+                input_bytes.len(),
+                OpenccConfig::S2t.to_ffi(),
+                false,
+                ptr::null_mut(),
+                0,
+                &mut required,
+            )
+        };
 
         assert!(!ok);
         assert!(read_and_free(opencc_last_error()).contains("Invalid UTF-8 input"));
@@ -1660,15 +1766,17 @@ mod tests {
         let opencc = OpenCC::new();
         let input = CString::new("你好，世界").unwrap();
 
-        let ok = opencc_convert_cfg_mem(
-            &opencc as *const OpenCC,
-            input.as_ptr(),
-            OpenccConfig::S2t.to_ffi(),
-            false,
-            ptr::null_mut(),
-            0,
-            ptr::null_mut(),
-        );
+        let ok = unsafe {
+            opencc_convert_cfg_mem(
+                &opencc as *const OpenCC,
+                input.as_ptr(),
+                OpenccConfig::S2t.to_ffi(),
+                false,
+                ptr::null_mut(),
+                0,
+                ptr::null_mut(),
+            )
+        };
 
         assert!(!ok);
         assert_eq!(
@@ -1684,16 +1792,18 @@ mod tests {
         let opencc = OpenCC::new();
         let input = "你好，世界";
 
-        let ok = opencc_convert_cfg_mem_len(
-            &opencc as *const OpenCC,
-            input.as_bytes().as_ptr(),
-            input.len(),
-            OpenccConfig::S2t.to_ffi(),
-            false,
-            ptr::null_mut(),
-            0,
-            ptr::null_mut(),
-        );
+        let ok = unsafe {
+            opencc_convert_cfg_mem_len(
+                &opencc as *const OpenCC,
+                input.as_bytes().as_ptr(),
+                input.len(),
+                OpenccConfig::S2t.to_ffi(),
+                false,
+                ptr::null_mut(),
+                0,
+                ptr::null_mut(),
+            )
+        };
 
         assert!(!ok);
         assert_eq!(
@@ -1710,16 +1820,18 @@ mod tests {
         let input = CString::new("你好，世界，欢迎！").unwrap();
         let config = CString::new("s2s").unwrap();
 
-        let result_ptr = opencc_convert(
-            &opencc as *const OpenCC,
-            input.as_ptr(),
-            config.as_ptr(),
-            false,
-        );
+        let result_ptr = unsafe {
+            opencc_convert(
+                &opencc as *const OpenCC,
+                input.as_ptr(),
+                config.as_ptr(),
+                false,
+            )
+        };
         let result = unsafe { CStr::from_ptr(result_ptr) }
             .to_string_lossy()
             .into_owned();
-        opencc_string_free(result_ptr);
+        unsafe { opencc_string_free(result_ptr) };
 
         assert_eq!(result, "Invalid config: s2s");
         assert_eq!(read_and_free(opencc_last_error()), "Invalid config: s2s");
@@ -1735,7 +1847,7 @@ mod tests {
     #[test]
     fn test_opencc_last_error_roundtrip() {
         opencc_clear_last_error();
-        let result = opencc_convert(ptr::null(), ptr::null(), ptr::null(), false);
+        let result = unsafe { opencc_convert(ptr::null(), ptr::null(), ptr::null(), false) };
 
         assert!(result.is_null());
         assert_eq!(
@@ -1755,7 +1867,7 @@ mod tests {
         let thread_a_errors_set = Arc::clone(&errors_set);
         let thread_a_first_reads_done = Arc::clone(&first_reads_done);
         let thread_a = std::thread::spawn(move || {
-            let result = opencc_convert(ptr::null(), ptr::null(), ptr::null(), false);
+            let result = unsafe { opencc_convert(ptr::null(), ptr::null(), ptr::null(), false) };
             assert!(result.is_null());
 
             thread_a_errors_set.wait();
@@ -1770,15 +1882,17 @@ mod tests {
         });
 
         let thread_b = std::thread::spawn(move || {
-            let ok = opencc_convert_cfg_mem(
-                ptr::null(),
-                ptr::null(),
-                0,
-                false,
-                ptr::null_mut(),
-                0,
-                ptr::null_mut(),
-            );
+            let ok = unsafe {
+                opencc_convert_cfg_mem(
+                    ptr::null(),
+                    ptr::null(),
+                    0,
+                    false,
+                    ptr::null_mut(),
+                    0,
+                    ptr::null_mut(),
+                )
+            };
             assert!(!ok);
 
             errors_set.wait();
@@ -1803,33 +1917,51 @@ mod tests {
         let name = CString::new("s2t").unwrap();
         let mut out_id = 0u32;
 
-        let ok = opencc_config_name_to_id(name.as_ptr(), &mut out_id);
+        let ok = unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) };
 
         assert_eq!(ok, 1);
         assert_eq!(out_id, 1);
 
         let name = CString::new("t2hkp").unwrap();
-        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(
+            unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) },
+            1
+        );
         assert_eq!(out_id, 19);
 
         let name = CString::new("hk2tp").unwrap();
-        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(
+            unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) },
+            1
+        );
         assert_eq!(out_id, 20);
 
         let name = CString::new("s2seal").unwrap();
-        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(
+            unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) },
+            1
+        );
         assert_eq!(out_id, 21);
 
         let name = CString::new("t2seal").unwrap();
-        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(
+            unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) },
+            1
+        );
         assert_eq!(out_id, 22);
 
         let name = CString::new("seal2s").unwrap();
-        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(
+            unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) },
+            1
+        );
         assert_eq!(out_id, 23);
 
         let name = CString::new("seal2t").unwrap();
-        assert_eq!(opencc_config_name_to_id(name.as_ptr(), &mut out_id), 1);
+        assert_eq!(
+            unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) },
+            1
+        );
         assert_eq!(out_id, 24);
     }
 
@@ -1865,14 +1997,14 @@ mod tests {
         let name = CString::new("invalid").unwrap();
         let mut out_id = 123u32;
 
-        let ok = opencc_config_name_to_id(name.as_ptr(), &mut out_id);
+        let ok = unsafe { opencc_config_name_to_id(name.as_ptr(), &mut out_id) };
         assert_eq!(ok, 0);
         assert_eq!(out_id, 123);
 
         let ptr = opencc_config_id_to_name(999);
         assert!(ptr.is_null());
 
-        let ok = opencc_config_name_to_id(ptr::null(), ptr::null_mut());
+        let ok = unsafe { opencc_config_name_to_id(ptr::null(), ptr::null_mut()) };
         assert_eq!(ok, 0);
     }
 
@@ -1884,7 +2016,7 @@ mod tests {
 
         assert!(!instance.is_null());
 
-        opencc_delete(instance);
+        unsafe { opencc_delete(instance) };
     }
 
     #[test]
@@ -1923,8 +2055,9 @@ mod tests {
 
         assert!(!instance.is_null());
 
-        let output =
-            opencc_convert_cfg(instance, input.as_ptr(), OpenccConfig::S2t.to_ffi(), false);
+        let output = unsafe {
+            opencc_convert_cfg(instance, input.as_ptr(), OpenccConfig::S2t.to_ffi(), false)
+        };
 
         assert!(!output.is_null());
 
@@ -1932,8 +2065,8 @@ mod tests {
 
         assert_eq!(actual, "柏蘭蒂爾是一家公司");
 
-        opencc_string_free(output);
-        opencc_delete(instance);
+        unsafe { opencc_string_free(output) };
+        unsafe { opencc_delete(instance) };
     }
 
     #[test]
@@ -2025,8 +2158,9 @@ mod tests {
 
         let input = CString::new("帕兰蒂尔是一家公司").unwrap();
 
-        let output =
-            opencc_convert_cfg(instance, input.as_ptr(), OpenccConfig::S2t.to_ffi(), false);
+        let output = unsafe {
+            opencc_convert_cfg(instance, input.as_ptr(), OpenccConfig::S2t.to_ffi(), false)
+        };
 
         assert!(!output.is_null());
 
@@ -2034,8 +2168,8 @@ mod tests {
 
         assert_eq!(actual, "柏蘭蒂爾是一家公司");
 
-        opencc_string_free(output);
-        opencc_delete(instance);
+        unsafe { opencc_string_free(output) };
+        unsafe { opencc_delete(instance) };
     }
 
     #[test]
