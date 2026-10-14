@@ -44,7 +44,24 @@ Copyright © OpenCC contributors
 
 ---
 
-## 3) How to Report Attribution Issues
+## 3) ruzstd — Vendored Zstandard Decoder
+
+**Component:** Decoder-only adaptation of ruzstd 0.9.0
+
+**Upstream:** [zstd-rs](https://github.com/KillingSpark/zstd-rs), Moritz Borcherding and contributors
+
+**License:** MIT
+
+**Files in this distribution:** `src/zstd/`
+
+**License and adaptation notes:** `src/zstd/LICENSE-RUZSTD` and `src/zstd/NOTICE.md`
+
+The decoder handles embedded dictionaries and custom conversion packs at runtime. Native Zstandard compression is
+provided separately by the optional `zstd` dependency when the `dictionary-build` feature is enabled.
+
+---
+
+## 4) How to Report Attribution Issues
 
 If you believe any attribution or license terms are missing or incorrect, please open an issue with details so we can
 correct it promptly.

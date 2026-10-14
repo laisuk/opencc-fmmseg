@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Refined internal code to address Clippy suggestions while preserving performance-sensitive logic.
 - Applied narrowly scoped Clippy allowances where appropriate to retain upstream vendored code and existing API designs.
 - Updated Rust tests to respect the explicit FFI safety contracts.
+- Updated dictionary data.
 
 ---
 
