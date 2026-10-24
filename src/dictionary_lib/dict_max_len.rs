@@ -31,7 +31,8 @@
 //! - [`DictMaxLen::append_pairs`] — merge pairs with last-wins semantics.
 //! - [`DictMaxLen::replace_pairs`] — replace all pairs and rebuild metadata.
 
-use rustc_hash::FxHashMap;
+// use rustc_hash::FxHashMap;
+use crate::rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 /// Print a developer note to **stderr** in *debug* builds; **no-op** in release.

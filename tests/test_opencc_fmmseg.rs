@@ -391,7 +391,7 @@ mod tests {
 
         // Simulate your struct with delimiters
         struct Dummy {
-            delimiters: FxHashSet<char>,
+            delimiters: HashSet<char>,
         }
 
         impl Dummy {
@@ -423,10 +423,10 @@ mod tests {
             }
         }
 
-        use rustc_hash::FxHashSet;
+        // use rustc_hash::FxHashSet;
 
         let dummy = Dummy {
-            delimiters: FxHashSet::from_iter("\n".chars()),
+            delimiters: HashSet::from_iter("\n".chars()),
         };
 
         let base = "你好世界\n";

@@ -8,7 +8,7 @@
 //! Users generally interact with this indirectly via the `OpenCC` interface, but
 //! advanced users may access it for custom loading, serialization, or optimization.
 
-use rustc_hash::FxHashMap;
+use crate::rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_cbor::{from_reader, from_slice};
 use std::error::Error;

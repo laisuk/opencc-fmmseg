@@ -168,6 +168,7 @@ mod ids;
 mod opencc;
 /// Configurations for conversion.
 mod opencc_config;
+mod rustc_hash;
 mod unicode_compat;
 /// Common helpers for opencc-fmmseg.
 mod utils;

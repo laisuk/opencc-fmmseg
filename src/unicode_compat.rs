@@ -5,7 +5,7 @@
 //! [`crate::OpenCC::normalize_compat_extended`].
 
 use crate::compat_ideographs::CompatIdeographs;
-use rustc_hash::FxHashMap;
+use crate::rustc_hash::FxHashMap;
 use std::sync::OnceLock;
 
 static UNICODE_COMPAT_DATA: &[u8] = include_bytes!("data/Unicode_Compatibility.txt");

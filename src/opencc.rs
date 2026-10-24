@@ -25,7 +25,7 @@ use crate::{compat_ideographs, detofu, ids, DetofuLevel, DetofuMap, OpenccConfig
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
-use rustc_hash::FxHashMap;
+use crate::rustc_hash::FxHashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 

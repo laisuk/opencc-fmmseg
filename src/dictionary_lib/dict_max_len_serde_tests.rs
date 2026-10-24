@@ -7,11 +7,11 @@ use serde_cbor::Value;
 // The previous five-field wire schema, independent of the new serializer.
 #[derive(Serialize)]
 struct Legacy<'a> {
-    map: &'a rustc_hash::FxHashMap<Box<[char]>, Box<str>>,
+    map: &'a crate::rustc_hash::FxHashMap<Box<[char]>, Box<str>>,
     max_len: usize,
     min_len: usize,
     key_length_mask: u64,
-    starter_len_mask: &'a rustc_hash::FxHashMap<char, u64>,
+    starter_len_mask: &'a crate::rustc_hash::FxHashMap<char, u64>,
 }
 
 fn legacy(dict: &DictMaxLen) -> Legacy<'_> {

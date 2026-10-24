@@ -1,5 +1,5 @@
 use crate::dictionary_lib::DictMaxLen;
-use rustc_hash::FxHashMap;
+use crate::rustc_hash::FxHashMap;
 
 /// Union view of starter–length metadata across multiple [`DictMaxLen`] tables.
 ///
