@@ -7,6 +7,7 @@
 
 extern crate std;
 
+#[allow(dead_code)]
 mod seeded_state;
 
 use core::default::Default;
@@ -21,9 +22,11 @@ pub type FxHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
 pub type FxHashSet<V> = HashSet<V, FxBuildHasher>;
 
 #[allow(unused_imports)]
-pub use seeded_state::FxSeededState;
-#[allow(unused_imports)]
-pub use seeded_state::{FxHashMapSeed, FxHashSetSeed};
+pub use seeded_state::{
+    FxHashMapSeed,
+    FxHashSetSeed,
+    FxSeededState,
+};
 
 /// A speedy hash algorithm for use within rustc. The hashmap in liballoc
 /// by default uses SipHash which isn't quite as speedy as we want. In the
@@ -376,7 +379,7 @@ mod tests {
     // Avoid relying on any `Hash` implementations in the standard library.
     struct HashBytes(&'static [u8]);
     impl Hash for HashBytes {
-        fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        fn hash<H: Hasher>(&self, state: &mut H) {
             state.write(self.0);
         }
     }
