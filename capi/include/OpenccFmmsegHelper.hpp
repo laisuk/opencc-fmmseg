@@ -2,7 +2,7 @@
 
 #include "opencc_fmmseg_capi.h"
 
-#include <cctype>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -89,7 +89,8 @@ public:
      * @since v0.11.5
      */
     explicit OpenccFmmsegHelper(const std::vector<CustomDictSpec> &specs)
-        : opencc_(createCustomOpencc(specs)) {}
+        : opencc_(createCustomOpencc(specs)) {
+    }
 
     OpenccFmmsegHelper(const OpenccFmmsegHelper &) = delete;
 
@@ -155,6 +156,16 @@ public:
                                           const bool punctuation = false) const {
         if (input.empty()) return {};
         return convertByCfg(input, configId, punctuation);
+    }
+
+    // Input must be NUL-terminated UTF-8 and remain alive for the entire call.
+    // No intermediate input string is allocated or copied.
+    // Null and empty input return an empty result without calling the C API.
+    [[nodiscard]] std::string convert_cfg_cstr(const char *input,
+                                               const opencc_config_t configId,
+                                               const bool punctuation = false) const {
+        if (!input || *input == '\0') return {};
+        return convertByCfgCstr(input, configId, punctuation);
     }
 
     // Converts using the stored config source and punctuation flag.
@@ -255,12 +266,7 @@ public:
         if (input.empty()) return {};
 
         const std::string in(input);
-        char *output = opencc_detofu(opencc_, in.c_str(), level);
-        if (!output) return takeLastErrorText();
-
-        std::string result(output);
-        opencc_string_free(output);
-        return result;
+        return takeNativeString(opencc_detofu(opencc_, in.c_str(), level));
     }
 
     // Returns the calling thread's native last-error string. Call this on the
@@ -268,11 +274,9 @@ public:
     // independent allocation, which this helper releases with
     // `opencc_error_free()` after copying; no error produces "No error".
     [[nodiscard]] static std::string lastError() {
-        char *err = opencc_last_error();
-        if (!err) return {};
-        std::string result(err);
-        opencc_error_free(err);
-        return result;
+        const std::unique_ptr<char, decltype(&opencc_error_free)> err(
+            opencc_last_error(), opencc_error_free);
+        return err ? std::string(err.get()) : std::string{};
     }
 
     // Clears only the calling thread's native last-error state.
@@ -305,17 +309,17 @@ private:
     [[nodiscard]] static void *createCustomOpencc(
         const std::vector<CustomDictSpec> &specs
     ) {
-        std::vector<std::vector<opencc_custom_pair_t>> ffiPairArrays;
+        std::vector<std::vector<opencc_custom_pair_t> > ffiPairArrays;
         ffiPairArrays.reserve(specs.size());
 
-        for (const CustomDictSpec &spec : specs) {
+        for (const CustomDictSpec &spec: specs) {
             std::vector<opencc_custom_pair_t> ffiPairs;
             ffiPairs.reserve(spec.pairs.size());
 
-            for (const CustomPair &pair : spec.pairs) {
+            for (const auto &[source, target]: spec.pairs) {
                 ffiPairs.push_back({
-                    pair.source.c_str(),
-                    pair.target.c_str(),
+                    source.c_str(),
+                    target.c_str(),
                 });
             }
 
@@ -353,7 +357,7 @@ private:
         return instance;
     }
 
-    static void cleanupOpencc(void *p) noexcept {
+    static void cleanupOpencc(const void *p) noexcept {
         if (p) opencc_delete(p);
     }
 
@@ -389,18 +393,31 @@ private:
         return lastError();
     }
 
+    // Adopt an allocated C API result and always release it, including when
+    // copying to std::string throws. NULL retains the existing error contract.
+    [[nodiscard]] static std::string takeNativeString(char *raw) {
+        const std::unique_ptr<char, decltype(&opencc_string_free)> output(
+            raw, opencc_string_free);
+
+        if (!output)
+            return takeLastErrorText();
+
+        return {output.get()};
+    }
+
     // Low-level bridge used by the string-returning conversion helpers.
     // The returned string may be converted text or a native error message.
     [[nodiscard]] std::string convertByCfg(const std::string_view input,
                                            const opencc_config_t cfg,
                                            const bool punctuation) const {
         const std::string in(input);
-        char *output = opencc_convert_cfg(opencc_, in.c_str(), cfg, punctuation);
-        if (!output) return takeLastErrorText();
+        return convertByCfgCstr(in.c_str(), cfg, punctuation);
+    }
 
-        std::string result(output);
-        opencc_string_free(output);
-        return result;
+    [[nodiscard]] std::string convertByCfgCstr(const char *input,
+                                               const opencc_config_t cfg,
+                                               const bool punctuation) const {
+        return takeNativeString(opencc_convert_cfg(opencc_, input, cfg, punctuation));
     }
 
     // String-config bridge that preserves the exact config text, including
@@ -410,12 +427,8 @@ private:
                                             const bool punctuation) const {
         const std::string in(input);
         const std::string cfg(configName);
-        char *output = opencc_convert(opencc_, in.c_str(), cfg.c_str(), punctuation);
-        if (!output) return takeLastErrorText();
-
-        std::string result(output);
-        opencc_string_free(output);
-        return result;
+        return takeNativeString(opencc_convert(
+            opencc_, in.c_str(), cfg.c_str(), punctuation));
     }
 
     // Low-level bridge for the explicit-length buffer API.
@@ -472,11 +485,6 @@ private:
         const StringTransformFn fn
     ) const {
         const std::string in(input);
-        char *output = fn(opencc_, in.c_str());
-        if (!output) return takeLastErrorText();
-
-        std::string result(output);
-        opencc_string_free(output);
-        return result;
+        return takeNativeString(fn(opencc_, in.c_str()));
     }
 };
