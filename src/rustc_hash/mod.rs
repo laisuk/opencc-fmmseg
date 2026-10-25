@@ -5,28 +5,11 @@
 
 //! A speedy, non-cryptographic hashing algorithm used by `rustc`.
 
-extern crate std;
-
-#[allow(dead_code)]
-mod seeded_state;
-
-use core::default::Default;
 use core::hash::{BuildHasher, Hasher};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// Type alias for a hash map that uses the Fx hashing algorithm.
 pub type FxHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
-
-/// Type alias for a hash set that uses the Fx hashing algorithm.
-#[allow(dead_code)]
-pub type FxHashSet<V> = HashSet<V, FxBuildHasher>;
-
-#[allow(unused_imports)]
-pub use seeded_state::{
-    FxHashMapSeed,
-    FxHashSetSeed,
-    FxSeededState,
-};
 
 /// A speedy hash algorithm for use within rustc. The hashmap in liballoc
 /// by default uses SipHash which isn't quite as speedy as we want. In the
@@ -53,18 +36,6 @@ pub struct FxHasher {
 const K: usize = 0xf1357aea2e62a9c5;
 #[cfg(target_pointer_width = "32")]
 const K: usize = 0x93d765dd;
-
-impl FxHasher {
-    /// Creates a `fx` hasher with a given seed.
-    pub const fn with_seed(seed: usize) -> FxHasher {
-        FxHasher { hash: seed }
-    }
-
-    /// Creates a default `fx` hasher.
-    pub const fn default() -> FxHasher {
-        FxHasher { hash: 0 }
-    }
-}
 
 impl FxHasher {
     #[inline]
@@ -283,7 +254,7 @@ mod tests {
     #[cfg(not(any(target_pointer_width = "64", target_pointer_width = "32")))]
     compile_error!("The test suite only supports 64 bit and 32 bit usize");
 
-    use super::{FxBuildHasher, FxHasher};
+    use super::FxBuildHasher;
     use core::hash::{BuildHasher, Hash, Hasher};
 
     macro_rules! test_hash {
@@ -394,31 +365,6 @@ mod tests {
             hash(HashBytes(&[2])) == if B32 { 1055423297 } else { 5229781508510959783 },
             hash(HashBytes(b"uwu")) == if B32 { 2699662140 } else { 7168164714682931527 },
             hash(HashBytes(b"These are some bytes for testing rustc_hash.")) == if B32 { 2303640537 } else { 2349210501944688211 },
-        }
-    }
-
-    #[test]
-    fn with_seed_actually_different() {
-        let seeds = [
-            [1, 2],
-            [42, 17],
-            [124436707, 99237],
-            [usize::MIN, usize::MAX],
-        ];
-
-        for [a_seed, b_seed] in seeds {
-            let a = || FxHasher::with_seed(a_seed);
-            let b = || FxHasher::with_seed(b_seed);
-
-            for x in u8::MIN..=u8::MAX {
-                let mut a = a();
-                let mut b = b();
-
-                x.hash(&mut a);
-                x.hash(&mut b);
-
-                assert_ne!(a.finish(), b.finish())
-            }
         }
     }
 }

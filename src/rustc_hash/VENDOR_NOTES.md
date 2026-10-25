@@ -29,9 +29,9 @@ support for upstream optional nightly behavior.
 ## Local modifications relative to 2.1.3
 
 - Upstream `src/lib.rs` becomes `src/rustc_hash/mod.rs`, with a local provenance,
-  license, and compatibility header. The standalone crate examples in the module,
-  `FxBuildHasher`, and `FxSeededState` documentation are removed.
-- Crate-root imports in the vendored modules and their tests use `super::`
+  license, and compatibility header. The standalone crate examples in the module
+  and `FxBuildHasher` documentation are removed.
+- Crate-root imports in the retained tests use `super::`
   instead of `crate::`. The test `HashBytes` implementation uses the already
   imported `Hasher` name instead of `core::hash::Hasher`. Consumer imports use
   `crate::rustc_hash`.
@@ -43,34 +43,38 @@ support for upstream optional nightly behavior.
 - Standalone `#![no_std]`, nightly feature attributes (`const_default`,
   `const_trait_impl`, `derive_const`, `hasher_prefixfree_extras`), and
   `#![allow(rustc::default_hash_types)]` are removed. This module uses `std`
-  unconditionally; `std` feature guards on imports, aliases, and seeded exports
-  are removed, and seeded exports are combined into one re-export.
+  unconditionally; `std` feature guards on retained imports and aliases are
+  removed. The redundant `extern crate std` and prelude `Default` import are
+  removed.
 - Optional `rand` integration (`extern crate rand`, `random_state`, and its
   re-exports) is omitted. Nightly-only `Hasher::write_length_prefix` and
   `Hasher::write_str` overrides are omitted. `FxHasher` and `FxBuildHasher`
   derive ordinary `Default` unconditionally instead of selecting between
   ordinary and nightly const derives.
-- Warning suppressions already present locally are `#[allow(dead_code)]` on
-  `mod seeded_state`, `FxHashSet`, the seeded map/set aliases, and
-  `FxSeededState::with_seed`; the combined seeded re-export has
-  `#[allow(unused_imports)]`.
+- Unused seeded hashing APIs and their tests are omitted as detailed below.
+  The unused `FxHashSet` alias and `HashSet` import are also removed. Their
+  associated dead-code and unused-import warning suppressions are removed.
+  The redundant inherent `FxHasher::default` constructor is removed;
+  `FxBuildHasher` uses the derived `Default` implementation, which still
+  initializes the hash to zero.
 - Other differences are whitespace and minor comment wording edits (the MCG
   article and the bit-reversal/rotation commentary). Hash constants, mixing
   operations, and upstream hash regression expectations are retained.
 
 ## Seeded hashing
 
-`seeded_state.rs` and its functionality are preserved, including
-`FxSeededState::with_seed`, seeded map/set aliases, `BuildHasher`, and its three
-unit tests. The source adaptations are the paths, documentation, feature guards,
-and warning suppressions listed above. Unused APIs in a private internal module
-may produce dead-code warnings; the local suppressions retain those APIs without
-requiring all consumers to use them. Do not trim, rewrite, or remove seeded
-hashing merely to silence warnings.
+Seeded hashing has no internal consumers and is intentionally omitted from this
+private module. `seeded_state.rs`, its module declaration and re-exports,
+`FxSeededState`, the seeded map/set aliases, and its three unit tests are removed.
+`FxHasher::with_seed` and its `with_seed_actually_different` test are also removed.
+The retained API consists of `FxHashMap`, `FxBuildHasher`, and `FxHasher` with
+zero-initialized default state. The unsigned, signed, and byte hash-output
+regression tests remain unchanged.
 
 ## Compatibility verification
 
-The user successfully ran `cargo test` with `rustc 1.75.0` on Windows 7 x86 (32-bit). User-reported results across unit
+Before the seeded hashing cleanup, the user successfully ran `cargo test` with
+`rustc 1.75.0` on Windows 7 x86 (32-bit). User-reported results across unit
 tests, integration tests, and
 documentation tests were:
 
@@ -84,6 +88,19 @@ writing these notes. Ignored tests were not verified by that run. Other operatin
 systems, architectures, compiler versions, and optional upstream configurations
 are not established as tested by these results. Package listing or package
 verification on another host does not establish Windows 7 x86 compatibility.
+
+After the seeded hashing cleanup, verification on 2026-10-25 with Rust 1.75.0
+on Windows x86_64 (`x86_64-pc-windows-msvc`) used
+`cargo test --offline -p opencc-fmmseg`: 184 unit/integration tests passed and
+7 were ignored, including successful unsigned, signed, and byte hash regressions.
+The initial documentation run encountered six temporary-directory write-access
+errors. Rerunning `cargo test --offline -p opencc-fmmseg --doc` with `TEMP` and
+`TMP` pointing to `target/rustdoc-temp` passed all 65 active documentation tests;
+13 were ignored. Combined results were 249 passed, 0 failed, and 20 ignored.
+`rustfmt --check --edition 2021 src/rustc_hash/mod.rs` and `git diff --check`
+passed. `cargo package --list --allow-dirty --offline -p opencc-fmmseg` confirmed
+that these notes and both licenses remain included and `seeded_state.rs` is
+absent. This cleanup has not been reverified on Windows 7 x86.
 
 ## Licenses and packaging
 
@@ -104,7 +121,7 @@ part of this verification.
 For an upstream update, obtain the exact release source distribution and compare
 it against both the current upstream baseline and these local files. Review
 changes individually and selectively backport fixes while retaining Rust 1.75.0
-compatibility, the private module paths, seeded hashing, and original licenses.
+compatibility, the private module paths, the trimmed API, and original licenses.
 Update provenance and this modification inventory to reflect the actual source.
 Do not automatically adopt upstream MSRV increases, optional dependencies,
 nightly features, or algorithm/output changes.
