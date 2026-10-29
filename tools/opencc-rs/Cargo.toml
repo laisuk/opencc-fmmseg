@@ -13,8 +13,11 @@ clap = "=4.5"
 encoding_rs = "=0.8.35"
 encoding_rs_io = "0.1"
 regex = "1.13"
-# Keep zip MSRV-safe for 1.75 (3.x, not 4.x):
-zip = { version = "=3.0", default-features = false, features = ["deflate"] }
+# Private ZIP module: Stored + DEFLATE, with a Rust 1.75-compatible backend.
+crc32fast = "1.5"
+flate2 = { version = "=1.1.1", default-features = false, features = ["rust_backend"] }
+indexmap = "=2.7.1"
+memchr = "2.7"
 
 # Exact dependency pins to preserve MSRV (rustc 1.75.0):
 # clap_lex@1.0.1
