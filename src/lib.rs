@@ -37,6 +37,9 @@
 //!   compatibility normalization before conversion.
 //! - [`OpenCC::detofu`] provides optional display-compatibility fallback for
 //!   rare non-BMP CJK extension characters after conversion.
+//! - The normalization and DeTofu `*_cow` variants borrow unchanged input,
+//!   allowing pipelines to avoid intermediate string allocations. Existing
+//!   `String`-returning methods remain available for owned results.
 //! - [`DetofuMap`] is the advanced reusable/customizable DeTofu map API.
 //! - [`DictionaryMaxlength`] and [`CustomDictSpec`] are for advanced users who
 //!   need custom dictionaries or externally generated dictionary artifacts.
@@ -155,6 +158,7 @@
 //! Sequences during conversion; it is disabled by default.
 //!
 mod compat_ideographs;
+mod lazy_replace;
 /// Delimiters helper for splitting and matching delimiters.
 mod delimiter_set;
 /// Display compatibility fallback utilities for rare CJK extension characters.

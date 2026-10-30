@@ -8,8 +8,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.13.1] - Unreleased
 
+### Added
+
+- Added borrowed-result Rust APIs: `OpenCC::normalize_compat_cow()`,
+  `normalize_unicode_compat_cow()`, `normalize_compat_extended_cow()`,
+  `detofu_cow()`, and `DetofuMap::detofu_cow()`. These return `Cow::Borrowed`
+  when no character changes and owned output when replacements occur.
+
 ### Changed
 
+- Compatibility normalization allocates lazily at the first replacement and copies the unchanged UTF-8 prefix.
+  Mapping precedence and single-pass, non-chained replacement semantics are preserved.
+- The CLI pipeline borrows unchanged normalization results and reuses converted output when DeTofu changes nothing.
+  Pipeline order remains normalization, OpenCC/punctuation conversion, then DeTofu.
+- Existing String-returning signatures, C ABI, FMM matching, custom mapping precedence, and append/reuse behavior
+  of `detofu_into()` remain unchanged. `DetofuMap::detofu()` retains its original writer.
+- Added allocation benchmarks and an [allocation review](benches/allocation_review.md), including measured gains,
+  standalone timing regressions, and rejected optimizations. No universal speedup is claimed.
 - Cleaned up Rust Clippy warnings across the core library and C API without changing runtime behavior.
 - Improved C API safety contracts by marking FFI functions that require caller-enforced pointer validity as
   `unsafe extern "C"`, with clearer `# Safety` documentation.

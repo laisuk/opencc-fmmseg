@@ -144,7 +144,8 @@ where
 ///    [`NormalizationMode::Compat`], when selected.
 /// 2. [`OpenCC::convert`], with the configured OpenCC conversion and punctuation
 ///    setting.
-/// 3. [`DetofuMap::detofu`], when a DeTofu map is supplied.
+/// 3. [`DetofuMap::detofu_cow`], when a DeTofu map is supplied.
+///    Unchanged output reuses the converted String without copying.
 ///
 /// # Parameters
 ///
@@ -204,14 +205,17 @@ fn apply_conversion_pipeline(
 ) -> String {
     let normalized = match normalization {
         NormalizationMode::None => Cow::Borrowed(input),
-        NormalizationMode::Compat => Cow::Owned(opencc.normalize_compat(input)),
-        NormalizationMode::CompatExtended => Cow::Owned(opencc.normalize_compat_extended(input)),
+        NormalizationMode::Compat => opencc.normalize_compat_cow(input),
+        NormalizationMode::CompatExtended => opencc.normalize_compat_extended_cow(input),
     };
 
     let converted = opencc.convert(normalized.as_ref(), config, punctuation);
 
     match detofu_map {
-        Some(map) => map.detofu(&converted),
+        Some(map) => match map.detofu_cow(&converted) {
+            Cow::Borrowed(_) => converted,
+            Cow::Owned(output) => output,
+        },
         None => converted,
     }
 }
@@ -220,6 +224,51 @@ fn apply_conversion_pipeline(
 mod tests {
     use super::*;
     use opencc_fmmseg::DetofuLevel;
+
+    #[test]
+    fn pipeline_matches_explicit_stages_for_modes_configs_and_custom_overrides() {
+        let mut cc = OpenCC::new();
+        cc.set_preserve_ids(true);
+        let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[
+            ('𬴂', '𬴂'),
+            ('漢', '𠀀'),
+            ('听', 'A'),
+        ]);
+        for normalization in [
+            NormalizationMode::None,
+            NormalizationMode::Compat,
+            NormalizationMode::CompatExtended,
+        ] {
+            for config in ["s2t", "t2s", "s2twp", "invalid"] {
+                for punctuation in [false, true] {
+                    for input in ["", "ABC 普通文字", "“汉金聼𬴂”⿰氵漢", "丽漢😀"]
+                    {
+                        let normalized = match normalization {
+                            NormalizationMode::None => input.to_owned(),
+                            NormalizationMode::Compat => cc.normalize_compat(input),
+                            NormalizationMode::CompatExtended => {
+                                cc.normalize_compat_extended(input)
+                            }
+                        };
+                        let converted = cc.convert(&normalized, config, punctuation);
+                        let mut expected = String::new();
+                        map.detofu_into(&converted, &mut expected);
+                        assert_eq!(
+                            apply_conversion_pipeline(
+                                &cc,
+                                normalization,
+                                Some(&map),
+                                input,
+                                config,
+                                punctuation
+                            ),
+                            expected
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn custom_text_converter_wraps_plain_closure() {

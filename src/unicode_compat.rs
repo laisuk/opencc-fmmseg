@@ -6,7 +6,7 @@
 
 use crate::compat_ideographs::CompatIdeographs;
 use crate::rustc_hash::FxHashMap;
-use std::sync::OnceLock;
+use std::{borrow::Cow, sync::OnceLock};
 
 static UNICODE_COMPAT_DATA: &[u8] = include_bytes!("data/Unicode_Compatibility.txt");
 static UNICODE_COMPAT_TABLE: OnceLock<UnicodeCompat> = OnceLock::new();
@@ -183,7 +183,7 @@ impl UnicodeCompat {
     /// although the UTF-8 byte length may differ.
     ///
     pub(crate) fn normalize(&self, input: &str) -> String {
-        self.normalize_impl(input, false)
+        self.normalize_cow(input).into_owned()
     }
 
     /// Normalizes text using both the built-in CJK Compatibility Ideograph
@@ -198,21 +198,15 @@ impl UnicodeCompat {
     /// `normalize_compat_extended()` API.
     ///
     pub(crate) fn normalize_all(&self, input: &str) -> String {
-        self.normalize_impl(input, true)
+        self.normalize_all_cow(input).into_owned()
     }
 
-    fn normalize_impl(&self, input: &str, include_compat: bool) -> String {
-        let mut output = String::with_capacity(input.len());
+    pub(crate) fn normalize_cow<'a>(&self, input: &'a str) -> Cow<'a, str> {
+        crate::lazy_replace::replace_chars(input, |ch| self.normalize_char(ch))
+    }
 
-        for ch in input.chars() {
-            output.push(if include_compat {
-                self.normalize_all_char(ch)
-            } else {
-                self.normalize_char(ch)
-            });
-        }
-
-        output
+    pub(crate) fn normalize_all_cow<'a>(&self, input: &'a str) -> Cow<'a, str> {
+        crate::lazy_replace::replace_chars(input, |ch| self.normalize_all_char(ch))
     }
 
     /// Normalizes a mutable character slice using only the curated extended
@@ -285,6 +279,25 @@ pub(crate) fn normalize_unicode_compat_all(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lazy_normalization_preserves_precedence_identity_and_widths() {
+        let table = UnicodeCompat::from_text("金\tA\n金\t銀\n聼\t𠀀\n𠀀\tB\n﨑\t﨑\n").unwrap();
+        for input in ["", "ABC 普通漢字😀", "﨑"] {
+            assert!(matches!(table.normalize_cow(input), Cow::Borrowed(_)));
+            assert!(matches!(table.normalize_all_cow(input), Cow::Borrowed(_)));
+        }
+        for input in ["聼漢😀", "漢聼😀", "漢😀聼", "金金聼𠀀"] {
+            let extended: String = input.chars().map(|ch| table.normalize_char(ch)).collect();
+            let combined: String = input
+                .chars()
+                .map(|ch| table.normalize_all_char(ch))
+                .collect();
+            assert_eq!(table.normalize_cow(input), extended);
+            assert_eq!(table.normalize_all_cow(input), combined);
+        }
+        assert_eq!(table.normalize_all_cow("金金聼𠀀"), "金銀𠀀B");
+    }
 
     #[test]
     fn parses_comments_blank_lines_and_pairs() {

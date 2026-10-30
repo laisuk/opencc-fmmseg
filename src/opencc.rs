@@ -20,12 +20,13 @@ use crate::delimiter_set::is_delimiter;
 use crate::dict_refs::DictRefs;
 use crate::dictionary_lib::UnionKey;
 use crate::dictionary_lib::{DictMaxLen, DictionaryMaxlength, StarterUnion};
+use crate::rustc_hash::FxHashMap;
 use crate::utils::{find_max_utf8_length, for_each_len_dec};
 use crate::{compat_ideographs, detofu, ids, DetofuLevel, DetofuMap, OpenccConfig};
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSlice;
 use regex::Regex;
-use crate::rustc_hash::FxHashMap;
+use std::borrow::Cow;
 use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -2107,6 +2108,12 @@ impl OpenCC {
         compat_ideographs::normalize_compat_ideographs(text)
     }
 
+    /// Like [`Self::normalize_compat`], borrowing unchanged input.
+    /// The result borrows only from `text`, not from this converter.
+    pub fn normalize_compat_cow<'a>(&self, text: &'a str) -> Cow<'a, str> {
+        compat_ideographs::CompatIdeographs::builtin().normalize_cow(text)
+    }
+
     /// Applies the full built-in compatibility normalization pre-pass.
     ///
     /// This combines the standard CJK Compatibility Ideograph mappings with the
@@ -2169,6 +2176,12 @@ impl OpenCC {
         crate::unicode_compat::normalize_unicode_compat_all(text)
     }
 
+    /// Like [`Self::normalize_compat_extended`], borrowing unchanged input.
+    /// CJK compatibility mappings take precedence; results are never remapped.
+    pub fn normalize_compat_extended_cow<'a>(&self, text: &'a str) -> Cow<'a, str> {
+        crate::unicode_compat::UnicodeCompat::builtin().normalize_all_cow(text)
+    }
+
     /// Normalizes text using only the curated Unicode compatibility table.
     ///
     /// This applies mappings from `data/Unicode_Compatibility.txt` without
@@ -2210,6 +2223,12 @@ impl OpenCC {
     /// ```
     pub fn normalize_unicode_compat(&self, text: &str) -> String {
         crate::unicode_compat::normalize_unicode_compat(text)
+    }
+
+    /// Like [`Self::normalize_unicode_compat`], borrowing unchanged input.
+    /// This applies only the curated extended table.
+    pub fn normalize_unicode_compat_cow<'a>(&self, text: &'a str) -> Cow<'a, str> {
+        crate::unicode_compat::UnicodeCompat::builtin().normalize_cow(text)
     }
 
     /// Converts non-BMP CJK extension characters to display-safe fallbacks.
@@ -2284,6 +2303,11 @@ impl OpenCC {
     /// ```
     pub fn detofu(&self, text: &str, level: DetofuLevel) -> String {
         detofu::detofu(text, level)
+    }
+
+    /// Like [`Self::detofu`], borrowing input when no eligible mapping changes it.
+    pub fn detofu_cow<'a>(&self, text: &'a str, level: DetofuLevel) -> Cow<'a, str> {
+        detofu::detofu_cow(text, level)
     }
 
     /// Converts built-in non-BMP CJK extension characters into

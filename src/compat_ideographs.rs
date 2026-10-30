@@ -3,7 +3,7 @@
 //! The built-in UnicodeData-derived table is parsed once and cached in dense
 //! lookup tables. Public callers use [`crate::OpenCC::normalize_compat`].
 
-use std::sync::OnceLock;
+use std::{borrow::Cow, sync::OnceLock};
 
 static COMPAT_DATA: &[u8] = include_bytes!("data/CJK_Compatibility_Ideographs.txt");
 
@@ -157,13 +157,16 @@ impl CompatIdeographs {
     /// This returns a new string and leaves ordinary Chinese text unchanged.
     ///
     pub(crate) fn normalize(&self, input: &str) -> String {
-        let mut output = String::with_capacity(input.len());
+        self.normalize_cow(input).into_owned()
+    }
 
-        for ch in input.chars() {
-            output.push(self.normalize_char(ch));
+    pub(crate) fn normalize_cow<'a>(&self, input: &'a str) -> Cow<'a, str> {
+        // This table can only contain sources in the two CJK compatibility
+        // ranges. Byte scanning avoids scalar decoding for all-ASCII input.
+        if input.is_ascii() {
+            return Cow::Borrowed(input);
         }
-
-        output
+        crate::lazy_replace::replace_chars(input, |ch| self.normalize_char(ch))
     }
 }
 
@@ -196,6 +199,19 @@ pub(crate) fn normalize_compat_ideographs(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lazy_normalization_borrows_and_handles_width_changes() {
+        let table = CompatIdeographs::from_text("金\t𠀀\n丽\tA\n").unwrap();
+        for input in ["", "ABC 普通漢字𠀀", "﨑"] {
+            assert!(matches!(table.normalize_cow(input), Cow::Borrowed(_)));
+        }
+        for input in ["金漢😀", "漢金😀", "漢😀金", "丽金丽"] {
+            let expected: String = input.chars().map(|ch| table.normalize_char(ch)).collect();
+            assert!(matches!(table.normalize_cow(input), Cow::Owned(_)));
+            assert_eq!(table.normalize_cow(input), expected);
+        }
+    }
 
     #[test]
     fn normalizes_bmp_compat_ideographs() {

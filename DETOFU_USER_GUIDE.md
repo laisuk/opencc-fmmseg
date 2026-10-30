@@ -30,14 +30,18 @@ fn main() {
 
 * `DetofuLevel` selects the fallback threshold.
 * `OpenCC` is the normal public entry point for DeTofu in an OpenCC conversion workflow.
-* `DetofuMap` is the advanced reusable/customizable API for bindings, tools, and applications that need their own fallback map.
+* `DetofuMap` is the advanced reusable/customizable API for bindings, tools, and applications that need their own
+  fallback map.
 
 ### OpenCC APIs
 
 * `OpenCC::detofu(&self, input: &str, level: DetofuLevel) -> String` applies DeTofu through an `OpenCC` instance.
-* `OpenCC::detofu_into(&self, input: &str, level: DetofuLevel, output: &mut String)` appends the DeTofu result to an existing output buffer for allocation reuse.
-* `OpenCC::detofu_with_custom_file(&self, input, level, path)` applies DeTofu using the built-in fallback table plus a user-supplied fallback file.
-* `OpenCC::detofu_with_custom_pairs(&self, input, level, pairs)` applies DeTofu using the built-in fallback table plus in-memory custom fallback pairs.
+* `OpenCC::detofu_into(&self, input: &str, level: DetofuLevel, output: &mut String)` appends the DeTofu result to an
+  existing output buffer for allocation reuse.
+* `OpenCC::detofu_with_custom_file(&self, input, level, path)` applies DeTofu using the built-in fallback table plus a
+  user-supplied fallback file.
+* `OpenCC::detofu_with_custom_pairs(&self, input, level, pairs)` applies DeTofu using the built-in fallback table plus
+  in-memory custom fallback pairs.
 
 ### Reusable `DetofuMap`
 
@@ -45,8 +49,52 @@ fn main() {
 * `DetofuMap::with_custom_pairs(...)` adds custom fallback pairs that override built-in mappings.
 * `DetofuMap::with_custom_file(...)` loads additional fallback mappings from a UTF-8 text file.
 * `DetofuMap::detofu(...)` applies a reusable map and returns a newly allocated `String`.
-* `DetofuMap::detofu_into(...)` applies a reusable map and appends the result to an existing output buffer for allocation reuse.
+* `DetofuMap::detofu_into(...)` applies a reusable map and appends the result to an existing output buffer for
+  allocation reuse.
 
+## Borrowed results and buffer reuse
+
+`OpenCC::detofu_cow(input, level)` and `DetofuMap::detofu_cow(input)` return
+`Cow<'a, str>`. They borrow unchanged input and allocate only when an actual
+replacement occurs. The result's lifetime depends on the input, not the converter
+or map. Built-in table initialization can still allocate on first use.
+
+```rust
+use opencc_fmmseg::{DetofuLevel, DetofuMap};
+use std::borrow::Cow;
+
+fn main() {
+    let map = DetofuMap::builtin(DetofuLevel::ExtB)
+        .with_custom_pairs(&[('𬴂', '馬')]);
+    let unchanged = map.detofu_cow("普通漢字");
+    assert!(matches!(unchanged, Cow::Borrowed(_)));
+    assert_eq!(map.detofu_cow("𬴂"), "馬");
+
+    // Keep ownership of an existing buffer when no fallback changes it.
+    let converted = String::from("普通漢字");
+    let output = match map.detofu_cow(&converted) {
+        Cow::Borrowed(_) => converted,
+        Cow::Owned(output) => output,
+    };
+    assert_eq!(output, "普通漢字");
+}
+```
+
+Custom entries are checked before built-ins, including identity overrides that
+prevent a built-in replacement. Direct custom pairs remain active at every
+threshold; file entries and built-ins retain their existing threshold rules.
+Mappings are not chained, and the built-in BMP fast path remains available.
+
+Use `detofu()` when an owned `String` is required, `detofu_cow()` when unchanged
+input can stay borrowed, and `detofu_into()` for a reusable destination buffer.
+The `*_into()` methods append without clearing existing contents and retain their
+allocation reuse. Calling `into_owned()` on a borrowed Cow creates a copy.
+`DetofuMap::detofu()` retains its original implementation; borrowed APIs do not
+guarantee a speedup for every workload. See the [allocation review](benches/allocation_review.md).
+
+For a full pipeline, borrow optional normalization with the corresponding
+`OpenCC::normalize_*_cow()` method, convert its `as_ref()`, then apply DeTofu.
+Normalization remains a pre-pass; DeTofu remains a post-pass.
 
 ## OpenCC Instance Usage
 

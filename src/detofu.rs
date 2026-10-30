@@ -16,7 +16,7 @@
 
 use crate::rustc_hash::FxHashMap;
 use std::path::Path;
-use std::sync::OnceLock;
+use std::{borrow::Cow, sync::OnceLock};
 
 static TOFU_DATA: &[u8] = include_bytes!("data/CharactersTofu.txt");
 
@@ -378,6 +378,30 @@ impl DetofuMap {
         self.detofu_into(input, &mut output);
         output
     }
+
+    /// Applies this map, borrowing `input` when no character changes.
+    ///
+    /// Custom entries (including identity overrides) take precedence over
+    /// built-in mappings. Direct pairs apply regardless of the level threshold.
+    /// Use [`Self::detofu_into`] to append into a reusable output buffer.
+    pub fn detofu_cow<'a>(&self, input: &'a str) -> Cow<'a, str> {
+        if self.custom.is_empty() {
+            return detofu_cow(input, self.level);
+        }
+        let builtins = tofu_map();
+        let first = crate::lazy_replace::first_replacement(input, |ch| {
+            if let Some(&fallback) = self.custom.get(&ch) {
+                return fallback;
+            }
+            builtin_fallback(ch, self.level, builtins)
+        });
+        let Some(first) = first else {
+            return Cow::Borrowed(input);
+        };
+        let mut output = first.start_output();
+        self.detofu_into(first.rest, &mut output);
+        Cow::Owned(output)
+    }
 }
 
 /// Applies the built-in DeTofu table and appends the result to `output`.
@@ -393,14 +417,97 @@ pub(crate) fn detofu_into(input: &str, level: DetofuLevel, output: &mut String) 
 /// This is the internal built-in-only convenience path used by higher-level
 /// APIs.
 pub(crate) fn detofu(input: &str, level: DetofuLevel) -> String {
-    let mut output = String::with_capacity(input.len());
-    detofu_builtin_into(input, level, &mut output);
-    output
+    detofu_cow(input, level).into_owned()
+}
+
+pub(crate) fn detofu_cow(input: &str, level: DetofuLevel) -> Cow<'_, str> {
+    let builtins = tofu_map();
+    let first =
+        crate::lazy_replace::first_replacement(input, |ch| builtin_fallback(ch, level, builtins));
+    let Some(first) = first else {
+        return Cow::Borrowed(input);
+    };
+    let mut output = first.start_output();
+    detofu_builtin_into(first.rest, level, &mut output);
+    Cow::Owned(output)
+}
+
+#[inline]
+fn builtin_fallback(
+    ch: char,
+    level: DetofuLevel,
+    builtins: &FxHashMap<char, (char, DetofuLevel)>,
+) -> char {
+    if ch < '\u{20000}' {
+        return ch;
+    }
+    match builtins.get(&ch) {
+        Some(&(fallback, entry_level)) if entry_level >= level => fallback,
+        _ => ch,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lazy_detofu_borrows_noops_and_respects_thresholds() {
+        let map = DetofuMap::builtin(DetofuLevel::ExtB);
+        for input in ["", "ASCII 普通漢字", "𠀀😀"] {
+            assert!(matches!(map.detofu_cow(input), Cow::Borrowed(_)));
+        }
+        for input in ["𬴂漢😀", "漢𬴂😀", "漢😀𬴂"] {
+            assert_eq!(map.detofu_cow(input), input.replace('𬴂', "騑"));
+        }
+        // Check every built-in entry at every threshold, including entries
+        // filtered out by the level.
+        for level in [
+            DetofuLevel::ExtB,
+            DetofuLevel::ExtC,
+            DetofuLevel::ExtD,
+            DetofuLevel::ExtE,
+            DetofuLevel::ExtF,
+            DetofuLevel::ExtG,
+            DetofuLevel::ExtH,
+            DetofuLevel::ExtI,
+        ] {
+            let map = DetofuMap::builtin(level);
+            for (&ch, &(fallback, entry_level)) in tofu_map() {
+                let input = ch.to_string();
+                let result = map.detofu_cow(&input);
+                assert_eq!(
+                    result,
+                    if entry_level >= level { fallback } else { ch }.to_string()
+                );
+                assert_eq!(
+                    matches!(result, Cow::Borrowed(_)),
+                    entry_level < level || fallback == ch
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn lazy_detofu_custom_overrides_and_append_reuse() {
+        let map = DetofuMap::builtin(DetofuLevel::ExtI).with_custom_pairs(&[
+            ('𬴂', '𬴂'),
+            ('A', '𠀀'),
+            ('𠀀', 'B'),
+            ('漢', '漢'),
+        ]);
+        assert!(matches!(map.detofu_cow("漢𬴂"), Cow::Borrowed(_)));
+        for input in ["A漢😀", "漢A😀", "漢😀A", "𠀀A𬴂"] {
+            let mut output = String::with_capacity(128);
+            output.push_str("prefix:");
+            let ptr = output.as_ptr();
+            map.detofu_into(input, &mut output);
+            assert_eq!(&output[7..], map.detofu_cow(input));
+            assert_eq!(output.as_ptr(), ptr);
+        }
+        let map = DetofuMap::builtin(DetofuLevel::ExtB).with_custom_pairs(&[('𬴂', '𬴂')]);
+        assert!(matches!(map.detofu_cow("𬴂"), Cow::Borrowed(_)));
+    }
 
     #[test]
     fn parses_supported_level_aliases() {

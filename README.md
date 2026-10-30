@@ -160,6 +160,13 @@ advanced dictionary types:
 use opencc_fmmseg::{
     DictMaxLen, DictionaryError, DictionaryMaxlength,
 };
+
+fn main() -> Result<(), DictionaryError> {
+    let dict = DictMaxLen::build_from_pairs(vec![("汉".into(), "漢".into())]);
+    assert_eq!(dict.get(&['汉']), Some("漢"));
+    let _dictionary = DictionaryMaxlength::default();
+    Ok(())
+}
 ```
 
 `DictMaxLen` keeps its backing map and matching indexes private. Use
@@ -445,6 +452,44 @@ working with broader legacy/document-extraction forms. DeTofu remains a separate
 for rare CJK extension characters.
 
 ---
+
+### Borrowing unchanged normalization results
+
+Use `normalize_compat_cow`, `normalize_unicode_compat_cow`, or
+`normalize_compat_extended_cow` when a pipeline can accept borrowed text. Each
+returns `Cow<'a, str>` borrowing only from its input when no scalar changes.
+On the first replacement it allocates, copies the unchanged UTF-8 prefix, and
+processes the remaining input. Combined normalization still gives CJK compatibility
+mappings precedence and never remaps a replacement through the extended table.
+
+```rust
+use opencc_fmmseg::{DetofuLevel, OpenCC};
+use std::borrow::Cow;
+
+fn main() {
+    let cc = OpenCC::new();
+    let normalized = cc.normalize_compat_extended_cow("普通漢字");
+    assert!(matches!(normalized, Cow::Borrowed(_)));
+    let converted = cc.convert(normalized.as_ref(), "t2s", false);
+    let output = match cc.detofu_cow(&converted, DetofuLevel::ExtB) {
+        Cow::Borrowed(_) => converted,
+        Cow::Owned(output) => output,
+    };
+    assert_eq!(output, "普通汉字");
+}
+```
+
+Existing normalization and DeTofu methods still return `String`. Calling
+`into_owned()` on a borrowed result also copies it; to save an intermediate
+allocation, pass `as_ref()` onward or retain an existing owned buffer as above.
+Built-in tables may allocate on first initialization even when the result is borrowed.
+`DetofuMap::detofu_cow` supports the same approach with custom mappings. See the
+[DeTofu guide](DETOFU_USER_GUIDE.md#borrowed-results-and-buffer-reuse) and
+[benchmark review](benches/allocation_review.md) for details and measured tradeoffs.
+
+The CLI uses these borrowed paths automatically with its existing normalization
+and DeTofu flags. No flags or defaults change, and conversion/punctuation still
+runs between normalization and DeTofu. Existing Rust signatures and the C ABI are preserved.
 
 ## DeTofu: tofu-safe fallback for rare CJK characters
 
