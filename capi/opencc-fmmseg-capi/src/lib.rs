@@ -74,14 +74,15 @@ pub extern "C" fn opencc_abi_number() -> u32 {
     OPENCC_ABI_NUMBER
 }
 
-/// Returns the OpenCC-FMMSEG version string (UTF-8, null-terminated).
+/// Returns the OpenCC-FMMSEG C API version string (UTF-8, null-terminated).
 ///
-/// Example: `"0.9.1"`.
+/// Format: `major.minor.patch.revision` (e.g. `"0.13.0.0"`).
+/// The revision is independent of the Rust crate's SemVer version.
 ///
 /// The returned pointer is valid for the lifetime of the program.
 #[no_mangle]
 pub extern "C" fn opencc_version_string() -> *const c_char {
-    concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char
+    concat!(env!("OPENCC_CAPI_VERSION"), "\0").as_ptr() as *const c_char
 }
 
 // ============================================================================
@@ -1375,6 +1376,23 @@ mod tests {
             .expect("version string must be valid UTF-8");
 
         assert!(!ver.is_empty());
+    }
+
+    #[test]
+    fn opencc_version_string_matches_capi_version() {
+        let ptr = opencc_version_string();
+        assert!(!ptr.is_null());
+
+        let version = unsafe { CStr::from_ptr(ptr) }
+            .to_str()
+            .expect("version must be valid UTF-8");
+
+        assert_eq!(version, env!("OPENCC_CAPI_VERSION"));
+
+        let parts: Vec<_> = version.split('.').collect();
+        assert_eq!(parts.len(), 4);
+
+        assert!(parts.iter().all(|part| part.parse::<u16>().is_ok()));
     }
 
     #[test]
