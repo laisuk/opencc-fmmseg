@@ -547,6 +547,45 @@ pub unsafe extern "C" fn opencc_normalize_compat(
     })
 }
 
+/// C API function `opencc_normalize_unicode_compat`.
+///
+/// Applies only [`OpenCC::normalize_unicode_compat`]'s curated Unicode table:
+/// selected radicals, glyph variants, punctuation forms, and text-extraction
+/// artifacts. For example, `聼⽟神` becomes `聽玉神`. CJK Compatibility
+/// Ideographs are preserved unless explicitly present in that table; use
+/// [`opencc_normalize_compat_extended`] to apply both normalization tables.
+/// This is not general-purpose Unicode NFKC/NFKD normalization.
+///
+/// No Simplified/Traditional conversion is performed. The instance and its
+/// dictionaries and conversion behavior are unchanged. Each Unicode scalar
+/// produces exactly one output scalar. Empty input returns an allocated empty
+/// string; success clears stale thread-local C API errors.
+///
+/// NULL instance/input returns NULL. Invalid UTF-8 returns an allocated error
+/// string, following the existing transformation API convention. Both failures
+/// record details for [`opencc_last_error`] on the calling thread. All non-NULL
+/// returned strings, including error strings, must be released exactly once
+/// using [`opencc_string_free`].
+///
+/// # Safety
+/// Non-NULL `instance` must be aligned and point to a live, initialized
+/// `OpenCC` that remains valid throughout the call.
+/// The instance must not be mutated or freed during this call.
+/// Non-NULL `input` must reference readable NUL-terminated byte
+/// sequences in a single allocation, unchanged for the duration of the call.
+/// All borrowed pointers remain caller-owned and valid throughout the call.
+/// Any non-NULL returned string is caller-owned and must be released exactly
+/// once with [`opencc_string_free`].
+#[no_mangle]
+pub unsafe extern "C" fn opencc_normalize_unicode_compat(
+    instance: *const OpenCC,
+    input: *const c_char,
+) -> *mut c_char {
+    transform_core(instance, input, |opencc, input| {
+        Ok(opencc.normalize_unicode_compat(input))
+    })
+}
+
 /// C API function `opencc_normalize_compat_extended`.
 ///
 /// Applies combined CJK Compatibility Ideograph and curated Unicode
@@ -702,7 +741,8 @@ pub unsafe extern "C" fn opencc_error_free(ptr: *mut c_char) {
 ///
 /// Frees a string returned by OpenCC transformation functions such as
 /// `opencc_convert()`, `opencc_convert_cfg()`, `opencc_normalize_compat()`,
-/// `opencc_normalize_compat_extended()`, or `opencc_detofu()`.
+/// `opencc_normalize_compat_extended()`, `opencc_normalize_unicode_compat()`,
+/// or `opencc_detofu()`.
 ///
 /// # Safety
 /// `ptr` must be NULL or the original pointer to a still-live string allocation
@@ -1409,6 +1449,39 @@ mod tests {
             read_and_free(opencc_last_error()),
             "Invalid argument: instance/input is NULL"
         );
+    }
+
+    #[test]
+    fn test_opencc_normalize_unicode_compat_preserves_cjk_compatibility() {
+        let opencc = OpenCC::new();
+        let input = CString::new("聼⽟神汉语").unwrap();
+        let result = unsafe { opencc_normalize_unicode_compat(&opencc, input.as_ptr()) };
+        assert_eq!(read_and_free(result), "聽玉神汉语");
+        let extended = unsafe { opencc_normalize_compat_extended(&opencc, input.as_ptr()) };
+        assert_eq!(read_and_free(extended), "聽玉神汉语");
+    }
+
+    #[test]
+    fn test_opencc_normalize_unicode_compat_errors_and_empty_input() {
+        let opencc = OpenCC::new();
+        let empty = CString::new("").unwrap();
+        for (instance, input) in [
+            (ptr::null(), empty.as_ptr()),
+            (&opencc as *const OpenCC, ptr::null()),
+        ] {
+            assert!(unsafe { opencc_normalize_unicode_compat(instance, input) }.is_null());
+            assert_eq!(
+                read_and_free(opencc_last_error()),
+                "Invalid argument: instance/input is NULL"
+            );
+        }
+        let invalid = [0xff_u8, 0];
+        let result = unsafe { opencc_normalize_unicode_compat(&opencc, invalid.as_ptr().cast()) };
+        assert_eq!(read_and_free(result), "Invalid UTF-8 input");
+        assert_eq!(read_and_free(opencc_last_error()), "Invalid UTF-8 input");
+        let result = unsafe { opencc_normalize_unicode_compat(&opencc, empty.as_ptr()) };
+        assert_eq!(read_and_free(result), "");
+        assert_eq!(read_and_free(opencc_last_error()), "No error");
     }
 
     #[test]

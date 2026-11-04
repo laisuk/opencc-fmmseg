@@ -838,6 +838,39 @@ char* opencc_normalize_compat_extended(
 );
 
 /**
+ * @brief Normalizes only curated Unicode compatibility and variant forms.
+ *
+ * This is the C API counterpart of `OpenCC::normalize_unicode_compat()`.
+ * It maps selected radicals, glyph variants, punctuation forms, and known
+ * text-extraction artifacts using the built-in curated Unicode table.
+ * For example, `聼⽟神` becomes `聽玉神`. CJK Compatibility Ideographs are
+ * preserved unless explicitly mapped by that table; use
+ * `opencc_normalize_compat_extended()` to apply both tables.
+ * This is not general-purpose Unicode NFKC/NFKD normalization.
+ *
+ * No Simplified/Traditional conversion is performed. The instance, its
+ * configuration, dictionaries, segmentation, and punctuation behavior are
+ * unchanged. Each input Unicode scalar produces exactly one output scalar.
+ *
+ * @param instance Live instance returned by any `opencc_new*()` constructor.
+ *                 It must not be mutated or freed during this call.
+ * @param input Readable, NUL-terminated UTF-8 string, unchanged during the call.
+ *              The caller retains ownership of the input.
+ * @return Newly allocated NUL-terminated UTF-8 string, including for empty input.
+ *         Release exactly once with `opencc_string_free()`.
+ *         Returns NULL for a NULL instance/input. Invalid UTF-8 returns an allocated
+ *         error string that must also be freed. Retrieve
+ *         details immediately on the same thread with `opencc_last_error()`.
+ *         Success clears any stale thread-local C API error.
+ *
+ * @since Available since v0.13.1.0. Additive export.
+ */
+char *opencc_normalize_unicode_compat(
+    const void *instance,
+    const char *input
+);
+
+/**
  * Applies the built-in DeTofu display-compatibility fallback.
  *
  * DeTofu is normally applied after OpenCC conversion. The selected threshold
@@ -907,6 +940,7 @@ int opencc_zho_check(const void* instance, const char* input);
  * - `opencc_convert_cfg()`
  * - `opencc_normalize_compat()`
  * - `opencc_normalize_compat_extended()`
+ * - `opencc_normalize_unicode_compat()`
  * - `opencc_detofu()`
  *
  * Passing NULL is safe and does nothing.
