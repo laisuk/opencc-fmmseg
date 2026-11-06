@@ -1,4 +1,4 @@
-/// OpenCC conversion configuration (strongly-typed).
+/// A supported OpenCC conversion mode.
 ///
 /// This enum represents the supported conversion “modes” (e.g. Simplified → Traditional).
 /// It is used by [`OpenCC::convert_with_config`](crate::OpenCC::convert_with_config)
@@ -9,8 +9,7 @@
 /// `OpenccConfig` is marked with `#[repr(u32)]`, so each variant has a stable numeric value.
 /// This is suitable for C FFI where configs are passed as `uint32_t` (`opencc_config_t`).
 ///
-/// When accepting configs from FFI, **do not** `transmute`; use [`OpenccConfig::from_ffi`]
-/// to validate values.
+/// Use [`OpenccConfig::from_ffi`] to validate integers received over FFI.
 ///
 /// # String parsing
 ///
@@ -46,6 +45,7 @@
 /// | 22      | `T2seal`| Traditional → Small Seal Script           | ✅                          |
 /// | 23      | `Seal2s`| Small Seal Script → Simplified            | ✅                          |
 /// | 24      | `Seal2t`| Small Seal Script → Traditional           | ✅                          |
+///
 /// # Since
 ///
 /// Core configurations (`S2t` through `T2jp`) are available since **v0.8.4**.
@@ -367,7 +367,8 @@ impl OpenccConfig {
     ///
     /// The input string is matched against the canonical OpenCC configuration
     /// identifiers (e.g. `"s2t"`, `"t2s"`, `"s2tw"`). Matching is
-    /// **case-insensitive**.
+    /// ASCII case-insensitive. Leading or trailing whitespace makes the name
+    /// invalid.
     ///
     /// If the input does not correspond to a supported configuration,
     /// `None` is returned.

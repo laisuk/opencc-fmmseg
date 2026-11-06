@@ -379,7 +379,8 @@ impl DetofuMap {
         output
     }
 
-    /// Applies this map, borrowing `input` when no character changes.
+    /// Applies this map, returning [`Cow::Borrowed`] when `input` is unchanged
+    /// and [`Cow::Owned`] when a character changes.
     ///
     /// Custom entries (including identity overrides) take precedence over
     /// built-in mappings. Direct pairs apply regardless of the level threshold.

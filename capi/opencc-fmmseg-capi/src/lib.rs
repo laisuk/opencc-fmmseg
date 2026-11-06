@@ -1,3 +1,18 @@
+//! C ABI for OpenCC-FMMSEG.
+//!
+//! Create an instance with [`opencc_new`] or [`opencc_new_custom`] and
+//! release it with [`opencc_delete`]. Read-only calls can share a live
+//! instance. Synchronize option changes and deletion with all calls that
+//! use the instance.
+//!
+//! [`opencc_convert`] and [`opencc_convert_cfg`] return allocated strings.
+//! These can contain converted text or an error message. Release either
+//! with [`opencc_string_free`]. For caller-owned output buffers, use
+//! [`opencc_convert_cfg_mem_len`].
+//!
+//! Read the calling thread's diagnostic with [`opencc_last_error`] and
+//! release that copy with [`opencc_error_free`].
+
 use opencc_fmmseg::{
     CustomDictMode, CustomDictSpec, DetofuLevel, DictSlot, DictionaryMaxlength, OpenCC,
     OpenccConfig,
@@ -45,7 +60,9 @@ fn clear_c_api_last_error() {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct OpenccCustomPair {
+    /// NUL-terminated UTF-8 source key.
     pub source: *const c_char,
+    /// NUL-terminated UTF-8 replacement.
     pub target: *const c_char,
 }
 
@@ -56,9 +73,13 @@ pub struct OpenccCustomPair {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct OpenccCustomDictSpec {
+    /// Numeric dictionary slot from the C header.
     pub slot: u32,
+    /// Merge mode. Use `1` to append or `2` to replace the slot.
     pub mode: u32,
+    /// Borrowed array of pairs. May be NULL when `pair_count` is zero.
     pub pairs: *const OpenccCustomPair,
+    /// Number of elements in `pairs`.
     pub pair_count: usize,
 }
 
@@ -79,7 +100,8 @@ pub extern "C" fn opencc_abi_number() -> u32 {
 /// Format: `major.minor.patch.revision` (e.g. `"0.13.0.0"`).
 /// The revision is independent of the Rust crate's SemVer version.
 ///
-/// The returned pointer is valid for the lifetime of the program.
+/// The pointer refers to read-only storage and is valid while the library
+/// is loaded.
 #[no_mangle]
 pub extern "C" fn opencc_version_string() -> *const c_char {
     concat!(env!("OPENCC_CAPI_VERSION"), "\0").as_ptr() as *const c_char
@@ -89,12 +111,11 @@ pub extern "C" fn opencc_version_string() -> *const c_char {
 // Instance lifetime
 // ============================================================================
 
-/// C API function `opencc_new`.
+/// Creates a converter from the embedded dictionaries.
 ///
-/// If embedded dictionary initialization fails, this preserves the existing
-/// fallback behavior by returning an instance with the default dictionary and
-/// records the exact initialization error in the calling thread's C API
-/// last-error state.
+/// On load failure, returns a converter with empty dictionaries and records
+/// a diagnostic. Successful construction leaves the diagnostic unchanged.
+/// Release the instance with [`opencc_delete`].
 ///
 #[no_mangle]
 pub extern "C" fn opencc_new() -> *mut OpenCC {
@@ -106,14 +127,16 @@ pub extern "C" fn opencc_new() -> *mut OpenCC {
     Box::into_raw(Box::new(OpenCC::from_dictionary(dictionary)))
 }
 
-/// Creates an immutable OpenCC instance using the embedded dictionaries plus
+/// Creates an OpenCC instance using the embedded dictionaries plus
 /// optional in-memory custom dictionary mappings.
 ///
 /// The supplied specification array, pair arrays, and strings are borrowed
 /// only for the duration of this call. All required data is copied into
 /// Rust-owned memory before the function returns.
 ///
-/// `specs == NULL` is valid only when `spec_count == 0`.
+/// `specs == NULL` is valid when `spec_count == 0` and selects the embedded
+/// dictionaries without overlays. Specs are applied in array order.
+/// Success clears the calling thread's diagnostic.
 ///
 /// On failure, returns NULL and records a human-readable error retrievable
 /// through [`opencc_last_error`] on the calling thread. Callers should retrieve
@@ -222,7 +245,12 @@ pub unsafe extern "C" fn opencc_set_parallel(instance: *mut OpenCC, is_parallel:
 // Conversion API
 // ============================================================================
 
-/// C API function `opencc_convert`.
+/// Converts a NUL-terminated UTF-8 string using an ASCII case-insensitive
+/// config name such as `"s2t"`.
+///
+/// NULL arguments return NULL. Invalid UTF-8, an unknown config, or an
+/// interior NUL in the output returns an allocated error string. Read the
+/// calling thread's diagnostic with [`opencc_last_error`]. Success clears it.
 ///
 /// # Safety
 /// Non-NULL `instance` must be aligned and point to a live, initialized
@@ -252,7 +280,9 @@ pub unsafe extern "C" fn opencc_convert(
     })
 }
 
-/// C API function `opencc_convert_cfg`.
+/// Converts a NUL-terminated UTF-8 string using a numeric config ID.
+///
+/// Uses the same output, diagnostic, and ownership rules as [`opencc_convert`].
 ///
 /// Available since **v0.8.4**.
 ///
@@ -286,17 +316,7 @@ pub unsafe extern "C" fn opencc_convert_cfg(
 /// New bindings should prefer [`opencc_convert_cfg_mem_len`], which accepts an
 /// explicit input byte length and avoids the native NUL scan.
 ///
-/// Writes the converted UTF-8 output into a caller-provided buffer.
-///
-/// This legacy memory API accepts a NUL-terminated UTF-8 input string.
-/// For high-throughput interop scenarios that already know the input byte length,
-/// prefer [`opencc_convert_cfg_mem_len`], which avoids the native input scan.
-///
-/// Contract:
-/// - `out_required` must be non-NULL
-/// - `*out_required` is always set to the required size in bytes, including trailing `\0`
-/// - If `out_buf` is NULL or `out_cap == 0`, this acts as a size-query
-/// - Returns `true` on success, `false` on failure
+/// Uses the same output and diagnostic rules as [`opencc_convert_cfg_mem_len`].
 ///
 /// # Safety
 /// Non-NULL `instance` must be aligned and point to a live, initialized
@@ -365,12 +385,15 @@ pub unsafe extern "C" fn opencc_convert_cfg_mem(
 /// that already have UTF-8 bytes and know the exact input length. Unlike
 /// `opencc_convert_cfg_mem`, the input does not need to be NUL-terminated.
 ///
-/// Contract:
-/// - `out_required` must be non-NULL
-/// - `input` must point to exactly `input_len` bytes of valid UTF-8
-/// - `*out_required` is always set to the required size in bytes, including trailing `\0`
-/// - If `out_buf` is NULL or `out_cap == 0`, this acts as a size-query
-/// - Returns `true` on success, `false` on failure
+/// A NULL `out_buf` or zero `out_cap` queries the size. The function writes the
+/// required byte count, including the trailing NUL, to `out_required`.
+/// Returns `true` for a successful query or write and clears the diagnostic.
+///
+/// On failure, returns `false` and records a diagnostic. If `out_required`
+/// is NULL, the call returns before writing either output. For invalid input
+/// or config, the reported size is for the error message, which is written
+/// if the buffer can hold it. Insufficient capacity leaves the buffer
+/// unchanged and records `"Output buffer too small"`.
 ///
 /// # Safety
 /// Non-NULL `instance` must be aligned and point to a live, initialized
@@ -526,7 +549,9 @@ pub unsafe extern "C" fn opencc_convert_cfg_len(
 /// Applies CJK Compatibility Ideograph normalization through the supplied
 /// [`OpenCC`] instance.
 ///
-/// The returned string must be released using [`opencc_string_free`].
+/// Returns NULL for a NULL instance or input. Invalid UTF-8 returns an
+/// allocated error string. Read failures through [`opencc_last_error`].
+/// Success clears the calling thread's diagnostic.
 ///
 /// # Safety
 /// Non-NULL `instance` must be aligned and point to a live, initialized
@@ -591,7 +616,7 @@ pub unsafe extern "C" fn opencc_normalize_unicode_compat(
 /// Applies combined CJK Compatibility Ideograph and curated Unicode
 /// compatibility normalization through the supplied [`OpenCC`] instance.
 ///
-/// The returned string must be released using [`opencc_string_free`].
+/// Uses the same output and diagnostic rules as [`opencc_normalize_compat`].
 ///
 /// # Safety
 /// Non-NULL `instance` must be aligned and point to a live, initialized
@@ -618,9 +643,11 @@ pub unsafe extern "C" fn opencc_normalize_compat_extended(
 /// supplied [`OpenCC`] instance.
 ///
 /// `level` uses the stable C ABI values `0..=7`, corresponding to ExtB
-/// through ExtI respectively.
+/// through ExtI respectively. The selected range and all supported later
+/// ranges are eligible for replacement.
 ///
-/// The returned string must be released using [`opencc_string_free`].
+/// Uses the same output and diagnostic rules as [`opencc_normalize_compat`].
+/// An unsupported level also returns an allocated error string.
 ///
 /// # Safety
 /// Non-NULL `instance` must be aligned and point to a live, initialized
@@ -649,7 +676,11 @@ pub unsafe extern "C" fn opencc_detofu(
 // Other API
 // ============================================================================
 
-/// C API function `opencc_zho_check`.
+/// Classifies a text sample using [`OpenCC::zho_check`].
+///
+/// Returns `1` for Traditional evidence, `2` for Simplified evidence, or
+/// `0` when neither conversion changes the sample. The Traditional check
+/// runs first. These results leave the calling thread's diagnostic unchanged.
 ///
 /// Returns `-1` if `instance` or `input` is NULL, or if the input is invalid UTF-8.
 /// On either failure, the relevant error is recorded for retrieval on the same
@@ -773,7 +804,8 @@ fn free_c_string(ptr: *mut c_char) {
 /// Available since **v0.8.4**.
 ///
 /// Returns `1` on success and writes the numeric config id to `out_id`.
-/// Returns `0` on failure.
+/// Returns `0` on failure and leaves `out_id` unchanged. Names are matched
+/// ASCII case-insensitively. Neither outcome changes the diagnostic.
 ///
 /// Small Seal Script config IDs:
 /// - `21` (`s2seal`): Simplified Chinese → Small Seal Script.
@@ -815,7 +847,8 @@ pub unsafe extern "C" fn opencc_config_name_to_id(
 /// Available since **v0.8.4**.
 ///
 /// Returns a pointer to a static NUL-terminated UTF-8 string,
-/// or NULL if the id is invalid.
+/// or NULL if the id is invalid. The pointer refers to read-only library
+/// storage and is valid while the library is loaded.
 ///
 /// Small Seal Script IDs `21`–`24` return `s2seal`, `t2seal`, `seal2s`, and
 /// `seal2t`, respectively; see [`opencc_config_name_to_id`] for directions.

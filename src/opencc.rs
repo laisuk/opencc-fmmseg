@@ -64,12 +64,11 @@ fn strip_regex() -> &'static Regex {
     STRIP_REGEX.get_or_init(|| Regex::new(r"[!-/:-@\[-`{-~\t\n\v\f\r 0-9A-Za-z_著]").unwrap())
 }
 
-/// Central interface for performing OpenCC-based conversion with segmentation.
+/// Converts text using OpenCC dictionaries and forward maximum matching.
 ///
-/// The `OpenCC` struct manages dictionary loading, segmentation, and multi-round
-/// text transformation. It supports conversion types such as `s2t`, `t2s`,
-/// `s2tw`, etc., and uses maximum-match segmentation on non-delimiter text
-/// regions to ensure accurate replacements.
+/// Create a converter with [`Self::new`] and reuse it for multiple inputs.
+/// Choose a mode with [`Self::convert_with_config`] or call a direct method
+/// such as [`Self::s2t`].
 ///
 /// By default, Unicode Ideographic Description Sequences (IDS) are converted
 /// normally. IDS preservation can be enabled with
@@ -95,25 +94,17 @@ pub struct OpenCC {
 impl OpenCC {
     /// Creates a new `OpenCC` instance using the embedded dictionary artifact.
     ///
-    /// This is the recommended method for most users. It loads the bundled
-    /// Zstandard-compressed CBOR dictionary embedded in the binary with
-    /// `include_bytes!`, providing fast startup without runtime dictionary I/O.
-    ///
-    /// Internally, this loads the default `DictionaryMaxlength` via `DictionaryMaxlength::new()`,
-    /// and sets up default Chinese delimiters and regular expressions.
-    ///
-    /// # Returns
-    /// An `OpenCC` instance ready for conversion.
-    ///
-    /// # Panics
-    /// Never panics. If the dictionary fails to initialize, a default one is substituted,
-    /// and the error is recorded for retrieval with [`Self::get_last_error`].
+    /// Loads the bundled Zstandard-compressed dictionary without file I/O.
+    /// On load failure, this returns a converter with empty dictionaries and
+    /// records a diagnostic in [`Self::get_last_error`]. To handle the load
+    /// error directly, use [`DictionaryMaxlength::new`] followed by
+    /// [`Self::from_dictionary`].
     ///
     /// # Example
     /// ```rust
     /// use opencc_fmmseg::OpenCC;
     /// let cc = OpenCC::new();
-    /// let converted = cc.convert("汉字", "s2t", false);
+    /// assert_eq!(cc.s2t("汉字", false), "漢字");
     /// ```
     pub fn new() -> Self {
         let dictionary = DictionaryMaxlength::new().unwrap_or_else(|err| {
@@ -130,12 +121,10 @@ impl OpenCC {
     /// file I/O. Prefer [`Self::new`] for the compressed embedded artifact, or
     /// [`Self::from_dictionary`] for custom data.
     ///
-    /// # Returns
-    /// An `OpenCC` instance built from in-memory data.
-    ///
-    /// # Panics
-    /// Never panics. If loading fails, an empty dictionary is used and the error
-    /// is recorded for retrieval with [`Self::get_last_error`].
+    /// On load failure, this returns a converter with empty dictionaries and
+    /// records a diagnostic in [`Self::get_last_error`]. To handle the load
+    /// error directly, use [`DictionaryMaxlength::from_dicts`] followed by
+    /// [`Self::from_dictionary`].
     ///
     /// # Example
     /// ```rust
@@ -151,29 +140,13 @@ impl OpenCC {
         Self::from_dictionary(dictionary)
     }
 
-    /// Creates an `OpenCC` instance by loading dictionaries from an external CBOR file.
+    /// Loads a converter from an external, uncompressed CBOR dictionary.
     ///
-    /// This is ideal for users who want to decouple dictionary data from the binary and
-    /// ship a compact `.cbor` file with the application. The CBOR format is a fast,
-    /// efficient binary serialization of the dictionary contents.
-    ///
-    /// # Arguments
-    /// * `filename` – Path to a `.cbor` file containing a serialized `DictionaryMaxlength`.
-    ///
-    /// # Returns
-    /// A fully initialized `OpenCC` instance, or one with empty dictionaries if deserialization fails.
-    ///
-    /// # Errors
-    /// If deserialization fails, the dictionary is defaulted and the error is
-    /// recorded for retrieval with [`Self::get_last_error`].
-    ///
-    /// # Example
-    /// ```rust
-    /// use opencc_fmmseg::OpenCC;
-    ///
-    /// let cc = OpenCC::from_cbor("./dicts.s2t.cbor");
-    /// println!("{}", cc.convert("汉字", "s2t", false));
-    /// ```
+    /// On load failure, this returns a converter with empty dictionaries and
+    /// records a diagnostic in [`Self::get_last_error`]. Use
+    /// [`DictionaryMaxlength::deserialize_from_cbor`] to handle load errors
+    /// directly, or [`DictionaryMaxlength::load_cbor_compressed`] for a
+    /// Zstandard-compressed file, then call [`Self::from_dictionary`].
     pub fn from_cbor<P: AsRef<Path>>(filename: P) -> Self {
         let dictionary =
             DictionaryMaxlength::deserialize_from_cbor(filename).unwrap_or_else(|err| {
@@ -186,35 +159,12 @@ impl OpenCC {
 
     /// Creates an `OpenCC` instance from an existing [`DictionaryMaxlength`].
     ///
-    /// This is the low-level constructor for advanced users who want to build,
-    /// load, modify, or generate dictionary data themselves before creating an
-    /// [`OpenCC`] converter.
+    /// This method takes ownership of a prepared dictionary. The
+    /// [`DictionaryMaxlength`] loaders and custom overlay methods prepare the
+    /// dictionary for conversion. If you deserialize it directly with Serde,
+    /// call [`DictionaryMaxlength::finish`] before passing it here.
     ///
-    /// Most users should prefer [`OpenCC::new()`], which loads the built-in
-    /// dictionaries bundled with the crate. This method is useful when you already
-    /// have a prepared [`DictionaryMaxlength`] instance, for example one loaded
-    /// from CBOR/JSON, generated from plaintext dictionaries, or assembled with
-    /// custom dictionary slots.
-    ///
-    /// # Arguments
-    ///
-    /// * `dictionary` - A fully prepared [`DictionaryMaxlength`] value used by the
-    ///   converter for maximum-matching Chinese text conversion.
-    ///
-    /// # Returns
-    ///
-    /// An [`OpenCC`] instance using the provided dictionary and with parallel
-    /// conversion enabled by default.
-    ///
-    /// # Notes
-    ///
-    /// This method takes ownership of the dictionary. The caller is responsible for
-    /// ensuring that the dictionary is internally consistent, including its maximum
-    /// phrase-length metadata and any derived lookup structures.
-    ///
-    /// Higher-level constructors such as [`OpenCC::new()`], [`OpenCC::from_dicts()`],
-    /// and CBOR/JSON loading helpers may delegate to this method after constructing
-    /// the dictionary.
+    /// Parallel conversion starts enabled, and IDS preservation starts disabled.
     ///
     /// # Example
     ///
@@ -1841,14 +1791,9 @@ impl OpenCC {
 
     /// Converts Chinese text using a configuration name (`&str`, case-insensitive).
     ///
-    /// This is a **convenience / legacy** entry point that accepts OpenCC-style config names
-    /// such as `"s2t"` or `"t2s"`. Internally it parses the string into [`OpenccConfig`]
-    /// and dispatches to [`OpenCC::convert_with_config`].
-    ///
-    /// Prefer [`OpenCC::convert_with_config`] if you want:
-    /// - no string parsing
-    /// - compile-time configuration selection
-    /// - an API that mirrors your C FFI numeric config
+    /// Accepts OpenCC-style config names such as `"s2t"` or `"t2s"`.
+    /// Matching is ASCII case-insensitive. Leading or trailing whitespace makes
+    /// the name invalid. Use [`Self::convert_with_config`] with a typed configuration.
     ///
     /// # Arguments
     ///
@@ -1859,7 +1804,9 @@ impl OpenCC {
     /// # Returns
     ///
     /// Returns the converted text. If `config` is invalid, it returns the string
-    /// `"Invalid config: {config}"` and stores the same message in the last-error slot.
+    /// `"Invalid config: {config}"` and stores the same message in the process-wide
+    /// [last-error slot](Self::get_last_error). Use [`OpenccConfig::parse`] first
+    /// to handle an invalid name separately from converted text.
     ///
     /// # Example
     ///
@@ -2025,17 +1972,16 @@ impl OpenCC {
 
     /// Detects the likely Chinese script type of the input text.
     ///
-    /// This function analyzes the given string and attempts to determine whether it primarily contains
-    /// Traditional Chinese, Simplified Chinese, or neither. It uses dictionary-based transformation
-    /// to compare the input against converted versions and checks for differences.
+    /// Samples up to the first 1,000 UTF-8 bytes, filters common ASCII
+    /// characters and selected symbols, then tests up to 200 bytes of the
+    /// filtered sample against the character dictionaries. Both limits respect
+    /// UTF-8 character boundaries.
     ///
-    /// Returns:
-    /// - `1` if the input text appears to be Traditional Chinese.
-    /// - `2` if the input text appears to be Simplified Chinese.
-    /// - `0` if the input is empty or doesn't clearly match either.
+    /// - `1` if Traditional-to-Simplified character conversion changes the sample.
+    /// - `2` if only Simplified-to-Traditional character conversion changes it.
+    /// - `0` if neither conversion changes it, including empty input.
     ///
-    /// # Arguments
-    /// * `input` - The input string to analyze.
+    /// Mixed-script samples can return `1` because the Traditional check runs first.
     ///
     /// # Examples
     /// ```rust
@@ -2108,8 +2054,10 @@ impl OpenCC {
         compat_ideographs::normalize_compat_ideographs(text)
     }
 
-    /// Like [`Self::normalize_compat`], borrowing unchanged input.
-    /// The result borrows only from `text`, not from this converter.
+    /// Like [`Self::normalize_compat`], returning [`Cow::Borrowed`] when
+    /// `text` is unchanged and [`Cow::Owned`] when a character changes.
+    ///
+    /// The result's lifetime is tied to `text`.
     pub fn normalize_compat_cow<'a>(&self, text: &'a str) -> Cow<'a, str> {
         compat_ideographs::CompatIdeographs::builtin().normalize_cow(text)
     }
@@ -2176,8 +2124,11 @@ impl OpenCC {
         crate::unicode_compat::normalize_unicode_compat_all(text)
     }
 
-    /// Like [`Self::normalize_compat_extended`], borrowing unchanged input.
-    /// CJK compatibility mappings take precedence; results are never remapped.
+    /// Like [`Self::normalize_compat_extended`], returning [`Cow::Borrowed`]
+    /// when `text` is unchanged and [`Cow::Owned`] when a character changes.
+    ///
+    /// CJK Compatibility Ideograph mappings take precedence over the curated
+    /// table. Each input character is mapped at most once.
     pub fn normalize_compat_extended_cow<'a>(&self, text: &'a str) -> Cow<'a, str> {
         crate::unicode_compat::UnicodeCompat::builtin().normalize_all_cow(text)
     }
@@ -2225,8 +2176,9 @@ impl OpenCC {
         crate::unicode_compat::normalize_unicode_compat(text)
     }
 
-    /// Like [`Self::normalize_unicode_compat`], borrowing unchanged input.
-    /// This applies only the curated extended table.
+    /// Applies the curated table from [`Self::normalize_unicode_compat`],
+    /// returning [`Cow::Borrowed`] when `text` is unchanged and
+    /// [`Cow::Owned`] when a character changes.
     pub fn normalize_unicode_compat_cow<'a>(&self, text: &'a str) -> Cow<'a, str> {
         crate::unicode_compat::UnicodeCompat::builtin().normalize_cow(text)
     }
@@ -2305,7 +2257,9 @@ impl OpenCC {
         detofu::detofu(text, level)
     }
 
-    /// Like [`Self::detofu`], borrowing input when no eligible mapping changes it.
+    /// Applies the built-in fallbacks from [`Self::detofu`], returning
+    /// [`Cow::Borrowed`] when `text` is unchanged and [`Cow::Owned`] when
+    /// an eligible mapping changes it.
     pub fn detofu_cow<'a>(&self, text: &'a str, level: DetofuLevel) -> Cow<'a, str> {
         detofu::detofu_cow(text, level)
     }

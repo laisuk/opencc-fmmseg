@@ -10,18 +10,21 @@
 #include <vector>
 
 // RAII convenience wrapper around the opencc-fmmseg C API.
-//
-// This helper owns exactly one native OpenCC instance and releases it with
-// `opencc_delete()` in the destructor. It keeps the native API's conversion
-// behavior visible to C++ callers:
-// - Invalid config ids are passed through to the C API.
-// - Config names are preserved as provided so invalid names surface as
-//   `"Invalid config: ..."` instead of silently falling back to `s2t`.
-// - Conversion methods return the native result as a `std::string`; native
-//   error strings are returned as ordinary text rather than throwing.
-// - If the native API returns `NULL` or a buffer conversion call fails, the
-//   helper returns `lastError()` so failures are distinguishable from valid
-//   empty-input results.
+/**
+ * Move-only C++17 owner of a native OpenCC instance.
+ *
+ * Conversion and text transformations return output or error text as a
+ * std::string. Calls that reach native conversion or transformation update
+ * the calling thread's diagnostic, available through lastError(). Empty
+ * string-view inputs return immediately and leave that diagnostic unchanged.
+ *
+ * The ordinary string-view overloads pass NUL-terminated strings to the C
+ * API. An embedded NUL ends the input or config name at that byte. The
+ * deprecated explicit-length overloads pass the full input byte range.
+ *
+ * Synchronize settings changes, moves, and destruction with calls that use
+ * the same helper.
+ */
 class OpenccFmmsegHelper {
 public:
     /**
@@ -61,9 +64,8 @@ public:
         std::vector<CustomPair> pairs;
     };
 
-    // Creates a new native OpenCC instance.
-    //
-    // Throws `std::runtime_error` only if `opencc_new()` fails.
+    // Uses the embedded dictionaries and inherits the empty-dictionary
+    // fallback and diagnostic from opencc_new().
     OpenccFmmsegHelper()
         : opencc_(opencc_new()) {
         if (!opencc_)
@@ -71,13 +73,15 @@ public:
     }
 
     /**
-     * Creates an immutable OpenCC instance using the embedded dictionaries
+     * Creates an OpenCC instance using the embedded dictionaries
      * plus the supplied in-memory custom dictionary specifications.
      *
      * The input strings and arrays are needed only during this constructor.
      * The native constructor copies all required data before returning.
      *
-     * An empty specification vector is equivalent to the default constructor.
+     * An empty specification vector uses the embedded dictionaries without
+     * overlays. This constructor reports a dictionary load failure by throwing
+     * std::runtime_error.
      *
      * @param specs
      *     Custom dictionary specifications applied during construction.
@@ -239,7 +243,8 @@ public:
     }
 
     // Checks whether the input appears simplified or traditional.
-    // Returns 0 for empty input without calling the C API.
+    // Returns the codes from opencc_zho_check(). Empty input returns 0
+    // without calling the C API.
     [[nodiscard]] int zhoCheck(const std::string_view input) const {
         if (input.empty()) return 0;
         const std::string tmp(input);
@@ -259,14 +264,9 @@ public:
     }
 
     /**
-     * Normalize only curated Unicode compatibility and variant forms.
-     * For example, 聼⽟神 becomes 聽玉神. This is not Unicode NFKC/NFKD;
-     * CJK Compatibility Ideographs are preserved unless explicitly mapped
-     * by the curated table. Use normalizeCompatExtended() for both tables.
-     * Does not convert Simplified/Traditional text or modify this instance.
-     * Returns an empty string for empty input. Native output is released
-     * automatically; native failures return the last error text, matching
-     * the other string transformation helpers.
+     * Applies the curated compatibility table. For example, 聼⽟神 becomes
+     * 聽玉神. Use normalizeCompatExtended() to include the separate CJK
+     * Compatibility Ideograph table.
      */
     [[nodiscard]] std::string normalizeUnicodeCompat(const std::string_view input) const {
         if (input.empty()) return {};

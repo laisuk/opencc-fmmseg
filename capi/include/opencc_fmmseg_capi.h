@@ -1,6 +1,21 @@
 #ifndef OPENCC_FMMSEG_CAPI_H
 #define OPENCC_FMMSEG_CAPI_H
 
+/**
+ * @file
+ * C interface for OpenCC-FMMSEG.
+ *
+ * Keep each instance alive throughout every call that uses it. Read-only
+ * calls can share an instance. Synchronize option changes and destruction
+ * with all calls that access that instance.
+ *
+ * Conversion and normalization calls that return allocated strings can
+ * return an error message through a non-NULL pointer. Check the calling
+ * thread's diagnostic with opencc_last_error() to distinguish it from
+ * converted text. Release every non-NULL result with opencc_string_free()
+ * and release diagnostic copies with opencc_error_free().
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,11 +76,11 @@ enum {
 
     /** Taiwan Traditional → Simplified */
     OPENCC_CONFIG_TW2S = 9,
-    /** Taiwan Traditional → Simplified (variant) */
+    /** Taiwan Traditional → Simplified (with phrases) */
     OPENCC_CONFIG_TW2SP = 10,
     /** Taiwan Traditional → Traditional */
     OPENCC_CONFIG_TW2T = 11,
-    /** Taiwan Traditional → Traditional (variant) */
+    /** Taiwan Traditional → Traditional (with phrases) */
     OPENCC_CONFIG_TW2TP = 12,
 
     /** Hong Kong Traditional → Simplified */
@@ -194,16 +209,16 @@ enum {
     /** Traditional → Simplified punctuation mappings. */
     OPENCC_DICT_SLOT_TS_PUNCTUATIONS = 21,
 
-    /** Small Seal Script → Traditional character mappings. @since v0.13.0 */
+    /** Small Seal Script → regular-script transcriptions. @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_CHARACTERS = 22,
 
-    /** Traditional → Small Seal Script reverse character mappings. @since v0.13.0 */
+    /** Regular-script transcriptions → Small Seal Script. @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_CHARACTERS_REV = 23,
 
-    /** Traditional → Small Seal Script same-character variant mappings. @since v0.13.0 */
+    /** Traditional → regular-script transcriptions (same-character variants). @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_VARIANTS = 24,
 
-    /** Small Seal Script → Traditional reverse variant mappings. @since v0.13.0 */
+    /** Regular-script transcriptions → Traditional (same-character variants). @since v0.13.0 */
     OPENCC_DICT_SLOT_SEAL_VARIANTS_REV = 25
 };
 
@@ -361,10 +376,10 @@ uint32_t opencc_abi_number(void);
 /**
  * Returns the opencc-fmmseg version string (null-terminated UTF-8).
  *
- * Example: `"0.9.1"` or `"0.9.1.1"`.
+ * Format is `major.minor.patch.revision`, for example `"0.13.1.0"`.
  *
- * The returned pointer is valid for the lifetime of the program and MUST NOT
- * be freed by the caller.
+ * The pointer refers to read-only library storage and is valid while the
+ * library is loaded.
  */
 const char* opencc_version_string(void);
 
@@ -375,12 +390,12 @@ const char* opencc_version_string(void);
 /**
  * Creates and initializes a new OpenCC FMMSEG instance.
  *
- * If embedded dictionary initialization fails, the function preserves its
- * fallback behavior and records the exact initialization error in the calling
- * thread's C API last-error state.
+ * If embedded dictionary initialization fails, this returns an instance with
+ * empty dictionaries and records the error on the calling thread. Clear the
+ * diagnostic before construction if you need to detect this fallback.
  *
  * @return
- *     A pointer to a new OpenCC instance, or NULL if allocation fails.
+ *     A pointer to a new OpenCC instance.
  *
  * @ownership
  *     The returned instance must be released using `opencc_delete()`.
@@ -388,25 +403,23 @@ const char* opencc_version_string(void);
 void* opencc_new(void);
 
 /**
- * Creates an immutable OpenCC FMMSEG instance using the embedded dictionaries
+ * Creates an OpenCC FMMSEG instance using the embedded dictionaries
  * plus optional in-memory custom dictionary mappings.
  *
  * Custom mappings are applied during construction only. After this function
  * returns successfully, the resulting OpenCC instance is fully initialized
  * and its conversion dictionaries are immutable.
  *
- * Each specification targets one dictionary slot and uses either append or
- * override mode.
+ * Specifications are applied in array order. Append mode replaces matching
+ * keys, and override mode clears the slot before inserting the new pairs.
  *
  * The constructor copies all specifications, pairs, source strings, and
  * target strings required by the resulting instance. The caller may release
  * or reuse all input memory immediately after this function returns.
  *
- * Empty construction is supported:
- *
- *     opencc_new_custom(NULL, 0)
- *
- * is equivalent to `opencc_new()`.
+ * `opencc_new_custom(NULL, 0)` uses the embedded dictionaries without overlays.
+ * If they fail to load, this constructor returns NULL. Success clears the
+ * calling thread's diagnostic.
  *
  * Invalid argument combinations include:
  *
@@ -425,7 +438,7 @@ void* opencc_new(void);
  *     Number of elements in `specs`.
  *
  * @return
- *     A pointer to a fully initialized immutable OpenCC instance on success.
+ *     A pointer to a fully initialized OpenCC instance on success.
  *
  *     Returns NULL on failure. A human-readable error message can then be
  *     retrieved immediately on the same calling thread using
@@ -513,7 +526,7 @@ void opencc_set_parallel(void* instance, bool is_parallel);
  * @param input
  *     The input UTF-8 string to convert (null-terminated).
  * @param config
- *     The config name (for example `"s2t"` or `"t2s"`).
+ *     An ASCII case-insensitive config name such as `"s2t"` or `"t2s"`.
  * @param punctuation
  *     Whether to convert punctuation (`true` = convert).
  *
@@ -521,13 +534,12 @@ void opencc_set_parallel(void* instance, bool is_parallel);
  *     A newly allocated null-terminated UTF-8 string containing the converted
  *     output. The returned string must be freed using `opencc_string_free()`.
  *
- *     Returns NULL if `instance`, `input`, or `config` is NULL, or if allocation
- *     fails. In those cases the function records a human-readable message for
- *     retrieval on the same calling thread via `opencc_last_error()`.
+ *     Returns NULL if `instance`, `input`, or `config` is NULL.
  *
  *     On UTF-8/config/conversion errors after argument validation, this function
  *     returns an allocated error message string and also stores the same message
- *     for same-thread retrieval via `opencc_last_error()`.
+ *     for same-thread retrieval via `opencc_last_error()`. Success clears the
+ *     diagnostic.
  */
 char* opencc_convert(const void* instance, const char* input, const char* config, bool punctuation);
 
@@ -541,17 +553,17 @@ char* opencc_convert(const void* instance, const char* input, const char* config
  * @param config
  *     The numeric config value (for example `OPENCC_CONFIG_S2TWP`).
  * @param punctuation
- *     Whether to convert punctuation (`true` = convert). Some configs may ignore it.
+ *     Whether to apply the selected mode's punctuation mappings.
  *
  * @return
  *     A newly allocated null-terminated UTF-8 string containing the converted
  *     output. The returned string must be freed using `opencc_string_free()`.
  *
- *     If `config` is invalid, this function still returns a newly allocated
- *     error message string in the form `"Invalid config: <value>"`, and also
- *     stores it for same-thread retrieval via `opencc_last_error()`.
+ *     An invalid config, invalid UTF-8, or an interior NUL in the converted
+ *     output yields an allocated error string and records the message for
+ *     `opencc_last_error()`. Success clears the diagnostic.
  *
- *     Returns NULL only if `instance` or `input` is NULL, or if allocation fails.
+ *     Returns NULL and records a diagnostic if `instance` or `input` is NULL.
  *
  * @since
  *     Available since v0.8.4.
@@ -580,9 +592,10 @@ char* opencc_convert_cfg(const void* instance, const char* input, opencc_config_
  *     A newly allocated null-terminated UTF-8 string containing the converted
  *     output. The returned string must be freed using `opencc_string_free()`.
  *
- *     Returns NULL if `config` is NULL, or if allocation fails. In those cases
- *     the function records a human-readable message for immediate retrieval
- *     via `opencc_last_error()` on the same calling thread.
+ *     A NULL argument or an invalid config or input records a diagnostic.
+ *     The result can be NULL or an allocated error string, depending on the
+ *     validation failure. Release every non-NULL result with
+ *     `opencc_string_free()`. Success clears the diagnostic.
  */
 char* opencc_convert_len(
     const void* instance,
@@ -602,8 +615,9 @@ char* opencc_convert_len(
  * The input buffer does not need to be null-terminated.
  *
  * @return
- *     A newly allocated null-terminated UTF-8 string. The returned string must
- *     be freed using `opencc_string_free()`.
+ *     An allocated result or error string, or NULL on a pointer validation
+ *     failure. See `opencc_convert_len()` for the diagnostic and ownership
+ *     rules.
  */
 char* opencc_convert_cfg_len(
     const void* instance,
@@ -655,7 +669,7 @@ char* opencc_convert_cfg_len(
  * @param config
  *     The numeric config value (for example `OPENCC_CONFIG_S2TWP`).
  * @param punctuation
- *     Whether to convert punctuation (`true` = convert). Some configs may ignore it.
+ *     Whether to apply the selected mode's punctuation mappings.
  * @param out_buf
  *     Output buffer owned by the caller. May be NULL for size-query calls.
  * @param out_cap
@@ -718,7 +732,8 @@ bool opencc_convert_cfg_mem(
  *    `size_t required = 0;`
  *    `bool ok = opencc_convert_cfg_mem_len(inst, bytes, len, cfg, punct, NULL, 0, &required);`
  *
- * 2) Allocate a buffer of size `required`, then call again to write output:
+ * 2) If the query succeeds, allocate a buffer of size `required`, then call
+ *    again to write output. Check the allocation and the write result.
  *
  *    `char* buf = (char*)malloc(required);`
  *    `ok = opencc_convert_cfg_mem_len(inst, bytes, len, cfg, punct, buf, required, &required);`
@@ -728,18 +743,25 @@ bool opencc_convert_cfg_mem(
  * - `*out_required` is always set to the required size in bytes, including the
  *   trailing `'\0'`, even when the function returns `false`, except when
  *   `out_required` itself is NULL.
- * - If this function returns `true`, the output is valid UTF-8 and null-terminated.
+ * - A successful query only writes the size. A successful write produces
+ *   NUL-terminated UTF-8. Both clear the thread-local diagnostic.
+ * - On failure, the required size may describe the error message. A buffer
+ *   large enough to hold that message receives it. If the buffer is too small,
+ *   it is left unchanged and the diagnostic becomes `"Output buffer too small"`.
+ * - The writable output regions must not overlap one another, the input,
+ *   or the instance. The caller owns both output regions.
  *
  * @param instance
  *     A pointer to the OpenCC instance created by `opencc_new()`.
  * @param input
- *     Pointer to the input UTF-8 bytes. The buffer does not need to be null-terminated.
+ *     A non-NULL pointer to readable UTF-8 bytes in one allocation, even
+ *     when `input_len` is zero. No terminating NUL is required.
  * @param input_len
- *     Number of bytes in `input`.
+ *     Number of bytes in `input`, at most `PTRDIFF_MAX`.
  * @param config
  *     The numeric config value (for example `OPENCC_CONFIG_S2TWP`).
  * @param punctuation
- *     Whether to convert punctuation (`true` = convert). Some configs may ignore it.
+ *     Whether to apply the selected mode's punctuation mappings.
  * @param out_buf
  *     Output buffer owned by the caller. May be NULL for size-query calls.
  * @param out_cap
@@ -758,9 +780,8 @@ bool opencc_convert_cfg_mem(
  *     - output contains an interior NUL byte
  *     - `out_cap` is too small when `out_buf` is provided
  *
- * Error behavior and ownership are the same as `opencc_convert_cfg_mem()`,
- * including recording `"Invalid argument: out_required is NULL"` when
- * `out_required` is NULL.
+ * On failure, retrieve the diagnostic on the calling thread with
+ * `opencc_last_error()`.
  *
  * @since
  *     Available since v0.9.1.1.
@@ -792,9 +813,9 @@ bool opencc_convert_cfg_mem_len(
  * @return
  *     A newly allocated null-terminated UTF-8 string on success.
  *
- *     Returns NULL if `instance` or `input` is NULL, or if `input` is not
- *     valid UTF-8. Retrieve the error immediately on the same calling thread
- *     using `opencc_last_error()`.
+ *     Returns NULL for a NULL instance or input. Invalid UTF-8 returns an
+ *     allocated error string. Retrieve the diagnostic with `opencc_last_error()`
+ *     on the same thread. Success clears the diagnostic.
  *
  * @ownership
  *     The returned string must be released using `opencc_string_free()`.
@@ -822,9 +843,9 @@ char* opencc_normalize_compat(
  * @return
  *     A newly allocated null-terminated UTF-8 string on success.
  *
- *     Returns NULL if `instance` or `input` is NULL, or if `input` is not
- *     valid UTF-8. Retrieve the error immediately on the same calling thread
- *     using `opencc_last_error()`.
+ *     Returns NULL for a NULL instance or input. Invalid UTF-8 returns an
+ *     allocated error string. Retrieve the diagnostic with `opencc_last_error()`
+ *     on the same thread. Success clears the diagnostic.
  *
  * @ownership
  *     The returned string must be released using `opencc_string_free()`.
@@ -886,10 +907,10 @@ char *opencc_normalize_unicode_compat(
  * @return
  *     A newly allocated null-terminated UTF-8 string on success.
  *
- *     Returns NULL if an argument is invalid, the input is not valid UTF-8,
- *     or `level` is not a recognized `opencc_detofu_level_t` value. Retrieve
- *     the error immediately on the same calling thread using
- *     `opencc_last_error()`.
+ *     Returns NULL for a NULL instance or input. Invalid UTF-8 or an
+ *     unsupported level returns an allocated error string. Retrieve the
+ *     diagnostic with `opencc_last_error()` on the same thread. Success
+ *     clears the diagnostic.
  *
  * @ownership
  *     The returned string must be released using `opencc_string_free()`.
@@ -917,13 +938,13 @@ char* opencc_detofu(
  *
  * @return
  *     An integer result code:
- *     - `0` = mixed / undetermined
- *     - `1` = Traditional Chinese
- *     - `2` = Simplified Chinese
+ *     - `0` = neither character conversion changes the sample
+ *     - `1` = Traditional-to-Simplified conversion changes the sample
+ *     - `2` = only Simplified-to-Traditional conversion changes the sample
  *     - `-1` = invalid input or NULL pointer
  *
  *     On `-1`, retrieve the error immediately on the same calling thread with
- *     `opencc_last_error()`.
+ *     `opencc_last_error()`. Other results leave the diagnostic unchanged.
  */
 int opencc_zho_check(const void* instance, const char* input);
 
@@ -938,6 +959,7 @@ int opencc_zho_check(const void* instance, const char* input);
  *
  * - `opencc_convert()`
  * - `opencc_convert_cfg()`
+ * - `opencc_convert_len()` and `opencc_convert_cfg_len()`
  * - `opencc_normalize_compat()`
  * - `opencc_normalize_compat_extended()`
  * - `opencc_normalize_unicode_compat()`
@@ -946,7 +968,8 @@ int opencc_zho_check(const void* instance, const char* input);
  * Passing NULL is safe and does nothing.
  *
  * @param ptr
- *     A string pointer returned by one of the functions above.
+ *     The original pointer returned by one of the functions above. Free it
+ *     once and keep its first terminating NUL in place until then.
  */
 void opencc_string_free(char* ptr);
 
@@ -1016,7 +1039,9 @@ void opencc_error_free(char* ptr);
  *     Output pointer that receives the numeric configuration ID on success.
  *
  * @return
- *     `true` on success, `false` on failure.
+ *     `true` on success, `false` for NULL arguments or unknown names.
+ *     Failure leaves `out_id` unchanged. The diagnostic is unchanged on
+ *     either outcome.
  *
  * @since
  *     Available since v0.8.4.
@@ -1027,8 +1052,8 @@ bool opencc_config_name_to_id(const char* name_utf8, opencc_config_t* out_id);
  * Converts a numeric OpenCC configuration ID to its canonical config name.
  *
  * The returned pointer refers to a static null-terminated UTF-8 string and
- * remains valid for the lifetime of the program. The caller must not modify
- * or free it.
+ * remains valid while the library is loaded. The caller must not modify
+ * or free it. This call leaves the diagnostic unchanged.
  *
  * @param id
  *     A numeric OpenCC configuration ID.

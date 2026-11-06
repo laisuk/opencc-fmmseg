@@ -1393,10 +1393,10 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     ///
     /// This is useful after loading built-in data with constructors such as
     /// [`from_zstd`](Self::from_zstd), or after loading external serialized
-    /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor)
-    /// Each spec is
-    /// applied to its selected [`DictSlot`]: append mode merges pairs with
-    /// last-wins semantics, while override mode clears the slot first.
+    /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor).
+    /// Specs are applied in slice order. [`CustomDictMode::Append`] keeps
+    /// existing entries and replaces matching keys. [`CustomDictMode::Override`]
+    /// clears the slot first. For duplicate keys, the last value wins.
     ///
     /// The affected slot metadata and starter indexes are rebuilt during
     /// customization. The returned dictionary is ready for
@@ -1416,11 +1416,11 @@ Generate it via dict-generate or use deserialize_from_cbor(path).",
     /// This is the file-I/O counterpart to [`with_custom_dicts`](Self::with_custom_dicts)
     /// and is useful after loading built-in data with constructors such as
     /// [`from_zstd`](Self::from_zstd), or after loading external serialized
-    /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor)
-    /// Files in each
-    /// [`CustomDictFileSpec`] are read in order, then applied to the selected
-    /// [`DictSlot`]: append mode merges pairs with last-wins semantics, while
-    /// override mode clears the slot first.
+    /// dictionaries with [`deserialize_from_cbor`](Self::deserialize_from_cbor).
+    /// Specs and their files are processed in order. Each spec merges all of
+    /// its files into the selected [`DictSlot`], with the last value winning
+    /// for duplicate keys. [`CustomDictMode::Override`] clears the slot once
+    /// per spec.
     ///
     /// The affected slot metadata and starter indexes are rebuilt during
     /// customization. The returned dictionary is ready for
