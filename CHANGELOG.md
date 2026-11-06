@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.13.1] - Unreleased
+## [0.13.1] - 2026-11-06
 
 ### Added
 
@@ -805,3 +805,34 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Removed
 
 - N/A
+
+---
+
+<!-- Version comparison links -->
+
+[0.13.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/laisuk/opencc-fmmseg/compare/v0.12.1...v0.13.0
+[0.12.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.12.0...v0.12.1
+[0.12.0]: https://github.com/laisuk/opencc-fmmseg/compare/v0.11.5...v0.12.0
+[0.11.5]: https://github.com/laisuk/opencc-fmmseg/compare/v0.11.4...v0.11.5
+[0.11.4]: https://github.com/laisuk/opencc-fmmseg/compare/v0.11.3...v0.11.4
+[0.11.3]: https://github.com/laisuk/opencc-fmmseg/compare/v0.11.2...v0.11.3
+[0.11.2]: https://github.com/laisuk/opencc-fmmseg/compare/v0.11.1...v0.11.2
+[0.11.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.11.0...v0.11.1
+[0.11.0]: https://github.com/laisuk/opencc-fmmseg/compare/v0.10.2...v0.11.0
+[0.10.2]: https://github.com/laisuk/opencc-fmmseg/compare/v0.10.1...v0.10.2
+[0.10.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/laisuk/opencc-fmmseg/compare/v0.9.2...v0.10.0
+[0.9.2]: https://github.com/laisuk/opencc-fmmseg/compare/v0.9.1...v0.9.2
+[0.9.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.9.0...v0.9.1
+[0.9.0]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.5...v0.9.0
+[0.8.5]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.4.2...v0.8.5
+[0.8.4.2]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.4.1...v0.8.4.2
+[0.8.4.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.4...v0.8.4.1
+[0.8.4]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.3...v0.8.4
+[0.8.3]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.2...v0.8.3
+[0.8.2]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/laisuk/opencc-fmmseg/compare/v0.7.1...v0.8.0
+[0.7.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/laisuk/opencc-fmmseg/releases/tag/v0.7.0
