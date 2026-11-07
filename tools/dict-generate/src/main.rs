@@ -17,6 +17,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .about(format!(
             "{BLUE}Dict Generator: Dictionary Artifacts Generator from dictionaries in ./dicts/{RESET}"
         ))
+        .version(env!("OPENCC_CLI_VERSION"))
+        .disable_version_flag(true)
+        .arg(
+            Arg::new("version")
+                .short('v')
+                .long("version")
+                .global(true)
+                .action(clap::ArgAction::Version)
+                .help("Print version information")
+        )
         .after_help(
             "Examples:\n\
          \n\

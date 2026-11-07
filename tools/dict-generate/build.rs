@@ -1,4 +1,43 @@
+fn read_capi_revision() -> u16 {
+    use std::{env, fs, path::Path};
+    use toml::Value;
+
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR missing");
+    let toml_path = Path::new(&manifest_dir).join("Cargo.toml");
+
+    let text = fs::read_to_string(&toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", toml_path.display()));
+    let value: Value = text
+        .parse::<Value>()
+        .unwrap_or_else(|e| panic!("Failed to parse Cargo.toml as TOML: {e}"));
+
+    let rev_i64 = value
+        .get("package")
+        .and_then(|v| v.get("metadata"))
+        .and_then(|v| v.get("capi"))
+        .and_then(|v| v.get("revision"))
+        .and_then(|v| v.as_integer())
+        .unwrap_or(0);
+
+    if !(0..=(u16::MAX as i64)).contains(&rev_i64) {
+        panic!(
+            "[package.metadata.capi] revision out of range for u16: {rev_i64} (must be 0..={})",
+            u16::MAX
+        );
+    }
+
+    rev_i64 as u16
+}
+
 fn main() {
+    println!("cargo:rerun-if-changed=Cargo.toml");
+    let revision = read_capi_revision();
+    println!(
+        "cargo:rustc-env=OPENCC_CLI_VERSION={}.{}",
+        env!("CARGO_PKG_VERSION"),
+        revision
+    );
+    
     #[cfg(target_os = "windows")]
     {
         println!("cargo:rerun-if-changed=assets/icon.ico");

@@ -241,6 +241,7 @@ dependencies = [
  "opencc-tool-common",
  "serde",
  "serde_json",
+ "toml 0.8.23",
  "winres",
 ]
 
@@ -616,6 +617,7 @@ dependencies = [
  "opencc-fmmseg",
  "opencc-tool-common",
  "regex",
+ "toml 0.8.23",
  "winres",
 ]
 

@@ -6,6 +6,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.13.2] - Unreleased
+
+### Changed
+
+- Updated dictionary data.
+- CLI: added `-v/--version` flags.
+
+---
+
 ## [0.13.1] - 2026-11-06
 
 ### Added
@@ -810,6 +819,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 <!-- Version comparison links -->
 
+[0.13.2]: https://github.com/laisuk/opencc-fmmseg/compare/v0.13.1...HEAD
 [0.13.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.13.0...HEAD
 [0.13.0]: https://github.com/laisuk/opencc-fmmseg/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/laisuk/opencc-fmmseg/compare/v0.12.0...v0.12.1

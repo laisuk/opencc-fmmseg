@@ -3,6 +3,9 @@ name = "dict-generate"
 version = "0.13.1"
 edition = "2021"
 
+[package.metadata.capi]
+revision = 1
+
 [dependencies]
 #opencc-fmmseg = { path = "../.." }
 opencc-fmmseg = { path = "../..", features = ["dictionary-build"] }
@@ -15,4 +18,7 @@ serde_json = "1.0"
 clap_lex = "=1.0"
 
 [build-dependencies]
+toml = "=0.8"
+
+[target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

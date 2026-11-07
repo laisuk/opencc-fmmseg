@@ -38,6 +38,15 @@ fn main() {
 fn build_cli() -> Command {
     Command::new("opencc-rs")
         .about("OpenCC Rust: Command Line Open Chinese Converter")
+        .version(env!("OPENCC_CLI_VERSION"))
+        .disable_version_flag(true)
+        .arg(
+            Arg::new("version")
+                .short('v')
+                .long("version")
+                .action(clap::ArgAction::Version)
+                .help("Print version information")
+        )
         .subcommand_required(true)
         .arg_required_else_help(true)
         .subcommand(
