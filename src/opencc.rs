@@ -303,7 +303,7 @@ impl OpenCC {
     /// If `self.is_parallel` is `true`:
     /// - Input chars are collected using a parallel iterator.
     /// - Each segment is converted in parallel (`into_par_iter()`).
-    /// This can significantly improve throughput on large inputs with many segments.
+    ///   This can significantly improve throughput on large inputs with many segments.
     ///
     /// # Behavior
     /// - Delimiters are **not transformed**; they are preserved exactly.
@@ -355,7 +355,7 @@ impl OpenCC {
             // Build delimiter-safe ranges (no cross-phrase splits)
             let ranges = self.get_chars_range(&chars, true, self.is_preserve_ids);
             let desired_chunks = threads * 6;
-            let chunk_ranges = (ranges.len() / desired_chunks).max(128).min(2048);
+            let chunk_ranges = (ranges.len() / desired_chunks).clamp(128, 2048);
 
             // Small-input guard: fall back to serial if we'd get ≤ 1 chunk anyway
             if ranges.len() <= chunk_ranges {

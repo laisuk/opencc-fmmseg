@@ -250,7 +250,7 @@ fn investigate() {
     });
     bench("clear_last_error", 11, OpenCC::clear_last_error);
     for target in [11usize, 100, 1000, 10_000, 100_000, 1_000_000] {
-        let input = SAMPLE.repeat((target + 10) / 11);
+        let input = SAMPLE.repeat(target.div_ceil(11));
         let n = input.chars().count();
         let mid = cc.segment_replace_with_union(&input, &seal, 1, &us);
         let expected = cc.seal2t(&input, false);
@@ -367,13 +367,12 @@ fn investigate() {
     }
     cc.set_parallel(true);
     for target in [11usize, 100, 1000, 10_000, 100_000, 1_000_000] {
-        let input = SAMPLE.repeat((target + 10) / 11);
+        let input = SAMPLE.repeat(target.div_ceil(11));
         let n = input.chars().count();
         let chars: Vec<_> = input.chars().collect();
         let ranges = cc.get_chars_range(&chars, true, false);
         let chunk = (ranges.len() / (rayon::current_num_threads() * 6))
-            .max(128)
-            .min(2048);
+            .clamp(128, 2048);
         println!(
             "PARALLEL,scalars={n},ranges={},chunk={chunk},uses_rayon={}",
             ranges.len(),
@@ -469,7 +468,7 @@ fn cold_and_diverse() {
     // substituted into production; all sample-size outputs are checked first.
     assert_eq!(d.seal_variants_rev.max_len, 1);
     for target in [11usize, 100, 1000, 10_000, 100_000, 1_000_000] {
-        let input = SAMPLE.repeat((target + 10) / 11);
+        let input = SAMPLE.repeat(target.div_ceil(11));
         let n = input.chars().count();
         assert_eq!(
             scalar(&scalar(&input, seal[0]), &d.seal_variants_rev),

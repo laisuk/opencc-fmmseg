@@ -16,7 +16,6 @@ authors = ["Laisuk Lai <laisuk@yahoo.com>"]
 description = "High-performance Chinese conversion library (Simplified ↔ Traditional) using OpenCC lexicons and FMM segmentation — no runtime I/O, cross-platform, and production-ready."
 license = "MIT"
 repository = "https://github.com/laisuk/opencc-fmmseg"
-homepage = "https://github.com/laisuk/opencc-fmmseg"
 documentation = "https://docs.rs/opencc-fmmseg"
 readme = "README.md"
 keywords = ["opencc", "chinese", "nlp", "text-processing", "unicode"]
