@@ -233,7 +233,7 @@ checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
 name = "dict-generate"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "clap",
  "clap_lex",
@@ -571,7 +571,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "opencc-clip"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "clap",
  "clap_lex",
@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-fmmseg"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "rayon",
  "rayon-core",
@@ -595,7 +595,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-fmmseg-capi"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "opencc-fmmseg",
  "toml 0.8.23",
@@ -604,7 +604,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-rs"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "clap",
  "clap_lex",
@@ -623,7 +623,7 @@ dependencies = [
 
 [[package]]
 name = "opencc-tool-common"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "opencc-fmmseg",
 ]
