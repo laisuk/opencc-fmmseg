@@ -1,7 +1,3 @@
-##########################################################
-# Author: Bryan Lai
-# January, 2024
-##########################################################
-from .opencc_fmmseg import OpenCC
+from .opencc_fmmseg import OpenCC, CustomDictSpec, CustomDictFileSpec
 
-__all__ = ["OpenCC"]
+__all__ = ["OpenCC", "CustomDictSpec", "CustomDictFileSpec"]

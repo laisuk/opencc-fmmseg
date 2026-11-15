@@ -575,7 +575,7 @@ impl DictMaxLen {
     ///    from the mask’s max bit (up to 64).
     /// 3. **Fallback:** if [`Self::starter_len_mask`] is empty, scan all keys in [`Self::map`]
     ///    once, setting the appropriate bit in [`Self::first_len_mask64`] (collapsing
-    ///    `len >= 64` to bit 63) and updating [`Self::first_char_max_len`] with the true
+    ///    `len >= 64` to bit 63); and updating [`Self::first_char_max_len`] with the true
     ///    maximum length seen for that starter.
     /// 4. Non-BMP starters (`u > 0xFFFF`) are ignored here (dense tables are BMP-only).
     ///
