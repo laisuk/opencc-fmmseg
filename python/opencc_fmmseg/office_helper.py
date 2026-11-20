@@ -60,7 +60,7 @@ def convert_office_doc(
     """
     Convert an Office or EPUB package with a caller-supplied text transformer.
 
-    The document layer is independent of any specific OpenCC implementation.
+    The document layer is independent of any specific `OpenCC` implementation.
     ``office_text_converter`` is invoked only for selected text-bearing package
     content. Package structure, archive handling, format-specific part selection,
     XLSX inline-string rules, optional font preservation, EPUB conformance, and

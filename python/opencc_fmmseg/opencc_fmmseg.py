@@ -13,7 +13,7 @@ class _CustomDictSpecRequired(TypedDict):
 
 
 class CustomDictSpec(_CustomDictSpecRequired, total=False):
-    """In-memory OpenCC replacements for one dictionary slot.
+    """In-memory `OpenCC` replacements for one dictionary slot.
 
     Required keys are ``slot`` (see ``OpenCC.available_slots()``) and ``pairs``
     (a list of source/target string tuples). Optional ``mode`` is ``"append"``
@@ -29,7 +29,7 @@ class _CustomDictFileSpecRequired(TypedDict):
 
 
 class CustomDictFileSpec(_CustomDictFileSpecRequired, total=False):
-    """UTF-8 OpenCC mapping files to load into one dictionary slot.
+    """UTF-8 `OpenCC` mapping files to load into one dictionary slot.
 
     Required keys are ``slot`` and ``files`` (a list of paths). Each file uses
     ``source<TAB>target`` lines, with an actual tab between the fields.
@@ -60,7 +60,7 @@ def _utf8(value: str) -> bytes:
 _SLOTS = 'STCharacters STPhrases TSCharacters TSPhrases TWPhrases TWPhrasesRev HKPhrases HKPhrasesRev TWVariants TWVariantsPhrases TWVariantsRev TWVariantsRevPhrases HKVariants HKVariantsPhrases HKVariantsRev HKVariantsRevPhrases JPSCharacters JPSCharactersRev JPSPhrases STPunctuations TSPunctuations SealCharacters SealCharactersRev SealVariants SealVariantsRev'.split()
 
 class OpenCC:
-    """Convert Chinese text with optional OpenCC mapping overlays.
+    """Convert Chinese text with optional `OpenCC` mapping overlays.
 
     Synchronize dictionary rebuilds, option changes, and close with other calls.
     """

@@ -23,7 +23,7 @@ File specs use slot, files, and optional mode; UTF-8 files contain
 source<TAB>target lines. The first target is used for alternative targets.
 The parallel property controls native parallel conversion.
 
-Names are case insensitive. Invalid constructor configs fall back to s2t;
+Names are case-insensitive. Invalid constructor configs fall back to s2t;
 config assignment, apply_config, and set_config validate names. Embedded NUL
 input is rejected. Native failures raise exceptions. Use close() or a context
 manager to release instances. Synchronize dictionary rebuilds, option changes,
@@ -37,7 +37,7 @@ python -m opencc_fmmseg office -c s2twp -i input.epub -F
 ```
 
 The CLI supports normalization (-n/-E), DeTofu (--detofu, --detofu-file), custom
-OpenCC mapping files (-D), and text stdin/stdout and encodings. Office formats
+`OpenCC` mapping files (-D), and text stdin/stdout and encodings. Office formats
 are DOCX, XLSX, PPTX, ODT, ODS, ODP, and EPUB. -F converts the default output
 filename stem; -k preserves recognized fonts. Input/output aliases are rejected.
 
