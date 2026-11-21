@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - Updated dictionary data.
 - CLI: added `-v/--version` flags.
+- Updated local Python package aligned with current C API features.
 
 ---
 

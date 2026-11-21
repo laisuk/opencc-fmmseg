@@ -4,7 +4,7 @@ version = "0.13.2"
 edition = "2021"
 
 [package.metadata.capi]
-revision = 1
+revision = 0
 
 [dependencies]
 #opencc-fmmseg = { path = "../.." }
