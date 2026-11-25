@@ -7,8 +7,8 @@ different terms. The following notices are provided for attribution and license 
 
 ## 1) Open Chinese Convert (OpenCC) — Dictionaries & Configs
 
-**Component:** OpenCC lexicon files, including Seal-script conversion dictionaries and configs  
-**Upstream:** Open Chinese Convert (OpenCC)  
+**Component:** `OpenCC` lexicon files, including Seal-script conversion dictionaries and configs  
+**Upstream:** Open Chinese Convert (`OpenCC`)  
 **License:** **Apache License 2.0**  
 **Files in this distribution:** `dicts/` (and any derived packs generated from these dictionaries)  
 **License files included:**
@@ -16,21 +16,21 @@ different terms. The following notices are provided for attribution and license 
 - `dicts/LICENSE` (Apache-2.0, copied from upstream)
 
 **Attribution:**  
-Copyright © OpenCC contributors
+Copyright © `OpenCC` contributors
 
 **Modifications (if any):**
 
 - We may repackage, filter, merge, or precompile dictionary content (e.g., CBOR/Zstd/“dict packs”) for performance.
-- This distribution includes OpenCC Seal-script conversion data where available; derived dictionary packs may contain
+- This distribution includes `OpenCC` Seal-script conversion data where available; derived dictionary packs may contain
   these mappings.
 - We do **not** change the license on these files; they remain **Apache-2.0**.
 - A summary of our changes (if applicable) is recorded in `dicts/CHANGES.md`.
 
 **Notes on usage:**
 
-- The OpenCC lexicon, including its Seal-script mappings, is treated as the canonical linguistic source for the
+- The `OpenCC` lexicon, including its Seal-script mappings, is treated as the canonical linguistic source for the
   corresponding conversion data.
-- Any artifacts derived directly from the OpenCC lexicon (e.g., compiled packs) are considered derivative and are
+- Any artifacts derived directly from the `OpenCC` lexicon (e.g., compiled packs) are considered derivative and are
   distributed together with the Apache-2.0 license and notices.
 
 ---
@@ -38,15 +38,16 @@ Copyright © OpenCC contributors
 ## 2) Project License Clarification
 
 - **Our source code:** MIT License (see `LICENSE` in the repository root).
-- **Bundled OpenCC lexicon (and derivatives):** Apache License 2.0 (see `dicts/LICENSE`, and `dicts/NOTICE` if present).
+- **Bundled `OpenCC` lexicon (and derivatives):** Apache License 2.0 (see `dicts/LICENSE`, and `dicts/NOTICE` if present).
 - These licenses apply to their respective components: MIT to this project's source code, and Apache-2.0 to the bundled
-  OpenCC lexicon and its derivatives.
+  `OpenCC` lexicon and its derivatives.
 
 ---
 
 ## 3) ruzstd — Vendored Zstandard Decoder
 
-**Component:** Decoder-only adaptation of ruzstd 0.9.0
+**Component:** Decoder-only adaptation of ruzstd 0.9.0 with selected v0.9.1
+and subsequent decoder fixes documented in [the vendor notice](src/zstd/NOTICE.md).
 
 **Upstream:** [zstd-rs](https://github.com/KillingSpark/zstd-rs), Moritz Borcherding and contributors
 

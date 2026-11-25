@@ -125,7 +125,11 @@ fn dictionary_ids_and_window_limit() {
         Err(FrameDecoderError::DictNotProvided { dict_id: 7 })
     ));
 
-    let large_window = [0x28, 0xb5, 0x2f, 0xfd, 0, 17 << 3];
+    let mut max_window = window_frame(17 << 3);
+    append_block(&mut max_window, 0, 2, true, b"ok");
+    assert_eq!(decompress(&max_window).unwrap(), b"ok");
+
+    let large_window = [0x28, 0xb5, 0x2f, 0xfd, 0, (17 << 3) | 1];
     assert!(matches!(
         decompress(&large_window),
         Err(FrameDecoderError::WindowSizeTooBig { .. })
@@ -207,4 +211,95 @@ fn fcs_remains_a_capacity_hint() {
         frame[5] = declared;
         assert_eq!(decompress(&frame).unwrap(), b"actual output");
     }
+}
+
+fn window_frame(descriptor: u8) -> Vec<u8> {
+    vec![0x28, 0xb5, 0x2f, 0xfd, 0, descriptor]
+}
+
+fn append_block(frame: &mut Vec<u8>, kind: u32, size: u32, last: bool, body: &[u8]) {
+    let header = (size << 3) | (kind << 1) | u32::from(last);
+    frame.extend_from_slice(&header.to_le_bytes()[..3]);
+    frame.extend_from_slice(body);
+}
+
+#[test]
+fn block_bodies_are_bounded_by_explicit_window_before_reading() {
+    use zstd::decoding::errors::{DecodeBlockContentError, DecompressBlockError};
+    for kind in 0..=2 {
+        let mut frame = window_frame(0);
+        append_block(&mut frame, kind, 1025, true, b"");
+        assert!(matches!(
+            decompress(&frame),
+            Err(FrameDecoderError::FailedToReadBlockBody(
+                DecodeBlockContentError::DecompressBlockError(
+                    DecompressBlockError::BlockSizeLimitExceeded {
+                        size: 1025,
+                        max: 1024
+                    }
+                )
+            ))
+        ));
+    }
+}
+
+// RLE literals fixture encoding adapted from ruzstd commit 91a3a6eb (MIT).
+fn compressed_rle_literals(size: u32, sequences: &[u8]) -> Vec<u8> {
+    let header = (size << 4) | 0x0d;
+    let mut body = header.to_le_bytes()[..3].to_vec();
+    body.push(b'x');
+    body.extend_from_slice(sequences);
+    body
+}
+
+#[test]
+fn compressed_literals_without_sequences_obey_block_limit() {
+    use zstd::decoding::errors::{DecodeBlockContentError, DecompressBlockError};
+    let decode = |size| {
+        let mut frame = window_frame(0);
+        let body = compressed_rle_literals(size, &[0]);
+        append_block(&mut frame, 2, body.len() as u32, true, &body);
+        decompress(&frame)
+    };
+    assert_eq!(decode(1024).unwrap(), vec![b'x'; 1024]);
+    assert!(matches!(
+        decode(1025),
+        Err(FrameDecoderError::FailedToReadBlockBody(
+            DecodeBlockContentError::DecompressBlockError(
+                DecompressBlockError::BlockSizeLimitExceeded {
+                    size: 1025,
+                    max: 1024
+                }
+            )
+        ))
+    ));
+}
+
+#[test]
+fn trailing_literals_count_toward_block_limit() {
+    use zstd::decoding::errors::{
+        DecodeBlockContentError, DecompressBlockError, ExecuteSequencesError,
+    };
+    let decode = |size| {
+        let mut frame = window_frame(0);
+        append_block(&mut frame, 0, 4, false, b"abcd");
+        // Adapted from ruzstd commit 91a3a6eb (MIT). One match of length
+        // three at offset four, leaving all literals to be appended last.
+        let body = compressed_rle_literals(size, &[1, 0x54, 0, 0, 0, 1]);
+        append_block(&mut frame, 2, body.len() as u32, true, &body);
+        decompress(&frame)
+    };
+    let mut expected = b"abcdabc".to_vec();
+    expected.extend_from_slice(&[b'x'; 1021]);
+    assert_eq!(decode(1021).unwrap(), expected);
+    assert!(matches!(
+        decode(1022),
+        Err(FrameDecoderError::FailedToReadBlockBody(
+            DecodeBlockContentError::DecompressBlockError(
+                DecompressBlockError::ExecuteSequencesError(
+                    ExecuteSequencesError::BlockSizeLimitExceeded { max: 1024 }
+                )
+            )
+        ))
+    ));
 }
