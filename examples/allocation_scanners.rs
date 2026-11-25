@@ -11,7 +11,7 @@ mod unicode_compat;
 
 use std::{borrow::Cow, hint::black_box, time::Instant};
 
-fn prescan<'a>(input: &'a str, map: impl Fn(char) -> char) -> Cow<'a, str> {
+fn prescan(input: &str, map: impl Fn(char) -> char) -> Cow<'_, str> {
     if !input.chars().any(|ch| map(ch) != ch) {
         return Cow::Borrowed(input);
     }
@@ -22,7 +22,7 @@ fn prescan<'a>(input: &'a str, map: impl Fn(char) -> char) -> Cow<'a, str> {
     Cow::Owned(output)
 }
 
-fn complete_scan<'a>(input: &'a str, map: impl Fn(char) -> char) -> Cow<'a, str> {
+fn complete_scan(input: &str, map: impl Fn(char) -> char) -> Cow<'_, str> {
     let changes = input.chars().filter(|&ch| map(ch) != ch).count();
     if changes == 0 {
         return Cow::Borrowed(input);
