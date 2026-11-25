@@ -11,8 +11,26 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Updated dictionary data.
-- CLI: added `-v/--version` flags.
-- Updated local Python package aligned with current C API features.
+- CLI: added `-v` / `--version` flags.
+- Updated the local Python package to align with current C API features.
+
+### Fixed
+
+- Backported selected decoder improvements from ruzstd v0.9.1 and
+  subsequent upstream safety fixes into the vendored decoder.
+    - Increased the maximum supported Zstandard window size to 128 MiB
+      while retaining lazy history allocation.
+    - Improved ring buffer growth and memory management.
+    - Enforced block size limits for compressed data, regenerated literals,
+      and sequence output.
+    - Hardened repeat-offset arithmetic and rejected reserved sequence
+      compression mode bits.
+    - Preserved frame content size (FCS) tolerance, direct output collection,
+      and decoder-only architecture.
+    - Retained Rust 1.75 MSRV without introducing new dependencies.
+- Expanded Zstandard decoder regression tests and verified byte-for-byte
+  equivalence of the decompressed embedded dictionary.
+- Updated vendor documentation and third-party attribution.
 
 ---
 
