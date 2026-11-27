@@ -68,7 +68,7 @@ include/ # C API header + C++ helper header
 ## ✨ Features
 
 - 📦 **Unified CLI & Library** — Convert between Simplified and Traditional Chinese via a single, consistent interface.
-- 🔍 **Lexicon-driven segmentation** — Uses OpenCC dictionaries with maximum-matching (FMM) and phrase-level masking for
+- 🔍 **Lexicon-driven segmentation** — Uses `OpenCC` dictionaries with maximum-matching (FMM) and phrase-level masking for
   accurate linguistic conversion.
 - ⚡ **High performance** — Optimized with **Rayon parallelism**, private bit-mask gating, and zero-copy string views for
   near-native throughput.
@@ -86,16 +86,30 @@ include/ # C API header + C++ helper header
 
 Try **opencc-fmmseg** directly in your browser:
 
-👉 **[Open CJK Conversion Tool](https://laisuk.github.io/opencc-fmmseg-wasm)**
+👉 **[Open CJK Conversion Tool](https://laisuk.github.io/opencc-fmmseg-wasm/)**
 
-Convert Simplified/Traditional Chinese text interactively, or process TXT, DOCX, XLSX, PPTX, and EPUB documents directly
-in the browser.
+Convert Simplified/Traditional Chinese text interactively with support for multiple conversion configurations, custom
+dictionaries, Unicode compatibility normalization, and DeTofu processing.
 
-Files are processed locally with WebAssembly and are not uploaded to a server.
+The browser demo also supports:
 
-The demo is powered by
-[`opencc-fmmseg-wasm`](https://github.com/laisuk/opencc-fmmseg-wasm), which uses `opencc-fmmseg` as its conversion
-backend.
+- **Document conversion:** Convert TXT, Markdown, DOCX, XLSX, PPTX, ODT, ODS, ODP, and EPUB files while preserving
+  supported document structures and formatting.
+- **Text extraction:** Extract text from EPUB, DOCX, ODT, and PDF files directly into the editor for further Chinese
+  conversion.
+- **PDF processing:** Extract PDF text using PDFium, with optional CJK paragraph reflow, page headers, custom heading
+  patterns, and untrusted text filtering.
+- **PDF-to-TXT conversion:** Drop a PDF into the document conversion area to extract its text, apply `OpenCC` conversion,
+  and download the result as UTF-8 TXT.
+- **Encoding detection:** Automatically detect common CJK text encodings, including UTF-8, UTF-16, GB18030, Big5, and
+  Shift-JIS.
+
+All processing runs **locally in your browser using WebAssembly**. Files are never uploaded to a server. PDFium and
+document extraction components are loaded on demand.
+
+The demo is powered by [`opencc-fmmseg-wasm`](https://github.com/laisuk/opencc-fmmseg-wasm), which uses `opencc-fmmseg`
+as its Chinese conversion backend, alongside reusable Rust document extraction helpers and PDFium for PDF text
+extraction.
 
 ---
 
@@ -342,7 +356,7 @@ The extended example includes Tests 5–8 and demonstrates the newer APIs and co
 
 ## Unicode compatibility normalization
 
-`opencc-fmmseg` provides optional Unicode compatibility normalization as a **pre-processing** step before OpenCC
+`opencc-fmmseg` provides optional Unicode compatibility normalization as a **pre-processing** step before `OpenCC`
 segmentation and conversion. This is useful for legacy text, extracted PDF/document text, and other input that may
 contain compatibility or presentation-oriented Unicode forms.
 
@@ -437,7 +451,7 @@ fn main() {
 ```
 
 All curated extended mappings are one Unicode scalar value to one Unicode scalar value. Unmapped characters are
-preserved unchanged. These APIs are independent of OpenCC conversion dictionaries, segmentation, regional variants, IDS
+preserved unchanged. These APIs are independent of `OpenCC` conversion dictionaries, segmentation, regional variants, IDS
 handling, script detection, and punctuation conversion.
 
 Compatibility normalization remains optional because it changes Unicode code points and some callers need exact
@@ -496,7 +510,7 @@ runs between normalization and DeTofu. Existing Rust signatures and the C ABI ar
 DeTofu is an optional post-conversion display-compatibility pass for rare CJK extension characters that may render as
 tofu boxes on some systems, fonts, browsers, document viewers, mobile devices, or e-book readers.
 
-This is an advanced compatibility feature rather than common OpenCC conversion usage. See the
+This is an advanced compatibility feature rather than common `OpenCC` conversion usage. See the
 [DeTofu User Guide](DETOFU_USER_GUIDE.md) for Rust APIs, threshold behavior, custom fallback pairs, and custom fallback
 files.
 
@@ -660,7 +674,7 @@ Last Error: No error
     - Returns `"No error"` if no error is recorded for that thread.
     - The returned string must always be freed with `opencc_error_free()`.
 
-- `opencc_delete(...)` destroys the OpenCC instance and frees its resources.
+- `opencc_delete(...)` destroys the `OpenCC` instance and frees its resources.
 
 - `opencc_zho_check(...)` detects the script of the input text:
     - `1` = Traditional Chinese
@@ -819,7 +833,7 @@ Example `my_hk_dict.txt`:
 By default, it uses bundled OpenCC-compatible lexicons embedded as Zstd, with no runtime dictionary I/O. You can also
 provide your own lexicon dictionary generated by the `dict-generate` CLI tool.
 
-For advanced custom dictionaries, `DictionaryMaxlength` supports pair-based and OpenCC plaintext file injection,
+For advanced custom dictionaries, `DictionaryMaxlength` supports pair-based and `OpenCC` plaintext file injection,
 append/override merge modes, alternate dictionary base directories, and direct `OpenCC::from_dictionary()` construction.
 Public `DictSlot` customization includes regional phrase slots such as `HKPhrases` and `HKPhrasesRev`, Japanese
 Shinjitai slots exposed as `JPSCharacters`, `JPSCharactersRev`, and `JPSPhrases`, plus phrase-variant slots such as
@@ -834,7 +848,7 @@ the [Custom Dictionary User Guide](CUSTOM_DICT_USER_GUIDE.md).
 - `src/lib.rs` – Main library with segmentation logic.
 - `capi/opencc-fmmseg-capi` C API source and demo.
 - `tools/opencc-rs/src/main.rs` – CLI tool (`opencc-rs`) implementation.
-- `dicts/` – OpenCC text lexicons which converted into Zstd compressed CBOR format.
+- `dicts/` – `OpenCC` text lexicons which converted into Zstd compressed CBOR format.
 
 ## 🛠 Built With
 
@@ -905,7 +919,7 @@ continues to deliver stable near-linear scaling across large text corpora.
 - MIT License.
 - © Laisuk Lai.
 - See [LICENSE](./LICENSE) for details.
-- See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for bundled OpenCC lexicons (_Apache License 2.0_).
+- See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for bundled `OpenCC` lexicons (_Apache License 2.0_).
 
 ## 💬 Feedback / Contributions
 
